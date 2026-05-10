@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf Desk API</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page-shell">
+    <section class="hero">
+        <div>
+            <p class="eyebrow">Golf Desk API</p>
+            <h1>Gestao do campo de golfe</h1>
+            <p class="hero-copy">
+                Painel inicial para consumir sua API Spring Boot e gerenciar players, tee times e bookings.
+            </p>
+        </div>
+        <div class="hero-badge">
+            <span class="badge-label">API</span>
+            <strong id="api-status">Verificando conexao...</strong>
+        </div>
+    </section>
+
+    <nav class="entity-tabs" aria-label="Navegacao principal">
+        <button class="tab-button active" type="button" data-view="players">Players</button>
+        <button class="tab-button" type="button" data-view="agenda">Agenda</button>
+    </nav>
+
+    <section id="players-view" class="content-grid entity-view">
+        <article class="panel form-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Cadastro</p>
+                    <h2 id="form-title">Novo player</h2>
+                </div>
+                <button id="clear-button" class="ghost-button" type="button">Limpar</button>
+            </div>
+
+            <form id="player-form" class="player-form">
+                <input id="player-id" type="hidden">
+
+                <label>
+                    <span>Nome completo</span>
+                    <input id="fullName" name="fullName" type="text" maxlength="50" required>
+                </label>
+
+                <label>
+                    <span>Codigo fiscal</span>
+                    <input id="taxNumber" name="taxNumber" type="text" maxlength="50" required>
+                </label>
+
+                <label>
+                    <span>Email</span>
+                    <input id="email" name="email" type="email" maxlength="50" required>
+                </label>
+
+                <label>
+                    <span>Telefone</span>
+                    <input id="phone" name="phone" type="text" maxlength="50" required>
+                </label>
+
+                <label>
+                    <span>Handicap</span>
+                    <input id="handCap" name="handCap" type="text" maxlength="50" required>
+                </label>
+
+                <label class="checkbox-field">
+                    <input id="member" name="member" type="checkbox">
+                    <span>Jogador membro</span>
+                </label>
+
+                <label>
+                    <span>Observacoes</span>
+                    <textarea id="notes" name="notes" rows="4" maxlength="100" placeholder="Ex.: prefere tee matinal, possui equipamento proprio..."></textarea>
+                </label>
+
+                <div class="form-actions">
+                    <button class="primary-button" type="submit">Salvar player</button>
+                </div>
+            </form>
+        </article>
+
+        <article class="panel list-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Listagem</p>
+                    <h2>Players cadastrados</h2>
+                </div>
+                <div class="toolbar">
+                    <input id="search-id-input" type="number" min="1" step="1" placeholder="Buscar por id">
+                    <button id="search-id-button" class="ghost-button" type="button">Buscar ID</button>
+                    <button id="find-all-button" class="ghost-button" type="button">Listar todos</button>
+                    <span id="player-count" class="count-badge">0 players</span>
+                </div>
+            </div>
+
+            <p id="feedback" class="feedback" aria-live="polite"></p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Fiscal</th>
+                        <th>Contato</th>
+                        <th>Handicap</th>
+                        <th>Membro</th>
+                        <th>Acoes</th>
+                    </tr>
+                    </thead>
+                    <tbody id="players-table-body">
+                    <tr>
+                        <td colspan="6" class="empty-state">Use "Listar todos" ou "Buscar ID" para consultar a API.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+    <section id="agenda-view" class="agenda-view entity-view is-hidden" hidden>
+        <section class="panel daily-agenda-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Agenda do dia</p>
+                    <h2 id="agenda-day-title">Agenda diaria</h2>
+                </div>
+                <div class="toolbar">
+                    <input id="agenda-date-input" type="date" aria-label="Data da agenda">
+                    <button id="agenda-today-button" class="ghost-button" type="button">Hoje</button>
+                    <button id="agenda-refresh-button" class="ghost-button" type="button">Atualizar agenda</button>
+                </div>
+            </div>
+
+            <p id="agenda-feedback" class="feedback" aria-live="polite"></p>
+
+            <div id="agenda-slots-grid" class="agenda-slots-grid">
+                <div class="empty-state">Abra a aba Agenda para carregar os horarios do dia.</div>
+            </div>
+        </section>
+
+    <section id="tee-times-view" class="content-grid agenda-section">
+        <article class="panel form-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Agenda</p>
+                    <h2 id="tee-time-form-title">Novo tee time</h2>
+                </div>
+                <button id="tee-time-clear-button" class="ghost-button" type="button">Limpar</button>
+            </div>
+
+            <form id="tee-time-form" class="player-form">
+                <input id="tee-time-id" type="hidden">
+
+                <label>
+                    <span>Data do jogo</span>
+                    <input id="playDate" name="playDate" type="date" required>
+                </label>
+
+                <label>
+                    <span>Horario inicial</span>
+                    <input id="startTime" name="startTime" type="time" required>
+                </label>
+
+                <label>
+                    <span>Maximo de jogadores</span>
+                    <input id="maxPlayers" name="maxPlayers" type="number" min="1" step="1" value="4" required>
+                </label>
+
+                <label>
+                    <span>Jogadores reservados</span>
+                    <input id="bookedPlayers" name="bookedPlayers" type="number" min="0" step="1" value="0" required>
+                </label>
+
+                <label>
+                    <span>Status</span>
+                    <select id="teeTimeStatus" name="status" required>
+                        <option value="AVAILABLE">AVAILABLE</option>
+                        <option value="BOOKED">BOOKED</option>
+                        <option value="FULL">FULL</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Green fee base</span>
+                    <input id="baseGreenFee" name="baseGreenFee" type="number" min="0" step="0.01" value="0.00" readonly required>
+                </label>
+
+                <div class="form-actions">
+                    <button class="primary-button" type="submit">Salvar tee time</button>
+                </div>
+            </form>
+        </article>
+
+        <article class="panel list-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Agenda</p>
+                    <h2>Tee times cadastrados</h2>
+                </div>
+                <div class="toolbar">
+                    <input id="tee-time-search-id-input" type="number" min="1" step="1" placeholder="Buscar por id">
+                    <button id="tee-time-search-id-button" class="ghost-button" type="button">Buscar ID</button>
+                    <button id="tee-time-find-all-button" class="ghost-button" type="button">Listar todos</button>
+                    <span id="tee-time-count" class="count-badge">0 tee times</span>
+                </div>
+            </div>
+
+            <p id="tee-time-feedback" class="feedback" aria-live="polite"></p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Horario</th>
+                        <th>Ocupacao</th>
+                        <th>Status</th>
+                        <th>Green fee</th>
+                        <th>Acoes</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tee-times-table-body">
+                    <tr>
+                        <td colspan="6" class="empty-state">Use "Listar todos" ou "Buscar ID" para consultar a agenda.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+    <section id="bookings-view" class="content-grid agenda-section">
+        <article class="panel form-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Reserva</p>
+                    <h2 id="booking-form-title">Novo booking</h2>
+                </div>
+                <button id="booking-clear-button" class="ghost-button" type="button">Limpar</button>
+            </div>
+
+            <form id="booking-form" class="player-form">
+                <input id="booking-id" type="hidden">
+
+                <label>
+                    <span>Codigo</span>
+                    <input id="bookingCode" name="code" type="text" maxlength="40" placeholder="Gerado automaticamente" readonly>
+                </label>
+
+                <label>
+                    <span>Tee time</span>
+                    <select id="bookingTeeTimeId" name="teeTimeId" required>
+                        <option value="">Selecione um tee time</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Status</span>
+                    <select id="bookingStatus" name="status" required>
+                        <option value="CREATED">CREATED</option>
+                        <option value="CONFIRMED">CONFIRMED</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Total</span>
+                    <input id="bookingTotalAmount" name="totalAmount" type="number" min="0" step="0.01" value="0.00" readonly>
+                </label>
+
+                <label>
+                    <span>Criado por</span>
+                    <input id="bookingCreatedBy" name="createdBy" type="number" min="1" step="1" placeholder="Opcional ate existir User">
+                </label>
+
+                <label>
+                    <span>Criado em</span>
+                    <input id="bookingCreatedAt" name="createdAt" type="text" placeholder="Gerado automaticamente" readonly>
+                </label>
+
+                <div class="form-actions">
+                    <button class="primary-button" type="submit">Salvar booking</button>
+                </div>
+            </form>
+
+            <div class="sub-panel">
+                <div class="panel-header compact-header">
+                    <div>
+                        <p class="section-tag">Jogadores</p>
+                        <h2 id="booking-player-form-title">Adicionar jogador</h2>
+                    </div>
+                    <button id="booking-player-clear-button" class="ghost-button" type="button">Limpar</button>
+                </div>
+
+                <form id="booking-player-form" class="player-form">
+                    <input id="booking-player-id" type="hidden">
+
+                    <label>
+                        <span>Booking ID</span>
+                        <input id="bookingPlayerBookingId" name="bookingId" type="number" min="1" step="1" required>
+                    </label>
+
+                    <label>
+                        <span>Player</span>
+                        <select id="bookingPlayerPlayerId" name="playerId" required>
+                            <option value="">Selecione um player</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Green fee</span>
+                        <input id="bookingPlayerGreenFeeAmount" name="greenFeeAmount" type="number" min="0" step="0.01" placeholder="Automatico pelo tee time">
+                    </label>
+
+                    <label class="checkbox-field">
+                        <input id="bookingPlayerCheckedIn" name="checkedIn" type="checkbox">
+                        <span>Check-in realizado</span>
+                    </label>
+
+                    <div class="form-actions">
+                        <button class="primary-button" type="submit">Salvar jogador</button>
+                    </div>
+                </form>
+
+                <p id="booking-player-feedback" class="feedback" aria-live="polite"></p>
+            </div>
+        </article>
+
+        <article class="panel list-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Reservas</p>
+                    <h2>Bookings cadastrados</h2>
+                </div>
+                <div class="toolbar">
+                    <input id="booking-search-id-input" type="number" min="1" step="1" placeholder="Buscar por id">
+                    <button id="booking-search-id-button" class="ghost-button" type="button">Buscar ID</button>
+                    <button id="booking-find-all-button" class="ghost-button" type="button">Listar todos</button>
+                    <button id="booking-refresh-context-button" class="ghost-button" type="button">Atualizar dados</button>
+                    <span id="booking-count" class="count-badge">0 bookings</span>
+                </div>
+            </div>
+
+            <p id="booking-feedback" class="feedback" aria-live="polite"></p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Codigo</th>
+                        <th>Tee time</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Jogadores</th>
+                        <th>Criacao</th>
+                        <th>Criado por</th>
+                        <th>Acoes</th>
+                    </tr>
+                    </thead>
+                    <tbody id="bookings-table-body">
+                    <tr>
+                        <td colspan="8" class="empty-state">Use "Listar todos" ou "Buscar ID" para consultar bookings.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="booking-player-list">
+                <div class="panel-header compact-header">
+                    <div>
+                        <p class="section-tag">Booking selecionado</p>
+                        <h2 id="selected-booking-title">Nenhum booking selecionado</h2>
+                    </div>
+                    <span id="booking-player-count" class="count-badge">0 jogadores</span>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Green fee</th>
+                            <th>Check-in</th>
+                            <th>Acoes</th>
+                        </tr>
+                        </thead>
+                        <tbody id="booking-players-table-body">
+                        <tr>
+                            <td colspan="4" class="empty-state">Selecione um booking para ver os jogadores.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </article>
+    </section>
+    </section>
+
+    <section class="panel json-panel">
+        <div class="panel-header">
+            <div>
+                <p class="section-tag">JSON</p>
+                <h2>Inspecao da API</h2>
+            </div>
+        </div>
+
+        <div class="json-grid">
+            <div class="json-card">
+                <p class="json-label">Ultima requisicao</p>
+                <pre id="request-json" class="json-viewer">Nenhuma requisicao enviada ainda.</pre>
+            </div>
+
+            <div class="json-card">
+                <p class="json-label">Ultima resposta</p>
+                <pre id="response-json" class="json-viewer">Nenhuma resposta recebida ainda.</pre>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
