@@ -7,6 +7,12 @@
 # SQL files
 *.sql
 
+# Build output
+target/
+
+# IDE files
+.idea/
+
 # BlueJ files
 *.ctxt
 
