@@ -154,6 +154,8 @@ src/main/resources/static
 
 Ele serve como painel inicial para consumir a API durante o desenvolvimento.
 
+Observação: o frontend foi criado com apoio do agente Codex. Tenho noções de JavaScript, mas essa não é minha stack principal; a interface foi incluída principalmente para facilitar a visualização, o teste e a compreensão dos fluxos da RESTful API.
+
 Funcionalidades disponíveis no painel:
 
 - CRUD de Players.
