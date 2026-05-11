@@ -44,6 +44,14 @@ public class PlayerService {
         addHateoasLinks(dto);
         return dto;
     }
+
+    public List<PlayerDTO> findByName(String name) {
+        logger.info("Find Players by name");
+        var players = parseListObject(repository.findByFullNameContainingIgnoreCase(name), PlayerDTO.class);
+        players.forEach(this::addHateoasLinks);
+        return players;
+    }
+
     public PlayerDTO create(PlayerDTO player) {
         if (player == null) throw new RequiredObjectIsNullException();
         logger.info("Create Player");
@@ -99,6 +107,7 @@ public class PlayerService {
     private void addHateoasLinks(PlayerDTO dto) {
         dto.add(linkTo(methodOn(PlayerController.class).findById(dto.getId())).withSelfRel().withType("GET"));
         dto.add(linkTo(methodOn(PlayerController.class).findAll()).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(PlayerController.class).findByName(dto.getFullName())).withRel("findByName").withType("GET"));
         dto.add(linkTo(methodOn(PlayerController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(PlayerController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(PlayerController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));

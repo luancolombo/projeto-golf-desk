@@ -31,6 +31,12 @@ public class PlayerController {
         return  service.findById(id);
 
     }
+    @GetMapping(value = "/search",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public List<PlayerDTO> findByName(@RequestParam("name") String name){
+        return service.findByName(name);
+    }
     @PostMapping(
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE

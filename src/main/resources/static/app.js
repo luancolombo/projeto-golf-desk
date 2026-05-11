@@ -20,6 +20,8 @@ const formTitle = document.getElementById("form-title");
 const clearButton = document.getElementById("clear-button");
 const tableBody = document.getElementById("players-table-body");
 const feedback = document.getElementById("feedback");
+const searchNameInput = document.getElementById("search-name-input");
+const searchNameButton = document.getElementById("search-name-button");
 const searchIdInput = document.getElementById("search-id-input");
 const searchIdButton = document.getElementById("search-id-button");
 const findAllButton = document.getElementById("find-all-button");
@@ -125,6 +127,13 @@ function bindEvents() {
     form.addEventListener("submit", handleSubmit);
     clearButton.addEventListener("click", resetForm);
     findAllButton.addEventListener("click", loadPlayers);
+    searchNameButton.addEventListener("click", handleSearchByName);
+    searchNameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            handleSearchByName();
+        }
+    });
     searchIdButton.addEventListener("click", handleSearchById);
     searchIdInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -285,6 +294,53 @@ async function handleSearchById() {
         apiStatus.textContent = "Conectada";
         renderPlayers([player]);
         setFeedback(`Player #${id} encontrado com sucesso.`, "success");
+    } catch (error) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="empty-state">${escapeHtml(error.message)}</td>
+            </tr>
+        `;
+        playerCount.textContent = "0 players";
+        setFeedback(error.message, "error");
+    }
+}
+
+async function handleSearchByName() {
+    const name = searchNameInput.value.trim();
+
+    if (!name) {
+        clearJsonResponse();
+        setFeedback("Informe um nome para buscar.", "error");
+        return;
+    }
+
+    const url = `${PLAYER_API_URL}/search?name=${encodeURIComponent(name)}`;
+    showRequest("GET", url);
+
+    try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        const foundPlayers = await response.json();
+        players = foundPlayers;
+        showResponse(foundPlayers);
+        apiStatus.textContent = "Conectada";
+        renderPlayers(foundPlayers);
+
+        if (foundPlayers.length === 0) {
+            setFeedback(`Nenhum player encontrado com o nome "${name}".`, "error");
+            return;
+        }
+
+        setFeedback(`${foundPlayers.length} player${foundPlayers.length === 1 ? "" : "s"} encontrado${foundPlayers.length === 1 ? "" : "s"} por nome.`, "success");
     } catch (error) {
         tableBody.innerHTML = `
             <tr>
@@ -1591,6 +1647,14 @@ function formatMoney(value) {
 function getPlayerName(playerId) {
     const player = players.find((item) => item.id === playerId);
     return player ? player.fullName : `Player #${playerId}`;
+}
+
+function normalizeSearchText(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
 }
 
 function escapeHtml(value) {

@@ -190,6 +190,7 @@ body {
 .panel {
     border-radius: 28px;
     padding: 24px;
+    min-width: 0;
 }
 
 .json-panel {
@@ -218,6 +219,37 @@ body {
 .toolbar input {
     width: auto;
     min-width: 190px;
+}
+
+.player-search-toolbar {
+    display: grid;
+    grid-template-columns: minmax(190px, 220px) max-content max-content max-content;
+    justify-content: end;
+    align-items: center;
+}
+
+.player-search-toolbar #search-name-input {
+    grid-column: 1;
+}
+
+.player-search-toolbar #search-name-button {
+    grid-column: 2;
+}
+
+.player-search-toolbar #search-id-input {
+    grid-column: 1;
+}
+
+.player-search-toolbar #search-id-button {
+    grid-column: 2;
+}
+
+.player-search-toolbar #find-all-button {
+    grid-column: 3;
+}
+
+.player-search-toolbar #player-count {
+    grid-column: 4;
 }
 
 #search-id-button {
@@ -549,6 +581,21 @@ tbody tr.selected-row {
     }
 
     .toolbar {
+        width: 100%;
+    }
+
+    .player-search-toolbar {
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+    }
+
+    .player-search-toolbar #search-name-input,
+    .player-search-toolbar #search-name-button,
+    .player-search-toolbar #search-id-input,
+    .player-search-toolbar #search-id-button,
+    .player-search-toolbar #find-all-button,
+    .player-search-toolbar #player-count {
+        grid-column: 1;
         width: 100%;
     }
 }
