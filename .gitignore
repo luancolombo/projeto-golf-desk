@@ -6,6 +6,8 @@
 
 # Build output
 target/
+frontend/node_modules/
+frontend/dist/
 
 # IDE files
 .idea/

@@ -14,14 +14,21 @@ Funcionalidades principais já implementadas:
 - CRUD completo de Tee Times.
 - CRUD completo de Bookings.
 - CRUD completo de Booking Players.
+- CRUD completo de Rental Items.
+- CRUD completo de Rental Transactions.
+- CRUD completo de Payments.
 - API REST com endpoints separados por recurso.
 - DTOs para entrada e saída de dados.
 - HATEOAS nos retornos da API.
 - Validações com Bean Validation.
 - Tratamento centralizado de exceções.
 - Regras de negócio em camada de service.
+- Controle de estoque de materiais alugáveis.
+- Pagamentos individuais por jogador dentro do booking.
+- Atualização automática de totais e status de booking.
 - Integração com banco MySQL via Spring Data JPA.
 - Painel frontend estático para consumir e testar a API.
+- Base de frontend React + TypeScript em migração.
 
 ## Tecnologias usadas
 
@@ -38,6 +45,9 @@ Funcionalidades principais já implementadas:
 - HTML
 - CSS
 - JavaScript
+- React
+- TypeScript
+- Vite
 
 ## Arquitetura atual
 
@@ -120,7 +130,8 @@ Pontos fortes já implementados:
 - Data e hora de criação automáticas.
 - Status inicial controlado pelo backend.
 - `createdBy` preparado para futura integração com usuários.
-- Total da reserva controlado automaticamente conforme jogadores são adicionados.
+- Total da reserva controlado automaticamente conforme jogadores e alugueres são adicionados.
+- Status da reserva confirmado automaticamente quando todos os jogadores fazem check-in e estão pagos.
 
 ### Booking Players
 
@@ -143,6 +154,69 @@ Pontos fortes já implementados:
 - Atualização automática do status do tee time.
 - Recalculo automático de `booking.totalAmount`.
 - Uso de transações com `@Transactional` para manter consistência entre booking, booking player e tee time.
+
+### Rental Items
+
+Cadastro e controle de materiais alugáveis, como buggy, trolley e equipamentos.
+
+Endpoint base:
+
+```http
+/rental-item
+```
+
+Pontos fortes já implementados:
+
+- CRUD completo de materiais.
+- Controle de estoque total.
+- Controle de estoque disponível.
+- Preço de aluguer por material.
+- Ativação e desativação de material.
+- Validação para evitar estoque disponível maior que estoque total.
+
+### Rental Transactions
+
+Lançamento de materiais alugados por jogador dentro de um booking.
+
+Endpoint base:
+
+```http
+/rental-transaction
+```
+
+Pontos fortes já implementados:
+
+- CRUD completo de transações de aluguer.
+- Associação do aluguer ao `bookingPlayerId`.
+- Validação para garantir que o jogador pertence ao booking.
+- Baixa automática de estoque ao alugar material.
+- Devolução de material com retorno ao estoque.
+- Endpoint para devolver todos os materiais pendentes.
+- Bloqueio para excluir transação ativa sem devolver ou cancelar antes.
+- Inclusão automática dos alugueres no total do booking.
+- Regra de preço para buggy e trolley elétrico considerando twilight e membro.
+
+### Payments
+
+Pagamentos individuais por jogador dentro de um booking.
+
+Endpoint base:
+
+```http
+/payment
+```
+
+Pontos fortes já implementados:
+
+- CRUD completo de pagamentos.
+- Pagamento vinculado a `bookingId` e `bookingPlayerId`.
+- Busca de pagamentos por booking.
+- Busca de pagamentos por jogador do booking.
+- Status de pagamento: `PENDING`, `PAID`, `REFUNDED` e `CANCELLED`.
+- Registro automático de `paidAt` quando o pagamento fica como `PAID`.
+- Validação para impedir pagamento acima do total devido pelo jogador.
+- Suporte a pagamento parcial por jogador.
+- Integração com a confirmação automática do booking.
 
 ## Frontend auxiliar
 
@@ -226,6 +300,62 @@ Após subir a aplicação, o painel web pode ser acessado em:
 
 ```text
 http://localhost:8080
+```
+
+## Frontend React + TypeScript
+
+Uma nova base de frontend esta sendo criada em:
+
+```text
+frontend
+```
+
+Durante o desenvolvimento, o backend Spring Boot e o frontend React rodam em servidores separados:
+
+```text
+Backend:  http://localhost:8080
+Frontend: http://localhost:5173
+```
+
+Instalar dependencias do frontend:
+
+```bash
+cd frontend
+npm install
+```
+
+Executar o frontend em modo desenvolvimento:
+
+```bash
+npm run dev
+```
+
+Gerar build de producao:
+
+```bash
+npm run build
+```
+
+O Vite esta configurado com proxy para o backend. Chamadas feitas pelo frontend para:
+
+```text
+/api/player
+/api/booking
+/api/payment
+```
+
+sao encaminhadas para:
+
+```text
+http://localhost:8080/player
+http://localhost:8080/booking
+http://localhost:8080/payment
+```
+
+Enquanto a migracao nao estiver completa, o frontend estatico antigo continua em:
+
+```text
+src/main/resources/static
 ```
 
 ## Roadmap
