@@ -238,6 +238,10 @@ Funcionalidades disponíveis no painel:
 - Seleção de booking existente pela agenda.
 - Adição de jogadores à reserva.
 - Check-in de jogadores.
+- Controle de materiais alugados por jogador.
+- Devolução individual ou geral de materiais alugados.
+- Controle de pagamentos por jogador.
+- Aba de Materiais para consultar e manter estoque, preço e status.
 - Visualização da última requisição e última resposta JSON.
 
 ## Banco de dados
@@ -304,7 +308,7 @@ http://localhost:8080
 
 ## Frontend React + TypeScript
 
-Uma nova base de frontend esta sendo criada em:
+Uma nova base de frontend está sendo criada em:
 
 ```text
 frontend
@@ -317,7 +321,7 @@ Backend:  http://localhost:8080
 Frontend: http://localhost:5173
 ```
 
-Instalar dependencias do frontend:
+Instalar dependências do frontend:
 
 ```bash
 cd frontend
@@ -330,13 +334,13 @@ Executar o frontend em modo desenvolvimento:
 npm run dev
 ```
 
-Gerar build de producao:
+Gerar build de produção:
 
 ```bash
 npm run build
 ```
 
-O Vite esta configurado com proxy para o backend. Chamadas feitas pelo frontend para:
+O Vite está configurado com proxy para o backend. Chamadas feitas pelo frontend para:
 
 ```text
 /api/player
@@ -344,7 +348,7 @@ O Vite esta configurado com proxy para o backend. Chamadas feitas pelo frontend 
 /api/payment
 ```
 
-sao encaminhadas para:
+são encaminhadas para:
 
 ```text
 http://localhost:8080/player
@@ -352,7 +356,16 @@ http://localhost:8080/booking
 http://localhost:8080/payment
 ```
 
-Enquanto a migracao nao estiver completa, o frontend estatico antigo continua em:
+Estado atual da migração React:
+
+- Estrutura React + TypeScript criada com Vite.
+- Camada `apiClient` criada para consumir a API Spring Boot via `/api`.
+- Tipos TypeScript criados para as principais entidades.
+- Services criados para Players, Tee Times, Bookings, Booking Players, Rental Items, Rental Transactions e Payments.
+- Tela de Players migrada para React.
+- Tela de Materiais migrada para React.
+
+Enquanto a migração não estiver completa, o frontend estático antigo continua em:
 
 ```text
 src/main/resources/static
@@ -362,22 +375,24 @@ src/main/resources/static
 
 Implementações futuras planejadas:
 
-- CRUD de Rental Items.
-- CRUD de Rental Transactions.
-- Controle de estoque de itens alugáveis.
-- Inclusão automática de alugueres no total do booking.
-- CRUD de Payments.
-- Regras de pagamento e status financeiro da reserva.
+- Módulo de Fecho de Caixa.
+- Preview de fechamento diário com totais por método de pagamento.
+- Validação de pendências antes de fechar o caixa, como materiais não devolvidos e pagamentos pendentes.
 - Entidade User.
-- Autenticação e autorização.
-- Uso real de `createdBy` com usuário autenticado.
+- Autenticação e autorização com Spring Security.
+- Uso real de `createdBy` e `closedBy` com usuário autenticado.
 - Perfis de acesso, como admin e operador.
 - Evolução das regras de pricing.
 - Cadastro profissional de preços, temporadas e twilight.
-- Migrações Flyway versionadas.
-- Testes unitários e de integração mais completos.
+- Migrações Flyway versionadas para schema completo.
+- Testes unitários com JUnit e Mockito.
+- Testes de integração para fluxos principais.
 - Documentação OpenAPI/Swagger.
-- Melhorias no frontend ou separação futura para um app frontend dedicado.
+- Docker Compose para subir API e MySQL.
+- Continuação da migração do frontend para React + TypeScript.
+- Migração da Agenda para React com painel de booking em abas.
+- Migração de Rentals e Payments para React.
+- Remoção ou arquivamento do frontend estático antigo após a migração completa.
 
 ## Licença
 
