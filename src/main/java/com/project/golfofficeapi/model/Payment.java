@@ -1,0 +1,103 @@
+package com.project.golfofficeapi.model;
+
+import jakarta.persistence.*;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+@Entity
+@Table(name = "payment")
+public class Payment implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(name = "booking_id", nullable = false)
+    private Long bookingId;
+    @Column(name = "booking_player_id", nullable = false)
+    private Long bookingPlayerId;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal amount;
+    @Column(nullable = false, length = 30)
+    private String method;
+    @Column(nullable = false, length = 30)
+    private String status;
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
+    public Payment() {}
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getBookingId() {
+        return bookingId;
+    }
+
+    public void setBookingId(Long bookingId) {
+        this.bookingId = bookingId;
+    }
+
+    public Long getBookingPlayerId() {
+        return bookingPlayerId;
+    }
+
+    public void setBookingPlayerId(Long bookingPlayerId) {
+        this.bookingPlayerId = bookingPlayerId;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Payment payment = (Payment) o;
+        return Objects.equals(getId(), payment.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(getId());
+    }
+}
