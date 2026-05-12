@@ -1,6 +1,6 @@
 # Golf Office API
 
-RESTful API under development for the operational management of a golf course. The project covers player registration, tee time scheduling, bookings, booking players, rental items, player-level payments, and tee time capacity rules.
+RESTful API under development for the operational management of a golf course. The project covers player registration, tee time scheduling, bookings, booking players, rental items, player-level payments, receipts, check-in tickets, and tee time capacity rules.
 
 The main focus of this project is Java backend development with Spring Boot, using layered architecture, DTOs, validations, business rules in services, transactions, and HATEOAS links in API responses.
 
@@ -17,6 +17,8 @@ Main features already implemented:
 - Full CRUD for Rental Items.
 - Full CRUD for Rental Transactions.
 - Full CRUD for Payments.
+- Full CRUD and automatic issuing for Receipts.
+- Full CRUD and automatic issuing for Check-in Tickets.
 - REST API with endpoints separated by resource.
 - DTOs for input and output data.
 - HATEOAS links in API responses.
@@ -32,7 +34,8 @@ Main features already implemented:
 - Individual, global, and automatic return of rented items.
 - Automatic scheduled return of rental items every day at midnight.
 - MySQL integration with Spring Data JPA.
-- Flyway migrations and initial seed data.
+- Relational database model with JPA relationships and foreign keys for the main domain flows.
+- Flyway migrations, schema validation, constraints, indexes, and initial seed data.
 - React + TypeScript frontend migration to consume the API.
 - Legacy static frontend archived after the React migration covered the current flows.
 
@@ -80,6 +83,8 @@ Main responsibilities:
 - `dto`: objects exposed by the API.
 - `exceptions`: custom exceptions and global exception handling.
 - `mapper`: conversion between entities and DTOs.
+
+The API keeps DTOs simple by exposing IDs such as `bookingId`, `playerId`, `teeTimeId`, and `bookingPlayerId`, while the persistence layer now uses JPA relationships between the main entities. This keeps the REST contract easier to consume and the database model more professional.
 
 ## Implemented Resources
 
@@ -157,11 +162,35 @@ Highlights:
 - Allows the same player more than once in a booking, supporting member-with-guests scenarios.
 - Green fee automatically filled from the tee time.
 - Check-in per player.
+- Automatic check-in ticket generation when a player is checked in.
+- Automatic check-in ticket cancellation when check-in is undone.
 - Tee time capacity validation.
 - Automatic update of `teeTime.bookedPlayers`.
 - Automatic update of tee time status.
 - Automatic recalculation of `booking.totalAmount`.
 - Uses `@Transactional` to keep booking, booking player, and tee time data consistent.
+
+### Check-in Tickets
+
+Printable ticket generated for the player after check-in.
+
+Base endpoint:
+
+```http
+/check-in-ticket
+```
+
+Highlights:
+
+- Ticket linked to `bookingPlayerId`.
+- Automatic ticket number generation using a progressive format such as `CT-2026-000001`.
+- Player and booking code snapshots for historical consistency.
+- Starting tee fixed by business rule as `TEE 1`.
+- Crossing tee fixed by business rule as `TEE 10`.
+- Crossing time automatically calculated as the tee time plus 2 hours and 15 minutes.
+- Active ticket reuse to avoid duplicate active tickets for the same checked-in player.
+- Ticket cancellation when check-in is undone.
+- Printable preview available in the React Agenda.
 
 ### Rental Items
 
@@ -228,6 +257,26 @@ Highlights:
 - Refund support.
 - Integration with automatic booking confirmation.
 
+### Receipts
+
+Historical receipt document generated from player-level payments.
+
+Base endpoint:
+
+```http
+/receipt
+```
+
+Highlights:
+
+- Receipt linked to `bookingId`, `bookingPlayerId`, and `paymentId`.
+- Automatic receipt number generation using a progressive format such as `RC-2026-000001`.
+- Player name and tax number snapshots for historical consistency.
+- Booking code, play date, tee time, payment method, and payment status snapshots.
+- Receipt items generated from green fee and rental payment data.
+- Receipt cancellation instead of destructive deletion.
+- Printable preview available in the React Agenda.
+
 ## Frontend
 
 The active frontend is the React + TypeScript app inside `frontend`.
@@ -273,6 +322,7 @@ Current React migration status:
 - `apiClient` layer created to consume the Spring Boot API through `/api`.
 - TypeScript types created for the main entities.
 - Services created for Players, Tee Times, Bookings, Booking Players, Rental Items, Rental Transactions, and Payments.
+- Services created for Receipts, Receipt Items, and Check-in Tickets.
 - Players page migrated to React.
 - Materials page migrated to React.
 - Agenda page migrated to React.
@@ -280,8 +330,10 @@ Current React migration status:
 - Tee time and booking creation/selection when clicking a time slot.
 - Booking panel with internal tabs: Summary, Players, Materials, and Payments.
 - Players tab with add/remove player, check-in, and player totals.
+- Check-in ticket preview and printing from the Players tab.
 - Materials tab with rental per player, return, edit, delete, and stock handling.
 - Payments tab with partial payment, edit, delete, refund, and pending balance.
+- Receipt preview and printing from the Payments tab.
 - Main navigation with Players, Agenda, Materials, and Cash Register as a future module.
 
 ## Running the Backend
@@ -365,12 +417,19 @@ golf_api
 Hibernate is configured with:
 
 ```yaml
-spring.jpa.hibernate.ddl-auto: update
+spring.jpa.hibernate.ddl-auto: validate
 ```
 
-This allows the schema to evolve automatically during this development phase.
+Flyway is responsible for the database structure. Hibernate validates that the entity model matches the schema instead of changing the schema automatically.
 
-The project also uses Flyway for versioned migrations and seed data.
+The project uses Flyway for versioned migrations, constraints, indexes, foreign keys, and seed data.
+
+Current migration highlights:
+
+- Initial player seed data.
+- Foreign keys for Booking Player, Booking, Rental Transaction, Payment, Receipt, and Receipt Item flows.
+- Final constraints and indexes for the relational model.
+- Check-in ticket table.
 
 ## Roadmap
 
@@ -388,6 +447,12 @@ Recently implemented roadmap items:
 - Booking Payments tab.
 - Automatic frontend data refresh after important actions.
 - Automatic backend return of rented items at midnight.
+- JPA relationship migration for the main domain entities while keeping REST DTOs with IDs.
+- Flyway foreign keys, constraints, indexes, and Hibernate schema validation.
+- Automatic receipt issuing from paid player-level payments.
+- Printable receipt preview in the React Agenda.
+- Automatic check-in ticket issuing from player check-in.
+- Printable check-in ticket preview in the React Agenda.
 - Main navigation prepared for a future Cash Register module.
 
 Planned future implementations:
@@ -399,11 +464,10 @@ Planned future implementations:
 - Authentication and authorization with Spring Security.
 - Real usage of `createdBy` and `closedBy` with authenticated users.
 - Access profiles, such as admin and operator.
-- Pricing rule evolution.
-- Professional price, season, and twilight configuration.
-- Full schema versioning with Flyway migrations.
+- Pricing rule evolution with professional price, season, and twilight configuration.
+- Additional custom mappers as the domain grows.
 - Unit tests with JUnit and Mockito.
-- Integration tests for main business flows.
+- More integration tests for main business flows.
 - OpenAPI/Swagger documentation.
 - Docker Compose for API and MySQL.
 - Final React frontend build served by Spring Boot.
