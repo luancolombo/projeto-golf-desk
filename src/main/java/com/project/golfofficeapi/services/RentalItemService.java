@@ -7,6 +7,7 @@ import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
 import com.project.golfofficeapi.model.RentalItem;
 import com.project.golfofficeapi.repository.RentalItemRepository;
+import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,10 +26,14 @@ public class RentalItemService {
     @Autowired
     RentalItemRepository repository;
 
+    @Autowired
+    RentalTransactionRepository rentalTransactionRepository;
+
     private final Logger logger = Logger.getLogger(RentalItemService.class.getName());
 
-    public RentalItemService(RentalItemRepository repository) {
+    public RentalItemService(RentalItemRepository repository, RentalTransactionRepository rentalTransactionRepository) {
         this.repository = repository;
+        this.rentalTransactionRepository = rentalTransactionRepository;
     }
 
     public List<RentalItemDTO> findAll() {
@@ -86,6 +91,13 @@ public class RentalItemService {
         logger.info("Delete Rental Item");
         RentalItem entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental item not found"));
+
+        if (rentalTransactionRepository.existsByRentalItemId(entity.getId())) {
+            entity.setActive(false);
+            repository.save(entity);
+            return;
+        }
+
         repository.delete(entity);
     }
 

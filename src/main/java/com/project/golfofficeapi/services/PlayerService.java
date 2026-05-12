@@ -6,6 +6,7 @@ import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
 import com.project.golfofficeapi.model.Player;
+import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.PlayerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,10 +25,14 @@ public class PlayerService {
     @Autowired
     PlayerRepository repository;
 
+    @Autowired
+    BookingPlayerRepository bookingPlayerRepository;
+
     private final Logger logger =  Logger.getLogger(PlayerService.class.getName());
 
-    public PlayerService(PlayerRepository repository) {
+    public PlayerService(PlayerRepository repository, BookingPlayerRepository bookingPlayerRepository) {
         this.repository = repository;
+        this.bookingPlayerRepository = bookingPlayerRepository;
     }
 
     public List<PlayerDTO> findAll() {
@@ -101,6 +106,11 @@ public class PlayerService {
         logger.info("Delete Player");
         Player entity = repository.findById(id)
                 .orElseThrow(()-> new ResourceNotFoundException("Player not found"));
+
+        if (bookingPlayerRepository.existsByPlayerId(entity.getId())) {
+            throw new BusinessException("Cannot delete player with booking history");
+        }
+
         repository.delete(entity);
     }
 

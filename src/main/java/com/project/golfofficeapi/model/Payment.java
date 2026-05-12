@@ -18,10 +18,12 @@ public class Payment implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "booking_id", nullable = false)
-    private Long bookingId;
-    @Column(name = "booking_player_id", nullable = false)
-    private Long bookingPlayerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_id", nullable = false)
+    private Booking booking;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_player_id", nullable = false)
+    private BookingPlayer bookingPlayer;
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
     @Column(nullable = false, length = 30)
@@ -42,19 +44,49 @@ public class Payment implements Serializable {
     }
 
     public Long getBookingId() {
-        return bookingId;
+        return booking == null ? null : booking.getId();
     }
 
     public void setBookingId(Long bookingId) {
-        this.bookingId = bookingId;
+        if (bookingId == null) {
+            this.booking = null;
+            return;
+        }
+
+        Booking booking = new Booking();
+        booking.setId(bookingId);
+        this.booking = booking;
+    }
+
+    public Booking getBooking() {
+        return booking;
+    }
+
+    public void setBooking(Booking booking) {
+        this.booking = booking;
     }
 
     public Long getBookingPlayerId() {
-        return bookingPlayerId;
+        return bookingPlayer == null ? null : bookingPlayer.getId();
     }
 
     public void setBookingPlayerId(Long bookingPlayerId) {
-        this.bookingPlayerId = bookingPlayerId;
+        if (bookingPlayerId == null) {
+            this.bookingPlayer = null;
+            return;
+        }
+
+        BookingPlayer bookingPlayer = new BookingPlayer();
+        bookingPlayer.setId(bookingPlayerId);
+        this.bookingPlayer = bookingPlayer;
+    }
+
+    public BookingPlayer getBookingPlayer() {
+        return bookingPlayer;
+    }
+
+    public void setBookingPlayer(BookingPlayer bookingPlayer) {
+        this.bookingPlayer = bookingPlayer;
     }
 
     public BigDecimal getAmount() {

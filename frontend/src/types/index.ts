@@ -8,3 +8,4 @@ export type * from "./rentalTransaction";
 export type * from "./payment";
 export type * from "./receipt";
 export type * from "./receiptItem";
+export type * from "./checkInTicket";

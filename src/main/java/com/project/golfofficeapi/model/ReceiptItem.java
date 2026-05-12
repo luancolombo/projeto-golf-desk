@@ -17,8 +17,9 @@ public class ReceiptItem implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "receipt_id", nullable = false)
-    private Long receiptId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receipt_id", nullable = false)
+    private Receipt receipt;
     @Column(nullable = false, length = 120)
     private String description;
     @Column(nullable = false)
@@ -38,12 +39,27 @@ public class ReceiptItem implements Serializable {
         this.id = id;
     }
 
+    public Receipt getReceipt() {
+        return receipt;
+    }
+
+    public void setReceipt(Receipt receipt) {
+        this.receipt = receipt;
+    }
+
     public Long getReceiptId() {
-        return receiptId;
+        return receipt == null ? null : receipt.getId();
     }
 
     public void setReceiptId(Long receiptId) {
-        this.receiptId = receiptId;
+        if (receiptId == null) {
+            this.receipt = null;
+            return;
+        }
+
+        Receipt receipt = new Receipt();
+        receipt.setId(receiptId);
+        this.receipt = receipt;
     }
 
     public String getDescription() {
@@ -82,16 +98,11 @@ public class ReceiptItem implements Serializable {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         ReceiptItem that = (ReceiptItem) o;
-        return Objects.equals(getId(), that.getId()) && Objects.equals(getReceiptId(),
-                that.getReceiptId()) && Objects.equals(getDescription(),
-                that.getDescription()) && Objects.equals(getQuantity(),
-                that.getQuantity()) && Objects.equals(getUnitPrice(),
-                that.getUnitPrice()) && Objects.equals(getTotalPrice(),
-                that.getTotalPrice());
+        return Objects.equals(getId(), that.getId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getReceiptId(), getDescription(), getQuantity(), getUnitPrice(), getTotalPrice());
+        return Objects.hashCode(getId());
     }
 }

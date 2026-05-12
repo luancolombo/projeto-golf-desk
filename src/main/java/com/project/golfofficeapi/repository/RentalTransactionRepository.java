@@ -12,14 +12,40 @@ import java.util.List;
 @Repository
 public interface RentalTransactionRepository extends JpaRepository<RentalTransaction, Long> {
 
-    List<RentalTransaction> findByBookingId(Long bookingId);
+    List<RentalTransaction> findByBooking_Id(Long bookingId);
 
-    List<RentalTransaction> findByBookingPlayerId(Long bookingPlayerId);
+    default List<RentalTransaction> findByBookingId(Long bookingId) {
+        return findByBooking_Id(bookingId);
+    }
+
+    boolean existsByBooking_Id(Long bookingId);
+
+    default boolean existsByBookingId(Long bookingId) {
+        return existsByBooking_Id(bookingId);
+    }
+
+    List<RentalTransaction> findByBookingPlayer_Id(Long bookingPlayerId);
+
+    default List<RentalTransaction> findByBookingPlayerId(Long bookingPlayerId) {
+        return findByBookingPlayer_Id(bookingPlayerId);
+    }
+
+    boolean existsByBookingPlayer_Id(Long bookingPlayerId);
+
+    default boolean existsByBookingPlayerId(Long bookingPlayerId) {
+        return existsByBookingPlayer_Id(bookingPlayerId);
+    }
+
+    boolean existsByRentalItem_Id(Long rentalItemId);
+
+    default boolean existsByRentalItemId(Long rentalItemId) {
+        return existsByRentalItem_Id(rentalItemId);
+    }
 
     @Query("""
             select coalesce(sum(rt.totalPrice), 0)
             from RentalTransaction rt
-            where rt.bookingId = :bookingId
+            where rt.booking.id = :bookingId
             and upper(coalesce(rt.status, 'RENTED')) <> 'CANCELLED'
             """)
     BigDecimal sumTotalPriceByBookingId(@Param("bookingId") Long bookingId);
@@ -27,7 +53,7 @@ public interface RentalTransactionRepository extends JpaRepository<RentalTransac
     @Query("""
             select coalesce(sum(rt.totalPrice), 0)
             from RentalTransaction rt
-            where rt.bookingPlayerId = :bookingPlayerId
+            where rt.bookingPlayer.id = :bookingPlayerId
             and upper(coalesce(rt.status, 'RENTED')) <> 'CANCELLED'
             """)
     BigDecimal sumTotalPriceByBookingPlayerId(@Param("bookingPlayerId") Long bookingPlayerId);

@@ -5,12 +5,17 @@ import com.project.golfofficeapi.dto.BookingPlayerDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
+import com.project.golfofficeapi.mapper.custom.BookingPlayerMapper;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.BookingPlayer;
+import com.project.golfofficeapi.model.Player;
 import com.project.golfofficeapi.model.TeeTime;
 import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.BookingRepository;
+import com.project.golfofficeapi.repository.CheckInTicketRepository;
+import com.project.golfofficeapi.repository.PaymentRepository;
 import com.project.golfofficeapi.repository.PlayerRepository;
+import com.project.golfofficeapi.repository.ReceiptRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import com.project.golfofficeapi.repository.TeeTimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +26,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.logging.Logger;
 
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
@@ -45,7 +48,22 @@ public class BookingPlayerService {
     RentalTransactionRepository rentalTransactionRepository;
 
     @Autowired
+    PaymentRepository paymentRepository;
+
+    @Autowired
+    ReceiptRepository receiptRepository;
+
+    @Autowired
+    CheckInTicketRepository checkInTicketRepository;
+
+    @Autowired
     BookingStatusService bookingStatusService;
+
+    @Autowired
+    CheckInTicketService checkInTicketService;
+
+    @Autowired
+    BookingPlayerMapper mapper;
 
     private final Logger logger = Logger.getLogger(BookingPlayerService.class.getName());
 
@@ -55,19 +73,29 @@ public class BookingPlayerService {
             PlayerRepository playerRepository,
             TeeTimeRepository teeTimeRepository,
             RentalTransactionRepository rentalTransactionRepository,
-            BookingStatusService bookingStatusService
+            PaymentRepository paymentRepository,
+            ReceiptRepository receiptRepository,
+            CheckInTicketRepository checkInTicketRepository,
+            BookingStatusService bookingStatusService,
+            CheckInTicketService checkInTicketService,
+            BookingPlayerMapper mapper
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
         this.playerRepository = playerRepository;
         this.teeTimeRepository = teeTimeRepository;
         this.rentalTransactionRepository = rentalTransactionRepository;
+        this.paymentRepository = paymentRepository;
+        this.receiptRepository = receiptRepository;
+        this.checkInTicketRepository = checkInTicketRepository;
         this.bookingStatusService = bookingStatusService;
+        this.checkInTicketService = checkInTicketService;
+        this.mapper = mapper;
     }
 
     public List<BookingPlayerDTO> findAll() {
         logger.info("Find All Booking Players");
-        var bookingPlayers = parseListObject(repository.findAll(), BookingPlayerDTO.class);
+        var bookingPlayers = mapper.toDTOList(repository.findAll());
         bookingPlayers.forEach(this::addHateoasLinks);
         return bookingPlayers;
     }
@@ -76,7 +104,7 @@ public class BookingPlayerService {
         logger.info("Find Booking Player by ID");
         var bookingPlayer = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking player not found"));
-        var dto = parseObject(bookingPlayer, BookingPlayerDTO.class);
+        var dto = mapper.toDTO(bookingPlayer);
         addHateoasLinks(dto);
         return dto;
     }
@@ -87,13 +115,15 @@ public class BookingPlayerService {
         logger.info("Create Booking Player");
 
         Booking booking = validateBooking(bookingPlayer.getBookingId());
-        validatePlayer(bookingPlayer.getPlayerId());
+        Player player = validatePlayer(bookingPlayer.getPlayerId());
         TeeTime teeTime = validateTeeTimeForNewPlayer(booking.getTeeTimeId());
         validateCapacity(teeTime);
         prepareNewBookingPlayer(bookingPlayer, teeTime);
 
-        var entity = parseObject(bookingPlayer, BookingPlayer.class);
-        var dto = parseObject(repository.save(entity), BookingPlayerDTO.class);
+        var entity = mapper.toEntity(bookingPlayer, booking, player);
+        BookingPlayer savedEntity = repository.save(entity);
+        checkInTicketService.syncTicketForBookingPlayer(savedEntity);
+        var dto = mapper.toDTO(savedEntity);
         syncBookingTotal(booking.getId());
         bookingStatusService.syncBookingStatus(booking.getId());
         syncTeeTimeOccupancy(teeTime.getId());
@@ -108,22 +138,28 @@ public class BookingPlayerService {
 
         BookingPlayer entity = repository.findById(bookingPlayer.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Booking player not found"));
+        boolean wasCheckedIn = Boolean.TRUE.equals(entity.getCheckedIn());
 
         Booking oldBooking = validateBooking(entity.getBookingId());
         TeeTime oldTeeTime = validateTeeTime(oldBooking.getTeeTimeId());
         Booking newBooking = validateBooking(bookingPlayer.getBookingId());
-        validatePlayer(bookingPlayer.getPlayerId());
+        Player newPlayer = validatePlayer(bookingPlayer.getPlayerId());
         TeeTime newTeeTime = validateTeeTimeForUpdate(newBooking.getTeeTimeId(), oldTeeTime.getId());
 
         if (!oldTeeTime.getId().equals(newTeeTime.getId())) {
             validateCapacity(newTeeTime);
         }
 
-        entity.setBookingId(bookingPlayer.getBookingId());
-        entity.setPlayerId(bookingPlayer.getPlayerId());
+        entity.setBooking(newBooking);
+        entity.setPlayer(newPlayer);
         entity.setGreenFeeAmount(resolveGreenFeeAmount(bookingPlayer.getGreenFeeAmount(), newTeeTime));
         entity.setCheckedIn(resolveCheckedIn(bookingPlayer.getCheckedIn()));
-        var dto = parseObject(repository.save(entity), BookingPlayerDTO.class);
+        BookingPlayer savedEntity = repository.save(entity);
+        boolean isCheckedIn = Boolean.TRUE.equals(savedEntity.getCheckedIn());
+        if (wasCheckedIn != isCheckedIn || isCheckedIn) {
+            checkInTicketService.syncTicketForBookingPlayer(savedEntity);
+        }
+        var dto = mapper.toDTO(savedEntity);
 
         syncBookingTotal(oldBooking.getId());
         syncBookingTotal(newBooking.getId());
@@ -143,8 +179,15 @@ public class BookingPlayerService {
         Booking booking = findBooking(entity.getBookingId());
         TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
 
-        if (!rentalTransactionRepository.findByBookingPlayerId(entity.getId()).isEmpty()) {
-            throw new BusinessException("Cannot remove player with rental items. Remove rental items first");
+        if (Boolean.TRUE.equals(entity.getCheckedIn())) {
+            throw new BusinessException("Cannot remove checked-in booking player");
+        }
+
+        if (rentalTransactionRepository.existsByBookingPlayerId(entity.getId())
+                || paymentRepository.existsByBookingPlayerId(entity.getId())
+                || receiptRepository.existsByBookingPlayerId(entity.getId())
+                || checkInTicketRepository.existsByBookingPlayerId(entity.getId())) {
+            throw new BusinessException("Cannot remove booking player with financial, rental or check-in ticket history");
         }
 
         repository.delete(entity);
@@ -168,10 +211,9 @@ public class BookingPlayerService {
         return booking;
     }
 
-    private void validatePlayer(Long playerId) {
-        if (!playerRepository.existsById(playerId)) {
-            throw new ResourceNotFoundException("Player not found");
-        }
+    private Player validatePlayer(Long playerId) {
+        return playerRepository.findById(playerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
     }
 
     private TeeTime validateTeeTimeForNewPlayer(Long teeTimeId) {

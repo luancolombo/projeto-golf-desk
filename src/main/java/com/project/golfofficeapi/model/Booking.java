@@ -29,8 +29,9 @@ public class Booking implements Serializable {
     private BigDecimal totalAmount;
     @Column(name = "created_by")
     private Long createdBy;
-    @Column(name = "tee_time_id", nullable = false)
-    private Long teeTimeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tee_time_id", nullable = false)
+    private TeeTime teeTime;
 
     public Booking() {}
 
@@ -82,12 +83,27 @@ public class Booking implements Serializable {
         this.createdBy = createdBy;
     }
 
+    public TeeTime getTeeTime() {
+        return teeTime;
+    }
+
+    public void setTeeTime(TeeTime teeTime) {
+        this.teeTime = teeTime;
+    }
+
     public Long getTeeTimeId() {
-        return teeTimeId;
+        return teeTime != null ? teeTime.getId() : null;
     }
 
     public void setTeeTimeId(Long teeTimeId) {
-        this.teeTimeId = teeTimeId;
+        if (teeTimeId == null) {
+            this.teeTime = null;
+            return;
+        }
+
+        TeeTime teeTimeReference = new TeeTime();
+        teeTimeReference.setId(teeTimeId);
+        this.teeTime = teeTimeReference;
     }
 
     @Override

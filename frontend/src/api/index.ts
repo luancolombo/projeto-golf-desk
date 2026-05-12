@@ -8,3 +8,4 @@ export { rentalTransactionService } from "./rentalTransactionService";
 export { paymentService } from "./paymentService";
 export { receiptService } from "./receiptService";
 export { receiptItemService } from "./receiptItemService";
+export { checkInTicketService } from "./checkInTicketService";

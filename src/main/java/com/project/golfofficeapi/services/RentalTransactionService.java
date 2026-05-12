@@ -5,6 +5,7 @@ import com.project.golfofficeapi.dto.RentalTransactionDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
+import com.project.golfofficeapi.mapper.custom.RentalTransactionMapper;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.BookingPlayer;
 import com.project.golfofficeapi.model.Player;
@@ -13,10 +14,8 @@ import com.project.golfofficeapi.model.RentalTransaction;
 import com.project.golfofficeapi.model.TeeTime;
 import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.BookingRepository;
-import com.project.golfofficeapi.repository.PlayerRepository;
 import com.project.golfofficeapi.repository.RentalItemRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
-import com.project.golfofficeapi.repository.TeeTimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,8 +30,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
@@ -62,16 +59,13 @@ public class RentalTransactionService {
     BookingPlayerRepository bookingPlayerRepository;
 
     @Autowired
-    PlayerRepository playerRepository;
-
-    @Autowired
-    TeeTimeRepository teeTimeRepository;
-
-    @Autowired
     RentalItemRepository rentalItemRepository;
 
     @Autowired
     BookingStatusService bookingStatusService;
+
+    @Autowired
+    RentalTransactionMapper mapper;
 
     private final Logger logger = Logger.getLogger(RentalTransactionService.class.getName());
 
@@ -79,23 +73,21 @@ public class RentalTransactionService {
             RentalTransactionRepository repository,
             BookingRepository bookingRepository,
             BookingPlayerRepository bookingPlayerRepository,
-            PlayerRepository playerRepository,
-            TeeTimeRepository teeTimeRepository,
             RentalItemRepository rentalItemRepository,
-            BookingStatusService bookingStatusService
+            BookingStatusService bookingStatusService,
+            RentalTransactionMapper mapper
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
         this.bookingPlayerRepository = bookingPlayerRepository;
-        this.playerRepository = playerRepository;
-        this.teeTimeRepository = teeTimeRepository;
         this.rentalItemRepository = rentalItemRepository;
         this.bookingStatusService = bookingStatusService;
+        this.mapper = mapper;
     }
 
     public List<RentalTransactionDTO> findAll() {
         logger.info("Find All Rental Transactions");
-        var rentalTransactions = parseListObject(repository.findAll(), RentalTransactionDTO.class);
+        var rentalTransactions = mapper.toDTOList(repository.findAll());
         rentalTransactions.forEach(this::addHateoasLinks);
         return rentalTransactions;
     }
@@ -104,7 +96,7 @@ public class RentalTransactionService {
         logger.info("Find Rental Transaction by ID");
         var rentalTransaction = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental transaction not found"));
-        var dto = parseObject(rentalTransaction, RentalTransactionDTO.class);
+        var dto = mapper.toDTO(rentalTransaction);
         addHateoasLinks(dto);
         return dto;
     }
@@ -112,7 +104,7 @@ public class RentalTransactionService {
     public List<RentalTransactionDTO> findByBookingId(Long bookingId) {
         logger.info("Find Rental Transactions by Booking ID");
         findBooking(bookingId);
-        var rentalTransactions = parseListObject(repository.findByBookingId(bookingId), RentalTransactionDTO.class);
+        var rentalTransactions = mapper.toDTOList(repository.findByBookingId(bookingId));
         rentalTransactions.forEach(this::addHateoasLinks);
         return rentalTransactions;
     }
@@ -120,7 +112,7 @@ public class RentalTransactionService {
     public List<RentalTransactionDTO> findByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Find Rental Transactions by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        var rentalTransactions = parseListObject(repository.findByBookingPlayerId(bookingPlayerId), RentalTransactionDTO.class);
+        var rentalTransactions = mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
         rentalTransactions.forEach(this::addHateoasLinks);
         return rentalTransactions;
     }
@@ -141,7 +133,7 @@ public class RentalTransactionService {
                 });
 
         syncBookingTotal(booking.getId());
-        var dtos = parseListObject(repository.findByBookingId(bookingId), RentalTransactionDTO.class);
+        var dtos = mapper.toDTOList(repository.findByBookingId(bookingId));
         dtos.forEach(this::addHateoasLinks);
         return dtos;
     }
@@ -163,7 +155,7 @@ public class RentalTransactionService {
                 });
 
         bookingIdsToSync.forEach(this::syncBookingTotal);
-        var dtos = parseListObject(repository.findAll(), RentalTransactionDTO.class);
+        var dtos = mapper.toDTOList(repository.findAll());
         dtos.forEach(this::addHateoasLinks);
         return dtos;
     }
@@ -186,8 +178,8 @@ public class RentalTransactionService {
 
         preparePrices(rentalTransaction, rentalItem, booking, bookingPlayer);
 
-        var entity = parseObject(rentalTransaction, RentalTransaction.class);
-        var dto = parseObject(repository.save(entity), RentalTransactionDTO.class);
+        var entity = mapper.toEntity(rentalTransaction, booking, bookingPlayer, rentalItem);
+        var dto = mapper.toDTO(repository.save(entity));
         syncBookingTotal(booking.getId());
         bookingStatusService.syncBookingStatus(booking.getId());
         addHateoasLinks(dto);
@@ -214,15 +206,15 @@ public class RentalTransactionService {
         adjustStockForUpdate(entity, oldRentalItem, newRentalItem, rentalTransaction.getQuantity(), rentalTransaction.getStatus());
         preparePrices(rentalTransaction, newRentalItem, newBooking, newBookingPlayer);
 
-        entity.setBookingId(rentalTransaction.getBookingId());
-        entity.setBookingPlayerId(rentalTransaction.getBookingPlayerId());
-        entity.setRentalItemId(rentalTransaction.getRentalItemId());
+        entity.setBooking(newBooking);
+        entity.setBookingPlayer(newBookingPlayer);
+        entity.setRentalItem(newRentalItem);
         entity.setQuantity(rentalTransaction.getQuantity());
         entity.setStatus(rentalTransaction.getStatus());
         entity.setUnitPrice(rentalTransaction.getUnitPrice());
         entity.setTotalPrice(rentalTransaction.getTotalPrice());
 
-        var dto = parseObject(repository.save(entity), RentalTransactionDTO.class);
+        var dto = mapper.toDTO(repository.save(entity));
         syncBookingTotal(oldBooking.getId());
         syncBookingTotal(newBooking.getId());
         bookingStatusService.syncBookingStatus(oldBooking.getId());
@@ -233,16 +225,21 @@ public class RentalTransactionService {
 
     @Transactional
     public void delete(Long id) {
-        logger.info("Delete Rental Transaction");
+        logger.info("Cancel Rental Transaction");
         RentalTransaction entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental transaction not found"));
         Booking booking = findBooking(entity.getBookingId());
 
-        if (isStockReserved(entity.getStatus())) {
-            throw new BusinessException("Cannot delete an active rental transaction. Mark it as RETURNED or CANCELLED first");
+        if (!STATUS_CANCELLED.equalsIgnoreCase(entity.getStatus())) {
+            if (isStockReserved(entity.getStatus())) {
+                RentalItem rentalItem = findRentalItem(entity.getRentalItemId());
+                increaseAvailableStock(rentalItem, entity.getQuantity());
+            }
+
+            entity.setStatus(STATUS_CANCELLED);
+            repository.save(entity);
         }
 
-        repository.delete(entity);
         syncBookingTotal(booking.getId());
         bookingStatusService.syncBookingStatus(booking.getId());
     }
@@ -363,15 +360,21 @@ public class RentalTransactionService {
     }
 
     private boolean isTwilight(Booking booking) {
-        TeeTime teeTime = teeTimeRepository.findById(booking.getTeeTimeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
+        TeeTime teeTime = booking.getTeeTime();
+
+        if (teeTime == null) {
+            throw new ResourceNotFoundException("Tee time not found");
+        }
 
         return !teeTime.getStartTime().isBefore(LocalTime.of(16, 0));
     }
 
     private boolean isMember(BookingPlayer bookingPlayer) {
-        Player player = playerRepository.findById(bookingPlayer.getPlayerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
+        Player player = bookingPlayer.getPlayer();
+
+        if (player == null) {
+            throw new ResourceNotFoundException("Player not found");
+        }
 
         return player.isMember();
     }

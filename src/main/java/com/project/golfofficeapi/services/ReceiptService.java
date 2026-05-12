@@ -5,6 +5,7 @@ import com.project.golfofficeapi.dto.ReceiptDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
+import com.project.golfofficeapi.mapper.custom.ReceiptMapper;
 import com.project.golfofficeapi.model.*;
 import com.project.golfofficeapi.repository.*;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.logging.Logger;
 
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
@@ -36,7 +35,7 @@ public class ReceiptService {
     private final PlayerRepository playerRepository;
     private final TeeTimeRepository teeTimeRepository;
     private final RentalTransactionRepository rentalTransactionRepository;
-    private final RentalItemRepository rentalItemRepository;
+    private final ReceiptMapper mapper;
     private final Logger logger = Logger.getLogger(ReceiptService.class.getName());
 
     public ReceiptService(
@@ -48,7 +47,7 @@ public class ReceiptService {
             PlayerRepository playerRepository,
             TeeTimeRepository teeTimeRepository,
             RentalTransactionRepository rentalTransactionRepository,
-            RentalItemRepository rentalItemRepository
+            ReceiptMapper mapper
     ) {
         this.repository = repository;
         this.receiptItemRepository = receiptItemRepository;
@@ -58,12 +57,12 @@ public class ReceiptService {
         this.playerRepository = playerRepository;
         this.teeTimeRepository = teeTimeRepository;
         this.rentalTransactionRepository = rentalTransactionRepository;
-        this.rentalItemRepository = rentalItemRepository;
+        this.mapper = mapper;
     }
 
     public List<ReceiptDTO> findAll() {
         logger.info("Find All Receipts");
-        var receipts = parseListObject(repository.findAll(), ReceiptDTO.class);
+        var receipts = mapper.toDTOList(repository.findAll());
         receipts.forEach(this::addHateoasLinks);
         return receipts;
     }
@@ -72,7 +71,7 @@ public class ReceiptService {
         logger.info("Find Receipt by ID");
         var receipt = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
-        var dto = parseObject(receipt, ReceiptDTO.class);
+        var dto = mapper.toDTO(receipt);
         addHateoasLinks(dto);
         return dto;
     }
@@ -80,7 +79,7 @@ public class ReceiptService {
     public List<ReceiptDTO> findByBookingId(Long bookingId) {
         logger.info("Find Receipts by Booking ID");
         findBooking(bookingId);
-        var receipts = parseListObject(repository.findByBookingId(bookingId), ReceiptDTO.class);
+        var receipts = mapper.toDTOList(repository.findByBookingId(bookingId));
         receipts.forEach(this::addHateoasLinks);
         return receipts;
     }
@@ -88,7 +87,7 @@ public class ReceiptService {
     public List<ReceiptDTO> findByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Find Receipts by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        var receipts = parseListObject(repository.findByBookingPlayerId(bookingPlayerId), ReceiptDTO.class);
+        var receipts = mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
         receipts.forEach(this::addHateoasLinks);
         return receipts;
     }
@@ -96,7 +95,7 @@ public class ReceiptService {
     public List<ReceiptDTO> findByPaymentId(Long paymentId) {
         logger.info("Find Receipts by Payment ID");
         findPayment(paymentId);
-        var receipts = parseListObject(repository.findByPaymentId(paymentId), ReceiptDTO.class);
+        var receipts = mapper.toDTOList(repository.findByPaymentId(paymentId));
         receipts.forEach(this::addHateoasLinks);
         return receipts;
     }
@@ -133,7 +132,7 @@ public class ReceiptService {
             cancelReceiptEntity(entity, resolveCancellationReason(receipt.getCancellationReason()));
         }
 
-        var dto = parseObject(repository.save(entity), ReceiptDTO.class);
+        var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
         return dto;
     }
@@ -144,23 +143,23 @@ public class ReceiptService {
         Receipt entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
         cancelReceiptEntity(entity, resolveCancellationReason(reason));
-        var dto = parseObject(repository.save(entity), ReceiptDTO.class);
+        var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
         return dto;
     }
 
     @Transactional
     public void delete(Long id) {
-        logger.info("Delete Receipt");
+        logger.info("Cancel Receipt by delete request");
         Receipt entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
 
-        if (!Boolean.TRUE.equals(entity.getCancelled())) {
-            throw new BusinessException("Cannot delete active receipt. Cancel receipt first");
+        if (Boolean.TRUE.equals(entity.getCancelled())) {
+            return;
         }
 
-        receiptItemRepository.deleteByReceiptId(entity.getId());
-        repository.delete(entity);
+        cancelReceiptEntity(entity, "Receipt cancelled by delete request");
+        repository.save(entity);
     }
 
     @Transactional
@@ -174,7 +173,7 @@ public class ReceiptService {
             return;
         }
 
-        var activeReceipt = repository.findFirstByPaymentIdAndCancelledFalse(payment.getId());
+        var activeReceipt = repository.findFirstByPayment_IdAndCancelledFalseOrderByIdAsc(payment.getId());
 
         if (activeReceipt.isEmpty()) {
             issueReceiptForPayment(payment);
@@ -203,9 +202,9 @@ public class ReceiptService {
     private ReceiptDTO issueReceiptForPayment(Payment payment) {
         validatePaymentCanIssueReceipt(payment);
 
-        var existingActiveReceipt = repository.findFirstByPaymentIdAndCancelledFalse(payment.getId());
+        var existingActiveReceipt = repository.findFirstByPayment_IdAndCancelledFalseOrderByIdAsc(payment.getId());
         if (existingActiveReceipt.isPresent()) {
-            var dto = parseObject(existingActiveReceipt.get(), ReceiptDTO.class);
+            var dto = mapper.toDTO(existingActiveReceipt.get());
             addHateoasLinks(dto);
             return dto;
         }
@@ -222,9 +221,9 @@ public class ReceiptService {
 
         Receipt receipt = new Receipt();
         receipt.setReceiptNumber(generateReceiptNumber());
-        receipt.setBookingId(booking.getId());
-        receipt.setBookingPlayerId(bookingPlayer.getId());
-        receipt.setPaymentId(payment.getId());
+        receipt.setBooking(booking);
+        receipt.setBookingPlayer(bookingPlayer);
+        receipt.setPayment(payment);
         receipt.setPlayerNameSnapshot(player.getFullName());
         receipt.setPlayerTaxNumberSnapshot(player.getTaxNumber());
         receipt.setBookingCodeSnapshot(booking.getCode());
@@ -243,7 +242,7 @@ public class ReceiptService {
         Receipt savedReceipt = repository.save(receipt);
         createReceiptItems(savedReceipt, bookingPlayer, paymentAmount);
 
-        var dto = parseObject(savedReceipt, ReceiptDTO.class);
+        var dto = mapper.toDTO(savedReceipt);
         addHateoasLinks(dto);
         return dto;
     }
@@ -254,7 +253,7 @@ public class ReceiptService {
         BigDecimal remainingAmount = paymentAmount.subtract(greenFeePaid).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
         if (greenFeePaid.compareTo(BigDecimal.ZERO) > 0) {
-            saveReceiptItem(receipt.getId(), "Green fee", 1, greenFeePaid, greenFeePaid);
+            saveReceiptItem(receipt, "Green fee", 1, greenFeePaid, greenFeePaid);
         }
 
         List<RentalTransaction> rentals = rentalTransactionRepository.findByBookingPlayerId(bookingPlayer.getId())
@@ -272,8 +271,8 @@ public class ReceiptService {
 
         if (remainingAmount.compareTo(rentalTotal) >= 0) {
             rentals.forEach(rental -> saveReceiptItem(
-                    receipt.getId(),
-                    getRentalItemName(rental.getRentalItemId()),
+                    receipt,
+                    getRentalItemName(rental),
                     rental.getQuantity(),
                     money(rental.getUnitPrice()),
                     money(rental.getTotalPrice())
@@ -281,12 +280,12 @@ public class ReceiptService {
             return;
         }
 
-        saveReceiptItem(receipt.getId(), "Partial rental payment", 1, remainingAmount, remainingAmount);
+        saveReceiptItem(receipt, "Partial rental payment", 1, remainingAmount, remainingAmount);
     }
 
-    private void saveReceiptItem(Long receiptId, String description, Integer quantity, BigDecimal unitPrice, BigDecimal totalPrice) {
+    private void saveReceiptItem(Receipt receipt, String description, Integer quantity, BigDecimal unitPrice, BigDecimal totalPrice) {
         ReceiptItem receiptItem = new ReceiptItem();
-        receiptItem.setReceiptId(receiptId);
+        receiptItem.setReceipt(receipt);
         receiptItem.setDescription(description);
         receiptItem.setQuantity(quantity);
         receiptItem.setUnitPrice(money(unitPrice));
@@ -362,10 +361,12 @@ public class ReceiptService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
     }
 
-    private String getRentalItemName(Long rentalItemId) {
-        return rentalItemRepository.findById(rentalItemId)
-                .map(RentalItem::getName)
-                .orElse("Rental item #" + rentalItemId);
+    private String getRentalItemName(RentalTransaction rental) {
+        if (rental.getRentalItem() != null && rental.getRentalItem().getName() != null) {
+            return rental.getRentalItem().getName();
+        }
+
+        return "Rental item #" + rental.getRentalItemId();
     }
 
     private String generateReceiptNumber() {

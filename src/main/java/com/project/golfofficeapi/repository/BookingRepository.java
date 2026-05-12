@@ -10,4 +10,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     boolean existsByCode(String code);
 
     boolean existsByCodeAndIdNot(String code, Long id);
+
+    boolean existsByTeeTime_Id(Long teeTimeId);
+
+    default boolean existsByTeeTimeId(Long teeTimeId) {
+        return existsByTeeTime_Id(teeTimeId);
+    }
 }

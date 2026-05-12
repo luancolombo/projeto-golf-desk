@@ -5,6 +5,7 @@ import com.project.golfofficeapi.dto.PaymentDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
+import com.project.golfofficeapi.mapper.custom.PaymentMapper;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.BookingPlayer;
 import com.project.golfofficeapi.model.Payment;
@@ -23,8 +24,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
@@ -60,6 +59,9 @@ public class PaymentService {
     @Autowired
     ReceiptService receiptService;
 
+    @Autowired
+    PaymentMapper mapper;
+
     private final Logger logger = Logger.getLogger(PaymentService.class.getName());
 
     public PaymentService(
@@ -68,7 +70,8 @@ public class PaymentService {
             BookingPlayerRepository bookingPlayerRepository,
             RentalTransactionRepository rentalTransactionRepository,
             BookingStatusService bookingStatusService,
-            ReceiptService receiptService
+            ReceiptService receiptService,
+            PaymentMapper mapper
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
@@ -76,11 +79,12 @@ public class PaymentService {
         this.rentalTransactionRepository = rentalTransactionRepository;
         this.bookingStatusService = bookingStatusService;
         this.receiptService = receiptService;
+        this.mapper = mapper;
     }
 
     public List<PaymentDTO> findAll() {
         logger.info("Find All Payments");
-        var payments = parseListObject(repository.findAll(), PaymentDTO.class);
+        var payments = mapper.toDTOList(repository.findAll());
         payments.forEach(this::addHateoasLinks);
         return payments;
     }
@@ -89,7 +93,7 @@ public class PaymentService {
         logger.info("Find Payment by ID");
         var payment = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-        var dto = parseObject(payment, PaymentDTO.class);
+        var dto = mapper.toDTO(payment);
         addHateoasLinks(dto);
         return dto;
     }
@@ -97,7 +101,7 @@ public class PaymentService {
     public List<PaymentDTO> findByBookingId(Long bookingId) {
         logger.info("Find Payments by Booking ID");
         findBooking(bookingId);
-        var payments = parseListObject(repository.findByBookingId(bookingId), PaymentDTO.class);
+        var payments = mapper.toDTOList(repository.findByBookingId(bookingId));
         payments.forEach(this::addHateoasLinks);
         return payments;
     }
@@ -105,7 +109,7 @@ public class PaymentService {
     public List<PaymentDTO> findByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Find Payments by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        var payments = parseListObject(repository.findByBookingPlayerId(bookingPlayerId), PaymentDTO.class);
+        var payments = mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
         payments.forEach(this::addHateoasLinks);
         return payments;
     }
@@ -119,10 +123,10 @@ public class PaymentService {
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(payment.getBookingPlayerId(), booking.getId());
         preparePayment(payment, bookingPlayer, null, null);
 
-        var entity = parseObject(payment, Payment.class);
+        var entity = mapper.toEntity(payment, booking, bookingPlayer);
         Payment savedPayment = repository.save(entity);
         receiptService.syncReceiptForPayment(savedPayment);
-        var dto = parseObject(savedPayment, PaymentDTO.class);
+        var dto = mapper.toDTO(savedPayment);
         bookingStatusService.syncBookingStatus(booking.getId());
         addHateoasLinks(dto);
         return dto;
@@ -141,8 +145,8 @@ public class PaymentService {
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(payment.getBookingPlayerId(), booking.getId());
         preparePayment(payment, bookingPlayer, entity.getId(), entity.getPaidAt());
 
-        entity.setBookingId(payment.getBookingId());
-        entity.setBookingPlayerId(payment.getBookingPlayerId());
+        entity.setBooking(booking);
+        entity.setBookingPlayer(bookingPlayer);
         entity.setAmount(payment.getAmount());
         entity.setMethod(payment.getMethod());
         entity.setStatus(payment.getStatus());
@@ -150,7 +154,7 @@ public class PaymentService {
 
         Payment savedPayment = repository.save(entity);
         receiptService.syncReceiptForPayment(savedPayment);
-        var dto = parseObject(savedPayment, PaymentDTO.class);
+        var dto = mapper.toDTO(savedPayment);
         bookingStatusService.syncBookingStatus(oldBookingId);
         bookingStatusService.syncBookingStatus(booking.getId());
         addHateoasLinks(dto);
@@ -159,12 +163,18 @@ public class PaymentService {
 
     @Transactional
     public void delete(Long id) {
-        logger.info("Delete Payment");
+        logger.info("Cancel Payment");
         Payment entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
         Long bookingId = entity.getBookingId();
-        receiptService.cancelReceiptsByPaymentId(entity.getId(), "Payment deleted");
-        repository.delete(entity);
+
+        if (!STATUS_CANCELLED.equalsIgnoreCase(entity.getStatus())) {
+            receiptService.cancelReceiptsByPaymentId(entity.getId(), "Payment cancelled");
+            entity.setStatus(STATUS_CANCELLED);
+            entity.setPaidAt(null);
+            repository.save(entity);
+        }
+
         bookingStatusService.syncBookingStatus(bookingId);
     }
 

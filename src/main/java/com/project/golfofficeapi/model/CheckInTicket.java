@@ -4,15 +4,14 @@ import jakarta.persistence.*;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "receipt")
-public class Receipt implements Serializable {
+@Table(name = "check_in_ticket")
+public class CheckInTicket implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -20,37 +19,25 @@ public class Receipt implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "receipt_number", nullable = false, unique = true, length = 40)
-    private String receiptNumber;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id", nullable = false)
-    private Booking booking;
+    @Column(name = "ticket_number", nullable = false, unique = true, length = 40)
+    private String ticketNumber;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_player_id", nullable = false)
     private BookingPlayer bookingPlayer;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "payment_id", nullable = false)
-    private Payment payment;
     @Column(name = "player_name_snapshot", nullable = false, length = 100)
     private String playerNameSnapshot;
-    @Column(name = "player_tax_number_snapshot", length = 50)
-    private String playerTaxNumberSnapshot;
     @Column(name = "booking_code_snapshot", nullable = false, length = 40)
     private String bookingCodeSnapshot;
     @Column(name = "play_date", nullable = false)
     private LocalDate playDate;
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
-    @Column(name = "green_fee_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal greenFeeAmount;
-    @Column(name = "rental_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal rentalAmount;
-    @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalAmount;
-    @Column(name = "payment_method", nullable = false, length = 30)
-    private String paymentMethod;
-    @Column(name = "payment_status", nullable = false, length = 30)
-    private String paymentStatus;
+    @Column(name = "starting_tee", nullable = false, length = 20)
+    private String startingTee;
+    @Column(name = "crossing_tee", nullable = false, length = 20)
+    private String crossingTee;
+    @Column(name = "crossing_time", nullable = false)
+    private LocalTime crossingTime;
     @Column(name = "issued_at", nullable = false)
     private LocalDateTime issuedAt;
     @Column(nullable = false)
@@ -60,7 +47,7 @@ public class Receipt implements Serializable {
     @Column(name = "cancellation_reason", length = 255)
     private String cancellationReason;
 
-    public Receipt() {}
+    public CheckInTicket() {}
 
     public Long getId() {
         return id;
@@ -70,35 +57,12 @@ public class Receipt implements Serializable {
         this.id = id;
     }
 
-    public String getReceiptNumber() {
-        return receiptNumber;
+    public String getTicketNumber() {
+        return ticketNumber;
     }
 
-    public void setReceiptNumber(String receiptNumber) {
-        this.receiptNumber = receiptNumber;
-    }
-
-    public Booking getBooking() {
-        return booking;
-    }
-
-    public void setBooking(Booking booking) {
-        this.booking = booking;
-    }
-
-    public Long getBookingId() {
-        return booking == null ? null : booking.getId();
-    }
-
-    public void setBookingId(Long bookingId) {
-        if (bookingId == null) {
-            this.booking = null;
-            return;
-        }
-
-        Booking booking = new Booking();
-        booking.setId(bookingId);
-        this.booking = booking;
+    public void setTicketNumber(String ticketNumber) {
+        this.ticketNumber = ticketNumber;
     }
 
     public BookingPlayer getBookingPlayer() {
@@ -124,43 +88,12 @@ public class Receipt implements Serializable {
         this.bookingPlayer = bookingPlayer;
     }
 
-    public Payment getPayment() {
-        return payment;
-    }
-
-    public void setPayment(Payment payment) {
-        this.payment = payment;
-    }
-
-    public Long getPaymentId() {
-        return payment == null ? null : payment.getId();
-    }
-
-    public void setPaymentId(Long paymentId) {
-        if (paymentId == null) {
-            this.payment = null;
-            return;
-        }
-
-        Payment payment = new Payment();
-        payment.setId(paymentId);
-        this.payment = payment;
-    }
-
     public String getPlayerNameSnapshot() {
         return playerNameSnapshot;
     }
 
     public void setPlayerNameSnapshot(String playerNameSnapshot) {
         this.playerNameSnapshot = playerNameSnapshot;
-    }
-
-    public String getPlayerTaxNumberSnapshot() {
-        return playerTaxNumberSnapshot;
-    }
-
-    public void setPlayerTaxNumberSnapshot(String playerTaxNumberSnapshot) {
-        this.playerTaxNumberSnapshot = playerTaxNumberSnapshot;
     }
 
     public String getBookingCodeSnapshot() {
@@ -187,44 +120,28 @@ public class Receipt implements Serializable {
         this.startTime = startTime;
     }
 
-    public BigDecimal getGreenFeeAmount() {
-        return greenFeeAmount;
+    public String getStartingTee() {
+        return startingTee;
     }
 
-    public void setGreenFeeAmount(BigDecimal greenFeeAmount) {
-        this.greenFeeAmount = greenFeeAmount;
+    public void setStartingTee(String startingTee) {
+        this.startingTee = startingTee;
     }
 
-    public BigDecimal getRentalAmount() {
-        return rentalAmount;
+    public String getCrossingTee() {
+        return crossingTee;
     }
 
-    public void setRentalAmount(BigDecimal rentalAmount) {
-        this.rentalAmount = rentalAmount;
+    public void setCrossingTee(String crossingTee) {
+        this.crossingTee = crossingTee;
     }
 
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
+    public LocalTime getCrossingTime() {
+        return crossingTime;
     }
 
-    public void setTotalAmount(BigDecimal totalAmount) {
-        this.totalAmount = totalAmount;
-    }
-
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(String paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-
-    public String getPaymentStatus() {
-        return paymentStatus;
-    }
-
-    public void setPaymentStatus(String paymentStatus) {
-        this.paymentStatus = paymentStatus;
+    public void setCrossingTime(LocalTime crossingTime) {
+        this.crossingTime = crossingTime;
     }
 
     public LocalDateTime getIssuedAt() {
@@ -262,8 +179,8 @@ public class Receipt implements Serializable {
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
-        Receipt receipt = (Receipt) o;
-        return Objects.equals(getId(), receipt.getId());
+        CheckInTicket that = (CheckInTicket) o;
+        return Objects.equals(getId(), that.getId());
     }
 
     @Override

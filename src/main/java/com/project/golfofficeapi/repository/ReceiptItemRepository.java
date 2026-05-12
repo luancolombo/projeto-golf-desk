@@ -9,7 +9,15 @@ import java.util.List;
 @Repository
 public interface ReceiptItemRepository extends JpaRepository<ReceiptItem, Long> {
 
-    List<ReceiptItem> findByReceiptId(Long receiptId);
+    List<ReceiptItem> findByReceipt_Id(Long receiptId);
 
-    void deleteByReceiptId(Long receiptId);
+    default List<ReceiptItem> findByReceiptId(Long receiptId) {
+        return findByReceipt_Id(receiptId);
+    }
+
+    void deleteByReceipt_Id(Long receiptId);
+
+    default void deleteByReceiptId(Long receiptId) {
+        deleteByReceipt_Id(receiptId);
+    }
 }

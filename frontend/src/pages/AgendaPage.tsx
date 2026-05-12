@@ -3,6 +3,7 @@ import {
   ApiError,
   bookingPlayerService,
   bookingService,
+  checkInTicketService,
   paymentService,
   playerService,
   receiptItemService,
@@ -12,7 +13,7 @@ import {
   teeTimeService
 } from "../api";
 import type { AppPage } from "../App";
-import type { Booking, BookingPlayer, Payment, Player, Receipt, ReceiptItem, RentalItem, RentalTransaction, TeeTime } from "../types";
+import type { Booking, BookingPlayer, CheckInTicket, Payment, Player, Receipt, ReceiptItem, RentalItem, RentalTransaction, TeeTime } from "../types";
 
 type FeedbackType = "success" | "error" | "";
 
@@ -161,10 +162,12 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([]);
+  const [checkInTickets, setCheckInTickets] = useState<CheckInTicket[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
+  const [selectedCheckInTicketId, setSelectedCheckInTicketId] = useState<number | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<BookingDetailTab>("summary");
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [newBookingPlayerGreenFee, setNewBookingPlayerGreenFee] = useState("");
@@ -252,6 +255,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const selectedReceiptItems = useMemo(
     () => receiptItems.filter((receiptItem) => receiptItem.receiptId === selectedReceiptId),
     [receiptItems, selectedReceiptId]
+  );
+  const selectedCheckInTicket = useMemo(
+    () => checkInTickets.find((ticket) => ticket.id === selectedCheckInTicketId),
+    [checkInTickets, selectedCheckInTicketId]
   );
   const sortedPlayers = useMemo(
     () => [...players].sort((first, second) => first.fullName.localeCompare(second.fullName)),
@@ -402,6 +409,23 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     return receipt.cancelled ? "CANCELADO" : "EMITIDO";
   }
 
+  function getActiveCheckInTicketForBookingPlayer(bookingPlayerId: number | undefined) {
+    if (!bookingPlayerId) {
+      return undefined;
+    }
+
+    return checkInTickets.find((ticket) => ticket.bookingPlayerId === bookingPlayerId && !ticket.cancelled)
+      ?? checkInTickets.find((ticket) => ticket.bookingPlayerId === bookingPlayerId);
+  }
+
+  function getCheckInTicketStatus(ticket: CheckInTicket | undefined) {
+    if (!ticket) {
+      return "NAO EMITIDO";
+    }
+
+    return ticket.cancelled ? "CANCELADO" : "EMITIDO";
+  }
+
   function getRentalItem(rentalItemId: number | undefined) {
     return rentalItems.find((item) => item.id === rentalItemId);
   }
@@ -470,7 +494,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   async function loadAgenda() {
     setIsLoading(true);
     setFeedback({ message: "Carregando tee times e bookings...", type: "success" });
-    showRequest("GET", "/player + /rental-item + /tee-time + /booking + /booking-player + /rental-transaction + /payment + /receipt + /receipt-item");
+    showRequest("GET", "/player + /rental-item + /tee-time + /booking + /booking-player + /rental-transaction + /payment + /receipt + /receipt-item + /check-in-ticket");
 
     try {
       const [
@@ -482,7 +506,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         rentalTransactionData,
         paymentData,
         receiptData,
-        receiptItemData
+        receiptItemData,
+        checkInTicketData
       ] = await Promise.all([
         playerService.findAll(),
         rentalItemService.findAll(),
@@ -492,7 +517,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         rentalTransactionService.findAll(),
         paymentService.findAll(),
         receiptService.findAll(),
-        receiptItemService.findAll()
+        receiptItemService.findAll(),
+        checkInTicketService.findAll()
       ]);
 
       setPlayers(playerData);
@@ -504,6 +530,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       setPayments(paymentData);
       setReceipts(receiptData);
       setReceiptItems(receiptItemData);
+      setCheckInTickets(checkInTicketData);
       showResponse({
         players: playerData,
         rentalItems: rentalItemData,
@@ -513,7 +540,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         rentalTransactions: rentalTransactionData,
         payments: paymentData,
         receipts: receiptData,
-        receiptItems: receiptItemData
+        receiptItems: receiptItemData,
+        checkInTickets: checkInTicketData
       });
       setApiStatus("Conectada");
       setFeedback({ message: "Agenda carregada com sucesso.", type: "success" });
@@ -537,7 +565,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       rentalTransactionData,
       paymentData,
       receiptData,
-      receiptItemData
+      receiptItemData,
+      checkInTicketData
     ] = await Promise.all([
       playerService.findAll(),
       rentalItemService.findAll(),
@@ -547,7 +576,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       rentalTransactionService.findAll(),
       paymentService.findAll(),
       receiptService.findAll(),
-      receiptItemService.findAll()
+      receiptItemService.findAll(),
+      checkInTicketService.findAll()
     ]);
 
     setPlayers(playerData);
@@ -559,6 +589,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     setPayments(paymentData);
     setReceipts(receiptData);
     setReceiptItems(receiptItemData);
+    setCheckInTickets(checkInTicketData);
 
     return {
       players: playerData,
@@ -569,7 +600,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       rentalTransactions: rentalTransactionData,
       payments: paymentData,
       receipts: receiptData,
-      receiptItems: receiptItemData
+      receiptItems: receiptItemData,
+      checkInTickets: checkInTicketData
     };
   }
 
@@ -648,7 +680,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedRentalTransactions: refreshedData.rentalTransactions,
         refreshedPayments: refreshedData.payments,
         refreshedReceipts: refreshedData.receipts,
-        refreshedReceiptItems: refreshedData.receiptItems
+        refreshedReceiptItems: refreshedData.receiptItems,
+        refreshedCheckInTickets: refreshedData.checkInTickets
       });
       setApiStatus("Conectada");
       setFeedback({ message: `Booking #${booking.id} pronto para ${slot.time}.`, type: "success" });
@@ -705,6 +738,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         ),
         refreshedBookingPlayers: refreshedData.bookingPlayers.filter(
           (bookingPlayer) => bookingPlayer.bookingId === savedBookingPlayer.bookingId
+        ),
+        refreshedCheckInTickets: refreshedData.checkInTickets.filter(
+          (ticket) => ticket.bookingPlayerId === savedBookingPlayer.id
         )
       });
     } catch (error) {
@@ -736,13 +772,20 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     try {
       const savedBookingPlayer = await bookingPlayerService.update(payload);
       const refreshedData = await refreshAgendaData();
+      const refreshedTicket = refreshedData.checkInTickets.find(
+        (ticket) => ticket.bookingPlayerId === savedBookingPlayer.id && !ticket.cancelled
+      );
       setSelectedBookingId(savedBookingPlayer.bookingId);
       setActiveDetailTab("players");
+      setSelectedCheckInTicketId(savedBookingPlayer.checkedIn ? refreshedTicket?.id ?? null : null);
       setApiStatus("Conectada");
       setFeedback({ message: "Check-in atualizado com sucesso.", type: "success" });
       showResponse({
         savedBookingPlayer,
-        refreshedBooking: refreshedData.bookings.find((booking) => booking.id === savedBookingPlayer.bookingId)
+        refreshedBooking: refreshedData.bookings.find((booking) => booking.id === savedBookingPlayer.bookingId),
+        refreshedCheckInTickets: refreshedData.checkInTickets.filter(
+          (ticket) => ticket.bookingPlayerId === savedBookingPlayer.id
+        )
       });
     } catch (error) {
       const message = getErrorMessage(error);
@@ -1186,8 +1229,42 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     }
   }
 
-  function handlePrintReceipt() {
-    const receiptElement = document.querySelector<HTMLElement>("#receipt-print-area .receipt-paper");
+  async function handleShowCheckInTicket(bookingPlayer: BookingPlayer) {
+    if (!bookingPlayer.id) {
+      return;
+    }
+
+    setIsLoading(true);
+    showRequest("POST", `/check-in-ticket/booking-player/${bookingPlayer.id}/issue`);
+
+    try {
+      const existingTicket = getActiveCheckInTicketForBookingPlayer(bookingPlayer.id);
+      const ticket = existingTicket && !existingTicket.cancelled
+        ? existingTicket
+        : await checkInTicketService.issueByBookingPlayerId(bookingPlayer.id);
+      const refreshedData = await refreshAgendaData();
+      const refreshedTicket = refreshedData.checkInTickets.find((item) => item.id === ticket.id) ?? ticket;
+      setSelectedBookingId(bookingPlayer.bookingId);
+      setSelectedCheckInTicketId(refreshedTicket.id ?? null);
+      setActiveDetailTab("players");
+      setApiStatus("Conectada");
+      setBookingPlayerFeedback({ message: "Ticket de check-in pronto para impressao.", type: "success" });
+      showResponse({
+        checkInTicket: refreshedTicket,
+        refreshedCheckInTickets: refreshedData.checkInTickets.filter((item) => item.bookingPlayerId === bookingPlayer.id)
+      });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setApiStatus("Falha na conexao");
+      setBookingPlayerFeedback({ message, type: "error" });
+      showResponse(getErrorResponse(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handlePrintPanel(selector: string, title: string) {
+    const receiptElement = document.querySelector<HTMLElement>(selector);
 
     if (!receiptElement) {
       window.print();
@@ -1206,7 +1283,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       <!doctype html>
       <html>
         <head>
-          <title>${selectedReceipt?.receiptNumber || "Recibo"}</title>
+          <title>${title}</title>
           <style>
             @page {
               margin: 14mm;
@@ -1281,6 +1358,32 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
               font-size: 0.88rem;
             }
 
+            .ticket-route-grid {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 14px;
+            }
+
+            .ticket-route-grid > div {
+              display: grid;
+              gap: 8px;
+              border: 1px solid rgba(24, 37, 29, 0.12);
+              border-radius: 8px;
+              padding: 16px;
+            }
+
+            .ticket-route-grid span {
+              color: #607267;
+              font-size: 0.78rem;
+              font-weight: 900;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+            }
+
+            .ticket-route-grid strong:last-child {
+              font-size: 1.45rem;
+            }
+
             .receipt-items {
               display: grid;
               gap: 8px;
@@ -1337,6 +1440,14 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       </html>
     `);
     printWindow.document.close();
+  }
+
+  function handlePrintReceipt() {
+    handlePrintPanel("#receipt-print-area .receipt-paper", selectedReceipt?.receiptNumber || "Recibo");
+  }
+
+  function handlePrintCheckInTicket() {
+    handlePrintPanel("#check-in-ticket-print-area .receipt-paper", selectedCheckInTicket?.ticketNumber || "Ticket check-in");
   }
 
   useEffect(() => {
@@ -1650,6 +1761,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                       const playerTotal = getBookingPlayerTotal(bookingPlayer);
                       const paidAmount = getBookingPlayerPaidAmount(bookingPlayer.id);
                       const pendingAmount = getBookingPlayerPendingAmount(bookingPlayer.id);
+                      const checkInTicket = getActiveCheckInTicketForBookingPlayer(bookingPlayer.id);
 
                       return (
                         <div className="detail-list-row booking-player-row" key={bookingPlayer.id}>
@@ -1681,6 +1793,16 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                               {bookingPlayer.checkedIn ? "Desfazer check-in" : "Check-in"}
                             </button>
                             <button
+                              className="action-button select"
+                              disabled={isLoading || !bookingPlayer.checkedIn}
+                              type="button"
+                              onClick={() => {
+                                void handleShowCheckInTicket(bookingPlayer);
+                              }}
+                            >
+                              {checkInTicket && !checkInTicket.cancelled ? "Ticket" : "Gerar ticket"}
+                            </button>
+                            <button
                               className="action-button delete"
                               disabled={isLoading}
                               type="button"
@@ -1696,6 +1818,76 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                     })
                   )}
                 </div>
+
+                {selectedCheckInTicket ? (
+                  <section className="receipt-preview-panel" id="check-in-ticket-print-area">
+                    <div className="receipt-toolbar no-print">
+                      <div>
+                        <p className="section-tag">Ticket de check-in</p>
+                        <h3>{selectedCheckInTicket.ticketNumber || `Ticket #${selectedCheckInTicket.id}`}</h3>
+                      </div>
+                      <div className="table-actions">
+                        <button className="action-button select" type="button" onClick={handlePrintCheckInTicket}>
+                          Imprimir
+                        </button>
+                        <button
+                          className="action-button edit"
+                          type="button"
+                          onClick={() => {
+                            setSelectedCheckInTicketId(null);
+                          }}
+                        >
+                          Fechar
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="receipt-paper check-in-ticket-paper">
+                      <div className="receipt-header">
+                        <div>
+                          <p className="receipt-kicker">Golf Office</p>
+                          <h3>{selectedCheckInTicket.ticketNumber || `#${selectedCheckInTicket.id}`}</h3>
+                        </div>
+                        <span className={`receipt-status ${selectedCheckInTicket.cancelled ? "cancelled" : ""}`.trim()}>
+                          {getCheckInTicketStatus(selectedCheckInTicket)}
+                        </span>
+                      </div>
+
+                      <div className="receipt-meta">
+                        <span>Player</span>
+                        <strong>
+                          {selectedCheckInTicket.playerNameSnapshot || getBookingPlayerDisplayName(selectedCheckInTicket.bookingPlayerId)}
+                        </strong>
+                        <span>Booking</span>
+                        <strong>{selectedCheckInTicket.bookingCodeSnapshot || "Sem codigo"}</strong>
+                        <span>Data</span>
+                        <strong>{selectedCheckInTicket.playDate ? formatDate(selectedCheckInTicket.playDate) : "Sem data"}</strong>
+                        <span>Emitido em</span>
+                        <strong>{formatDateTime(selectedCheckInTicket.issuedAt)}</strong>
+                      </div>
+
+                      <div className="ticket-route-grid">
+                        <div>
+                          <span>Tee inicial</span>
+                          <strong>{selectedCheckInTicket.startingTee || "TEE 1"}</strong>
+                          <strong>{formatTime(selectedCheckInTicket.startTime || undefined)}</strong>
+                        </div>
+                        <div>
+                          <span>Cruzamento</span>
+                          <strong>{selectedCheckInTicket.crossingTee || "TEE 10"}</strong>
+                          <strong>{formatTime(selectedCheckInTicket.crossingTime || undefined)}</strong>
+                        </div>
+                      </div>
+
+                      {selectedCheckInTicket.cancelled ? (
+                        <p className="receipt-cancel-note">
+                          Cancelado em {formatDateTime(selectedCheckInTicket.cancelledAt)}.
+                          {selectedCheckInTicket.cancellationReason ? ` Motivo: ${selectedCheckInTicket.cancellationReason}` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
               </>
             ) : null}
 

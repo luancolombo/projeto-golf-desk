@@ -6,6 +6,8 @@ import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
 import com.project.golfofficeapi.model.TeeTime;
+import com.project.golfofficeapi.repository.BookingPlayerRepository;
+import com.project.golfofficeapi.repository.BookingRepository;
 import com.project.golfofficeapi.repository.TeeTimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,10 +30,22 @@ public class TeeTimeService {
     @Autowired
     TeeTimeRepository repository;
 
+    @Autowired
+    BookingRepository bookingRepository;
+
+    @Autowired
+    BookingPlayerRepository bookingPlayerRepository;
+
     private final Logger logger = Logger.getLogger(TeeTimeService.class.getName());
 
-    public TeeTimeService(TeeTimeRepository repository) {
+    public TeeTimeService(
+            TeeTimeRepository repository,
+            BookingRepository bookingRepository,
+            BookingPlayerRepository bookingPlayerRepository
+    ) {
         this.repository = repository;
+        this.bookingRepository = bookingRepository;
+        this.bookingPlayerRepository = bookingPlayerRepository;
     }
 
     public List<TeeTimeDTO> findAll() {
@@ -108,6 +122,14 @@ public class TeeTimeService {
         logger.info("Delete Tee Time");
         TeeTime entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
+
+        if (bookingRepository.existsByTeeTimeId(entity.getId())) {
+            entity.setStatus("CANCELLED");
+            entity.setBookedPlayers(Math.toIntExact(bookingPlayerRepository.countByTeeTimeId(entity.getId())));
+            repository.save(entity);
+            return;
+        }
+
         repository.delete(entity);
     }
 

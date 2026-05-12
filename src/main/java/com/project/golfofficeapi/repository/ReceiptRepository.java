@@ -10,15 +10,39 @@ import java.util.Optional;
 @Repository
 public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
 
-    List<Receipt> findByBookingId(Long bookingId);
+    List<Receipt> findByBooking_Id(Long bookingId);
 
-    List<Receipt> findByBookingPlayerId(Long bookingPlayerId);
+    default List<Receipt> findByBookingId(Long bookingId) {
+        return findByBooking_Id(bookingId);
+    }
 
-    List<Receipt> findByPaymentId(Long paymentId);
+    boolean existsByBooking_Id(Long bookingId);
+
+    default boolean existsByBookingId(Long bookingId) {
+        return existsByBooking_Id(bookingId);
+    }
+
+    List<Receipt> findByBookingPlayer_Id(Long bookingPlayerId);
+
+    default List<Receipt> findByBookingPlayerId(Long bookingPlayerId) {
+        return findByBookingPlayer_Id(bookingPlayerId);
+    }
+
+    boolean existsByBookingPlayer_Id(Long bookingPlayerId);
+
+    default boolean existsByBookingPlayerId(Long bookingPlayerId) {
+        return existsByBookingPlayer_Id(bookingPlayerId);
+    }
+
+    List<Receipt> findByPayment_Id(Long paymentId);
+
+    default List<Receipt> findByPaymentId(Long paymentId) {
+        return findByPayment_Id(paymentId);
+    }
 
     List<Receipt> findByReceiptNumberStartingWith(String prefix);
 
-    Optional<Receipt> findFirstByPaymentIdAndCancelledFalse(Long paymentId);
+    Optional<Receipt> findFirstByPayment_IdAndCancelledFalseOrderByIdAsc(Long paymentId);
 
     boolean existsByReceiptNumber(String receiptNumber);
 }

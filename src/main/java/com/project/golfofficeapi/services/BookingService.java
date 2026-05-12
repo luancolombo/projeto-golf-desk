@@ -5,12 +5,18 @@ import com.project.golfofficeapi.dto.BookingDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
+import com.project.golfofficeapi.mapper.custom.BookingMapper;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.TeeTime;
+import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.BookingRepository;
+import com.project.golfofficeapi.repository.PaymentRepository;
+import com.project.golfofficeapi.repository.ReceiptRepository;
+import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import com.project.golfofficeapi.repository.TeeTimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,8 +24,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
@@ -32,16 +36,44 @@ public class BookingService {
     @Autowired
     TeeTimeRepository teeTimeRepository;
 
+    @Autowired
+    BookingPlayerRepository bookingPlayerRepository;
+
+    @Autowired
+    RentalTransactionRepository rentalTransactionRepository;
+
+    @Autowired
+    PaymentRepository paymentRepository;
+
+    @Autowired
+    ReceiptRepository receiptRepository;
+
+    @Autowired
+    BookingMapper mapper;
+
     private final Logger logger = Logger.getLogger(BookingService.class.getName());
 
-    public BookingService(BookingRepository repository, TeeTimeRepository teeTimeRepository) {
+    public BookingService(
+            BookingRepository repository,
+            TeeTimeRepository teeTimeRepository,
+            BookingPlayerRepository bookingPlayerRepository,
+            RentalTransactionRepository rentalTransactionRepository,
+            PaymentRepository paymentRepository,
+            ReceiptRepository receiptRepository,
+            BookingMapper mapper
+    ) {
         this.repository = repository;
         this.teeTimeRepository = teeTimeRepository;
+        this.bookingPlayerRepository = bookingPlayerRepository;
+        this.rentalTransactionRepository = rentalTransactionRepository;
+        this.paymentRepository = paymentRepository;
+        this.receiptRepository = receiptRepository;
+        this.mapper = mapper;
     }
 
     public List<BookingDTO> findAll() {
         logger.info("Find All Bookings");
-        var bookings = parseListObject(repository.findAll(), BookingDTO.class);
+        var bookings = mapper.toDTOList(repository.findAll());
         bookings.forEach(this::addHateoasLinks);
         return bookings;
     }
@@ -50,7 +82,7 @@ public class BookingService {
         logger.info("Find Booking by ID");
         var booking = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
-        var dto = parseObject(booking, BookingDTO.class);
+        var dto = mapper.toDTO(booking);
         addHateoasLinks(dto);
         return dto;
     }
@@ -58,11 +90,11 @@ public class BookingService {
     public BookingDTO create(BookingDTO booking) {
         if (booking == null) throw new RequiredObjectIsNullException();
         logger.info("Create Booking");
-        validateTeeTime(booking.getTeeTimeId());
+        TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
         prepareNewBooking(booking);
 
-        var entity = parseObject(booking, Booking.class);
-        var dto = parseObject(repository.save(entity), BookingDTO.class);
+        var entity = mapper.toEntity(booking, teeTime);
+        var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
         return dto;
     }
@@ -70,7 +102,7 @@ public class BookingService {
     public BookingDTO update(BookingDTO booking) {
         if (booking == null) throw new RequiredObjectIsNullException();
         logger.info("Update Booking");
-        validateTeeTime(booking.getTeeTimeId());
+        TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
 
         Booking entity = repository.findById(booking.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
@@ -85,17 +117,47 @@ public class BookingService {
         entity.setStatus(booking.getStatus());
         entity.setTotalAmount(resolveTotalAmount(booking.getTotalAmount()));
         entity.setCreatedBy(booking.getCreatedBy());
-        entity.setTeeTimeId(booking.getTeeTimeId());
-        var dto = parseObject(repository.save(entity), BookingDTO.class);
+        entity.setTeeTime(teeTime);
+        var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
         return dto;
     }
 
+    @Transactional
     public void delete(Long id) {
         logger.info("Delete Booking");
         Booking entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+
+        if (hasBookingHistory(entity.getId())) {
+            entity.setStatus("CANCELLED");
+            repository.save(entity);
+            syncTeeTimeOccupancy(entity.getTeeTimeId());
+            return;
+        }
+
         repository.delete(entity);
+        syncTeeTimeOccupancy(entity.getTeeTimeId());
+    }
+
+    private boolean hasBookingHistory(Long bookingId) {
+        return bookingPlayerRepository.existsByBookingId(bookingId)
+                || rentalTransactionRepository.existsByBookingId(bookingId)
+                || paymentRepository.existsByBookingId(bookingId)
+                || receiptRepository.existsByBookingId(bookingId);
+    }
+
+    private void syncTeeTimeOccupancy(Long teeTimeId) {
+        TeeTime teeTime = teeTimeRepository.findById(teeTimeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
+        int bookedPlayers = Math.toIntExact(bookingPlayerRepository.countByTeeTimeId(teeTimeId));
+        teeTime.setBookedPlayers(bookedPlayers);
+
+        if (!"CANCELLED".equalsIgnoreCase(teeTime.getStatus())) {
+            teeTime.setStatus(bookedPlayers >= teeTime.getMaxPlayers() ? "FULL" : "AVAILABLE");
+        }
+
+        teeTimeRepository.save(teeTime);
     }
 
     private void prepareNewBooking(BookingDTO booking) {

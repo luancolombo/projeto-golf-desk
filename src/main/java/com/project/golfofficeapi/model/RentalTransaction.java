@@ -17,12 +17,15 @@ public class RentalTransaction implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "booking_id", nullable = false)
-    private Long bookingId;
-    @Column(name = "booking_player_id", nullable = false)
-    private Long bookingPlayerId;
-    @Column(name = "rental_item_id", nullable = false)
-    private Long rentalItemId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_id", nullable = false)
+    private Booking booking;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_player_id", nullable = false)
+    private BookingPlayer bookingPlayer;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rental_item_id", nullable = false)
+    private RentalItem rentalItem;
     @Column(nullable = false)
     private Integer quantity;
     @Column(nullable = false, length = 30)
@@ -43,27 +46,72 @@ public class RentalTransaction implements Serializable {
     }
 
     public Long getBookingId() {
-        return bookingId;
+        return booking == null ? null : booking.getId();
     }
 
     public void setBookingId(Long bookingId) {
-        this.bookingId = bookingId;
+        if (bookingId == null) {
+            this.booking = null;
+            return;
+        }
+
+        Booking booking = new Booking();
+        booking.setId(bookingId);
+        this.booking = booking;
+    }
+
+    public Booking getBooking() {
+        return booking;
+    }
+
+    public void setBooking(Booking booking) {
+        this.booking = booking;
     }
 
     public Long getBookingPlayerId() {
-        return bookingPlayerId;
+        return bookingPlayer == null ? null : bookingPlayer.getId();
     }
 
     public void setBookingPlayerId(Long bookingPlayerId) {
-        this.bookingPlayerId = bookingPlayerId;
+        if (bookingPlayerId == null) {
+            this.bookingPlayer = null;
+            return;
+        }
+
+        BookingPlayer bookingPlayer = new BookingPlayer();
+        bookingPlayer.setId(bookingPlayerId);
+        this.bookingPlayer = bookingPlayer;
+    }
+
+    public BookingPlayer getBookingPlayer() {
+        return bookingPlayer;
+    }
+
+    public void setBookingPlayer(BookingPlayer bookingPlayer) {
+        this.bookingPlayer = bookingPlayer;
     }
 
     public Long getRentalItemId() {
-        return rentalItemId;
+        return rentalItem == null ? null : rentalItem.getId();
     }
 
     public void setRentalItemId(Long rentalItemId) {
-        this.rentalItemId = rentalItemId;
+        if (rentalItemId == null) {
+            this.rentalItem = null;
+            return;
+        }
+
+        RentalItem rentalItem = new RentalItem();
+        rentalItem.setId(rentalItemId);
+        this.rentalItem = rentalItem;
+    }
+
+    public RentalItem getRentalItem() {
+        return rentalItem;
+    }
+
+    public void setRentalItem(RentalItem rentalItem) {
+        this.rentalItem = rentalItem;
     }
 
     public Integer getQuantity() {

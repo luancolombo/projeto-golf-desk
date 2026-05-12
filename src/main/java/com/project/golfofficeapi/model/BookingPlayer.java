@@ -17,10 +17,12 @@ public class BookingPlayer implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "booking_id", nullable = false)
-    private Long bookingId;
-    @Column(name = "player_id", nullable = false)
-    private Long playerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_id", nullable = false)
+    private Booking booking;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "player_id", nullable = false)
+    private Player player;
     @Column(name = "green_fee_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal greenFeeAmount;
     @Column(name = "checked_in", nullable = false)
@@ -36,20 +38,50 @@ public class BookingPlayer implements Serializable {
         this.id = id;
     }
 
+    public Booking getBooking() {
+        return booking;
+    }
+
+    public void setBooking(Booking booking) {
+        this.booking = booking;
+    }
+
     public Long getBookingId() {
-        return bookingId;
+        return booking != null ? booking.getId() : null;
     }
 
     public void setBookingId(Long bookingId) {
-        this.bookingId = bookingId;
+        if (bookingId == null) {
+            this.booking = null;
+            return;
+        }
+
+        Booking bookingReference = new Booking();
+        bookingReference.setId(bookingId);
+        this.booking = bookingReference;
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
+
+    public void setPlayer(Player player) {
+        this.player = player;
     }
 
     public Long getPlayerId() {
-        return playerId;
+        return player != null ? player.getId() : null;
     }
 
     public void setPlayerId(Long playerId) {
-        this.playerId = playerId;
+        if (playerId == null) {
+            this.player = null;
+            return;
+        }
+
+        Player playerReference = new Player();
+        playerReference.setId(playerId);
+        this.player = playerReference;
     }
 
     public BigDecimal getGreenFeeAmount() {

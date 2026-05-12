@@ -12,14 +12,34 @@ import java.util.List;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
-    List<Payment> findByBookingId(Long bookingId);
+    List<Payment> findByBooking_Id(Long bookingId);
 
-    List<Payment> findByBookingPlayerId(Long bookingPlayerId);
+    default List<Payment> findByBookingId(Long bookingId) {
+        return findByBooking_Id(bookingId);
+    }
+
+    boolean existsByBooking_Id(Long bookingId);
+
+    default boolean existsByBookingId(Long bookingId) {
+        return existsByBooking_Id(bookingId);
+    }
+
+    List<Payment> findByBookingPlayer_Id(Long bookingPlayerId);
+
+    default List<Payment> findByBookingPlayerId(Long bookingPlayerId) {
+        return findByBookingPlayer_Id(bookingPlayerId);
+    }
+
+    boolean existsByBookingPlayer_Id(Long bookingPlayerId);
+
+    default boolean existsByBookingPlayerId(Long bookingPlayerId) {
+        return existsByBookingPlayer_Id(bookingPlayerId);
+    }
 
     @Query("""
             select coalesce(sum(p.amount), 0)
             from Payment p
-            where p.bookingPlayerId = :bookingPlayerId
+            where p.bookingPlayer.id = :bookingPlayerId
             and upper(p.status) = 'PAID'
             and (:ignoredPaymentId is null or p.id <> :ignoredPaymentId)
             """)
