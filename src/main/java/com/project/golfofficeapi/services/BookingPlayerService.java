@@ -11,6 +11,7 @@ import com.project.golfofficeapi.model.TeeTime;
 import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.BookingRepository;
 import com.project.golfofficeapi.repository.PlayerRepository;
+import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import com.project.golfofficeapi.repository.TeeTimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,18 +41,28 @@ public class BookingPlayerService {
     @Autowired
     TeeTimeRepository teeTimeRepository;
 
+    @Autowired
+    RentalTransactionRepository rentalTransactionRepository;
+
+    @Autowired
+    BookingStatusService bookingStatusService;
+
     private final Logger logger = Logger.getLogger(BookingPlayerService.class.getName());
 
     public BookingPlayerService(
             BookingPlayerRepository repository,
             BookingRepository bookingRepository,
             PlayerRepository playerRepository,
-            TeeTimeRepository teeTimeRepository
+            TeeTimeRepository teeTimeRepository,
+            RentalTransactionRepository rentalTransactionRepository,
+            BookingStatusService bookingStatusService
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
         this.playerRepository = playerRepository;
         this.teeTimeRepository = teeTimeRepository;
+        this.rentalTransactionRepository = rentalTransactionRepository;
+        this.bookingStatusService = bookingStatusService;
     }
 
     public List<BookingPlayerDTO> findAll() {
@@ -84,6 +95,7 @@ public class BookingPlayerService {
         var entity = parseObject(bookingPlayer, BookingPlayer.class);
         var dto = parseObject(repository.save(entity), BookingPlayerDTO.class);
         syncBookingTotal(booking.getId());
+        bookingStatusService.syncBookingStatus(booking.getId());
         syncTeeTimeOccupancy(teeTime.getId());
         addHateoasLinks(dto);
         return dto;
@@ -115,6 +127,8 @@ public class BookingPlayerService {
 
         syncBookingTotal(oldBooking.getId());
         syncBookingTotal(newBooking.getId());
+        bookingStatusService.syncBookingStatus(oldBooking.getId());
+        bookingStatusService.syncBookingStatus(newBooking.getId());
         syncTeeTimeOccupancy(oldTeeTime.getId());
         syncTeeTimeOccupancy(newTeeTime.getId());
         addHateoasLinks(dto);
@@ -129,8 +143,13 @@ public class BookingPlayerService {
         Booking booking = findBooking(entity.getBookingId());
         TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
 
+        if (!rentalTransactionRepository.findByBookingPlayerId(entity.getId()).isEmpty()) {
+            throw new BusinessException("Cannot remove player with rental items. Remove rental items first");
+        }
+
         repository.delete(entity);
         syncBookingTotal(booking.getId());
+        bookingStatusService.syncBookingStatus(booking.getId());
         syncTeeTimeOccupancy(teeTime.getId());
     }
 
@@ -216,7 +235,9 @@ public class BookingPlayerService {
     private void syncBookingTotal(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
-        booking.setTotalAmount(repository.sumGreenFeeAmountByBookingId(bookingId));
+        BigDecimal greenFeeTotal = repository.sumGreenFeeAmountByBookingId(bookingId);
+        BigDecimal rentalTotal = rentalTransactionRepository.sumTotalPriceByBookingId(bookingId);
+        booking.setTotalAmount(greenFeeTotal.add(rentalTotal));
         bookingRepository.save(booking);
     }
 

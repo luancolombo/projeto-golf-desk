@@ -7,11 +7,14 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Repository
 public interface BookingPlayerRepository extends JpaRepository<BookingPlayer, Long> {
 
     long countByBookingId(Long bookingId);
+
+    List<BookingPlayer> findByBookingId(Long bookingId);
 
     @Query("""
             select count(bp)
