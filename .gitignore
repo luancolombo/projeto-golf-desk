@@ -4,9 +4,6 @@
 # Log file
 *.log
 
-# SQL files
-*.sql
-
 # Build output
 target/
 
