@@ -34,7 +34,7 @@ Main features already implemented:
 - MySQL integration with Spring Data JPA.
 - Flyway migrations and initial seed data.
 - React + TypeScript frontend migration to consume the API.
-- Legacy static frontend temporarily kept in `src/main/resources/static`.
+- Legacy static frontend archived after the React migration covered the current flows.
 
 ## Tech Stack
 
@@ -230,23 +230,17 @@ Highlights:
 
 ## Frontend
 
-The project currently has two frontends during the migration phase.
+The active frontend is the React + TypeScript app inside `frontend`.
 
 ### Legacy Static Frontend
 
-Location:
+Archived location:
 
 ```text
-src/main/resources/static
+archive/legacy-static-frontend
 ```
 
-This panel was initially created to consume and test the API directly through Spring Boot. It remains temporarily available while the React migration is not fully finished.
-
-URL when the backend is running:
-
-```text
-http://localhost:8080
-```
+This panel was initially created to consume and test the API directly through Spring Boot. It has been archived because the React frontend now covers the current operational flows: Players, Agenda, booking players, rentals, payments, and materials.
 
 Note: this frontend was created with support from the Codex agent. I have JavaScript basics, but it is not my main stack; the interface was included mainly to make the RESTful API flows easier to visualize, test, and understand.
 
@@ -413,7 +407,6 @@ Planned future implementations:
 - OpenAPI/Swagger documentation.
 - Docker Compose for API and MySQL.
 - Final React frontend build served by Spring Boot.
-- Removal or archival of the legacy static frontend after migration is complete.
 
 ## Validation
 
