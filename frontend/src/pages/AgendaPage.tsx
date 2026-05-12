@@ -5,12 +5,14 @@ import {
   bookingService,
   paymentService,
   playerService,
+  receiptItemService,
+  receiptService,
   rentalItemService,
   rentalTransactionService,
   teeTimeService
 } from "../api";
 import type { AppPage } from "../App";
-import type { Booking, BookingPlayer, Payment, Player, RentalItem, RentalTransaction, TeeTime } from "../types";
+import type { Booking, BookingPlayer, Payment, Player, Receipt, ReceiptItem, RentalItem, RentalTransaction, TeeTime } from "../types";
 
 type FeedbackType = "success" | "error" | "";
 
@@ -81,6 +83,14 @@ function formatTime(value: string | undefined) {
   return value.slice(0, 5);
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) {
+    return "Sem data";
+  }
+
+  return value.replace("T", " ").slice(0, 16);
+}
+
 function formatMoney(value: number | null | undefined) {
   return new Intl.NumberFormat("pt-PT", {
     style: "currency",
@@ -149,9 +159,12 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [bookingPlayers, setBookingPlayers] = useState<BookingPlayer[]>([]);
   const [rentalTransactions, setRentalTransactions] = useState<RentalTransaction[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<BookingDetailTab>("summary");
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [newBookingPlayerGreenFee, setNewBookingPlayerGreenFee] = useState("");
@@ -170,6 +183,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CARD");
   const [paymentStatus, setPaymentStatus] = useState("PAID");
+  const [receiptFeedback, setReceiptFeedback] = useState<Feedback>({
+    message: "",
+    type: ""
+  });
   const [feedback, setFeedback] = useState<Feedback>({
     message: "Escolha um dia e atualize a agenda para consultar a API.",
     type: "success"
@@ -223,6 +240,18 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const selectedPayments = useMemo(
     () => payments.filter((payment) => payment.bookingId === selectedBookingId),
     [payments, selectedBookingId]
+  );
+  const selectedReceipts = useMemo(
+    () => receipts.filter((receipt) => receipt.bookingId === selectedBookingId),
+    [receipts, selectedBookingId]
+  );
+  const selectedReceipt = useMemo(
+    () => receipts.find((receipt) => receipt.id === selectedReceiptId),
+    [receipts, selectedReceiptId]
+  );
+  const selectedReceiptItems = useMemo(
+    () => receiptItems.filter((receiptItem) => receiptItem.receiptId === selectedReceiptId),
+    [receiptItems, selectedReceiptId]
   );
   const sortedPlayers = useMemo(
     () => [...players].sort((first, second) => first.fullName.localeCompare(second.fullName)),
@@ -356,6 +385,23 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     return bookingPlayer ? getPlayerName(bookingPlayer.playerId) : `Booking player #${bookingPlayerId}`;
   }
 
+  function getReceiptForPayment(paymentId: number | undefined) {
+    if (!paymentId) {
+      return undefined;
+    }
+
+    return receipts.find((receipt) => receipt.paymentId === paymentId && !receipt.cancelled)
+      ?? receipts.find((receipt) => receipt.paymentId === paymentId);
+  }
+
+  function getReceiptStatus(receipt: Receipt | undefined) {
+    if (!receipt) {
+      return "NAO EMITIDO";
+    }
+
+    return receipt.cancelled ? "CANCELADO" : "EMITIDO";
+  }
+
   function getRentalItem(rentalItemId: number | undefined) {
     return rentalItems.find((item) => item.id === rentalItemId);
   }
@@ -424,17 +470,29 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   async function loadAgenda() {
     setIsLoading(true);
     setFeedback({ message: "Carregando tee times e bookings...", type: "success" });
-    showRequest("GET", "/player + /rental-item + /tee-time + /booking + /booking-player + /rental-transaction + /payment");
+    showRequest("GET", "/player + /rental-item + /tee-time + /booking + /booking-player + /rental-transaction + /payment + /receipt + /receipt-item");
 
     try {
-      const [playerData, rentalItemData, teeTimeData, bookingData, bookingPlayerData, rentalTransactionData, paymentData] = await Promise.all([
+      const [
+        playerData,
+        rentalItemData,
+        teeTimeData,
+        bookingData,
+        bookingPlayerData,
+        rentalTransactionData,
+        paymentData,
+        receiptData,
+        receiptItemData
+      ] = await Promise.all([
         playerService.findAll(),
         rentalItemService.findAll(),
         teeTimeService.findAll(),
         bookingService.findAll(),
         bookingPlayerService.findAll(),
         rentalTransactionService.findAll(),
-        paymentService.findAll()
+        paymentService.findAll(),
+        receiptService.findAll(),
+        receiptItemService.findAll()
       ]);
 
       setPlayers(playerData);
@@ -444,6 +502,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       setBookingPlayers(bookingPlayerData);
       setRentalTransactions(rentalTransactionData);
       setPayments(paymentData);
+      setReceipts(receiptData);
+      setReceiptItems(receiptItemData);
       showResponse({
         players: playerData,
         rentalItems: rentalItemData,
@@ -451,7 +511,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         bookings: bookingData,
         bookingPlayers: bookingPlayerData,
         rentalTransactions: rentalTransactionData,
-        payments: paymentData
+        payments: paymentData,
+        receipts: receiptData,
+        receiptItems: receiptItemData
       });
       setApiStatus("Conectada");
       setFeedback({ message: "Agenda carregada com sucesso.", type: "success" });
@@ -466,14 +528,26 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   }
 
   async function refreshAgendaData() {
-    const [playerData, rentalItemData, teeTimeData, bookingData, bookingPlayerData, rentalTransactionData, paymentData] = await Promise.all([
+    const [
+      playerData,
+      rentalItemData,
+      teeTimeData,
+      bookingData,
+      bookingPlayerData,
+      rentalTransactionData,
+      paymentData,
+      receiptData,
+      receiptItemData
+    ] = await Promise.all([
       playerService.findAll(),
       rentalItemService.findAll(),
       teeTimeService.findAll(),
       bookingService.findAll(),
       bookingPlayerService.findAll(),
       rentalTransactionService.findAll(),
-      paymentService.findAll()
+      paymentService.findAll(),
+      receiptService.findAll(),
+      receiptItemService.findAll()
     ]);
 
     setPlayers(playerData);
@@ -483,6 +557,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     setBookingPlayers(bookingPlayerData);
     setRentalTransactions(rentalTransactionData);
     setPayments(paymentData);
+    setReceipts(receiptData);
+    setReceiptItems(receiptItemData);
 
     return {
       players: playerData,
@@ -491,7 +567,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       bookings: bookingData,
       bookingPlayers: bookingPlayerData,
       rentalTransactions: rentalTransactionData,
-      payments: paymentData
+      payments: paymentData,
+      receipts: receiptData,
+      receiptItems: receiptItemData
     };
   }
 
@@ -568,7 +646,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedBookings: refreshedData.bookings,
         refreshedBookingPlayers: refreshedData.bookingPlayers,
         refreshedRentalTransactions: refreshedData.rentalTransactions,
-        refreshedPayments: refreshedData.payments
+        refreshedPayments: refreshedData.payments,
+        refreshedReceipts: refreshedData.receipts,
+        refreshedReceiptItems: refreshedData.receiptItems
       });
       setApiStatus("Conectada");
       setFeedback({ message: `Booking #${booking.id} pronto para ${slot.time}.`, type: "success" });
@@ -923,7 +1003,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       showResponse({
         savedPayment,
         refreshedBooking: refreshedData.bookings.find((booking) => booking.id === savedPayment.bookingId),
-        refreshedPayments: refreshedData.payments.filter((payment) => payment.bookingId === savedPayment.bookingId)
+        refreshedPayments: refreshedData.payments.filter((payment) => payment.bookingId === savedPayment.bookingId),
+        refreshedReceipts: refreshedData.receipts.filter((receipt) => receipt.bookingId === savedPayment.bookingId),
+        refreshedReceiptItems: refreshedData.receiptItems
       });
     } catch (error) {
       const message = getErrorMessage(error);
@@ -966,6 +1048,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       const savedPayment = await paymentService.update(payload);
       const refreshedData = await refreshAgendaData();
       setSelectedBookingId(savedPayment.bookingId);
+      setSelectedReceiptId(null);
       setActiveDetailTab("payments");
       resetPaymentForm();
       setApiStatus("Conectada");
@@ -973,7 +1056,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       showResponse({
         savedPayment,
         refreshedBooking: refreshedData.bookings.find((booking) => booking.id === savedPayment.bookingId),
-        refreshedPayments: refreshedData.payments.filter((item) => item.bookingId === savedPayment.bookingId)
+        refreshedPayments: refreshedData.payments.filter((item) => item.bookingId === savedPayment.bookingId),
+        refreshedReceipts: refreshedData.receipts.filter((receipt) => receipt.bookingId === savedPayment.bookingId),
+        refreshedReceiptItems: refreshedData.receiptItems
       });
     } catch (error) {
       const message = getErrorMessage(error);
@@ -997,6 +1082,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       await paymentService.remove(payment.id);
       const refreshedData = await refreshAgendaData();
       setSelectedBookingId(payment.bookingId);
+      setSelectedReceiptId(null);
       setActiveDetailTab("payments");
       resetPaymentForm();
       setApiStatus("Conectada");
@@ -1004,7 +1090,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       showResponse({
         deletedPaymentId: payment.id,
         refreshedBooking: refreshedData.bookings.find((booking) => booking.id === payment.bookingId),
-        refreshedPayments: refreshedData.payments.filter((item) => item.bookingId === payment.bookingId)
+        refreshedPayments: refreshedData.payments.filter((item) => item.bookingId === payment.bookingId),
+        refreshedReceipts: refreshedData.receipts.filter((receipt) => receipt.bookingId === payment.bookingId),
+        refreshedReceiptItems: refreshedData.receiptItems
       });
     } catch (error) {
       const message = getErrorMessage(error);
@@ -1014,6 +1102,241 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleOpenReceipt(payment: Payment) {
+    const existingReceipt = getReceiptForPayment(payment.id);
+
+    if (existingReceipt?.id) {
+      setSelectedReceiptId(existingReceipt.id);
+      setReceiptFeedback({
+        message: existingReceipt.cancelled ? "Recibo cancelado aberto para consulta." : "Recibo aberto para impressao.",
+        type: existingReceipt.cancelled ? "error" : "success"
+      });
+      setActiveDetailTab("payments");
+      return;
+    }
+
+    if (!payment.id) {
+      setReceiptFeedback({ message: "Pagamento sem id nao pode gerar recibo.", type: "error" });
+      return;
+    }
+
+    if (String(payment.status || "PAID").toUpperCase() !== "PAID") {
+      setReceiptFeedback({ message: "Somente pagamentos PAID podem emitir recibo.", type: "error" });
+      return;
+    }
+
+    setIsLoading(true);
+    showRequest("POST", `/receipt/payment/${payment.id}/issue`);
+
+    try {
+      const issuedReceipt = await receiptService.issueByPaymentId(payment.id);
+      const refreshedData = await refreshAgendaData();
+      const refreshedReceipt = refreshedData.receipts.find((receipt) => receipt.id === issuedReceipt.id)
+        ?? issuedReceipt;
+      setSelectedBookingId(refreshedReceipt.bookingId);
+      setSelectedReceiptId(refreshedReceipt.id ?? null);
+      setActiveDetailTab("payments");
+      setApiStatus("Conectada");
+      setReceiptFeedback({ message: "Recibo emitido e pronto para impressao.", type: "success" });
+      showResponse({
+        issuedReceipt: refreshedReceipt,
+        receiptItems: refreshedData.receiptItems.filter((item) => item.receiptId === refreshedReceipt.id)
+      });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setApiStatus("Falha na conexao");
+      setReceiptFeedback({ message, type: "error" });
+      showResponse(getErrorResponse(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleCancelReceipt(receipt: Receipt) {
+    if (!receipt.id) {
+      return;
+    }
+
+    setIsLoading(true);
+    showRequest("PUT", `/receipt/${receipt.id}/cancel`, { reason: "Cancelled by operator" });
+
+    try {
+      const cancelledReceipt = await receiptService.cancel(receipt.id, "Cancelled by operator");
+      const refreshedData = await refreshAgendaData();
+      const refreshedReceipt = refreshedData.receipts.find((item) => item.id === cancelledReceipt.id)
+        ?? cancelledReceipt;
+      setSelectedBookingId(refreshedReceipt.bookingId);
+      setSelectedReceiptId(refreshedReceipt.id ?? null);
+      setActiveDetailTab("payments");
+      setApiStatus("Conectada");
+      setReceiptFeedback({ message: "Recibo cancelado com sucesso.", type: "success" });
+      showResponse({
+        cancelledReceipt: refreshedReceipt,
+        refreshedReceipts: refreshedData.receipts.filter((item) => item.bookingId === refreshedReceipt.bookingId)
+      });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setApiStatus("Falha na conexao");
+      setReceiptFeedback({ message, type: "error" });
+      showResponse(getErrorResponse(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handlePrintReceipt() {
+    const receiptElement = document.querySelector<HTMLElement>("#receipt-print-area .receipt-paper");
+
+    if (!receiptElement) {
+      window.print();
+      return;
+    }
+
+    const printWindow = window.open("", "receipt-print", "width=900,height=700");
+
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${selectedReceipt?.receiptNumber || "Recibo"}</title>
+          <style>
+            @page {
+              margin: 14mm;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              margin: 0;
+              background: #fff;
+              color: #18251d;
+              font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            }
+
+            .receipt-paper {
+              display: grid;
+              gap: 16px;
+              width: 100%;
+              max-width: 760px;
+              margin: 0 auto;
+              background: #fff;
+              color: #18251d;
+              padding: 0;
+            }
+
+            .receipt-paper h3 {
+              margin: 0;
+            }
+
+            .receipt-header {
+              display: flex;
+              align-items: start;
+              justify-content: space-between;
+              gap: 18px;
+              border-bottom: 1px solid rgba(24, 37, 29, 0.14);
+              padding-bottom: 14px;
+            }
+
+            .receipt-kicker {
+              margin: 0 0 6px;
+              color: #54735e;
+              font-size: 0.82rem;
+              font-weight: 800;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+            }
+
+            .receipt-status {
+              border-radius: 999px;
+              background: rgba(93, 145, 77, 0.14);
+              color: #285b2b;
+              font-size: 0.78rem;
+              font-weight: 900;
+              padding: 7px 10px;
+            }
+
+            .receipt-status.cancelled {
+              background: rgba(183, 58, 58, 0.14);
+              color: #8f2020;
+            }
+
+            .receipt-meta {
+              display: grid;
+              grid-template-columns: 120px 1fr;
+              gap: 8px 14px;
+            }
+
+            .receipt-meta span {
+              color: #607267;
+              font-size: 0.88rem;
+            }
+
+            .receipt-items {
+              display: grid;
+              gap: 8px;
+            }
+
+            .receipt-item-row {
+              display: grid;
+              grid-template-columns: minmax(180px, 1fr) 70px 110px 110px;
+              gap: 12px;
+              align-items: center;
+              border-bottom: 1px solid rgba(24, 37, 29, 0.1);
+              padding: 9px 0;
+            }
+
+            .receipt-item-row.header {
+              color: #607267;
+              font-size: 0.78rem;
+              font-weight: 900;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+            }
+
+            .receipt-total-line {
+              display: flex;
+              justify-content: space-between;
+              gap: 16px;
+              border-top: 1px solid rgba(24, 37, 29, 0.12);
+              padding-top: 10px;
+            }
+
+            .receipt-total-line.grand-total {
+              font-size: 1.2rem;
+            }
+
+            .receipt-cancel-note {
+              margin: 0;
+              border-radius: 8px;
+              background: rgba(183, 58, 58, 0.1);
+              color: #8f2020;
+              padding: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          ${receiptElement.outerHTML}
+          <script>
+            window.addEventListener("load", function () {
+              window.focus();
+              window.print();
+              window.close();
+            });
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   }
 
   useEffect(() => {
@@ -1591,7 +1914,13 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                   <span>Pago {formatMoney(selectedPaidTotal)}</span>
                   <span>Pendente {formatMoney(selectedPendingTotal)}</span>
                   <span>{selectedPayments.length} pagamento(s)</span>
+                  <span>{selectedReceipts.length} recibo(s)</span>
                 </div>
+                {receiptFeedback.message ? (
+                  <p className={`feedback inline-feedback ${receiptFeedback.type}`.trim()}>
+                    {receiptFeedback.message}
+                  </p>
+                ) : null}
 
                 <div className="detail-list">
                   {selectedPayments.length === 0 ? (
@@ -1600,6 +1929,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                     selectedPayments.map((payment) => {
                       const status = String(payment.status || "PAID").toUpperCase();
                       const canRefund = status === "PAID";
+                      const receipt = getReceiptForPayment(payment.id);
+                      const canOpenReceipt = Boolean(receipt?.id) || status === "PAID";
 
                       return (
                         <div className="detail-list-row payment-row" key={payment.id}>
@@ -1610,8 +1941,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                           </div>
                           <div>
                             <span>{payment.method}</span>
-                            <span>{payment.paidAt ? payment.paidAt.replace("T", " ").slice(0, 16) : "Sem data de pagamento"}</span>
+                            <span>{formatDateTime(payment.paidAt)}</span>
                             <span>Pendente atual {formatMoney(getBookingPlayerPendingAmount(payment.bookingPlayerId))}</span>
+                            <span>Recibo {getReceiptStatus(receipt)}</span>
                           </div>
                           <span className="status-pill">{status}</span>
                           <div className="table-actions">
@@ -1634,6 +1966,16 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                               Reembolsar
                             </button>
                             <button
+                              className="action-button select"
+                              disabled={isLoading || !canOpenReceipt}
+                              type="button"
+                              onClick={() => {
+                                void handleOpenReceipt(payment);
+                              }}
+                            >
+                              {receipt ? "Recibo" : "Emitir recibo"}
+                            </button>
+                            <button
                               className="action-button delete"
                               disabled={isLoading}
                               type="button"
@@ -1649,6 +1991,114 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                     })
                   )}
                 </div>
+
+                {selectedReceipt ? (
+                  <section className="receipt-preview-panel" id="receipt-print-area">
+                    <div className="receipt-toolbar no-print">
+                      <div>
+                        <p className="section-tag">Recibo</p>
+                        <h3>{selectedReceipt.receiptNumber || `Receipt #${selectedReceipt.id}`}</h3>
+                      </div>
+                      <div className="table-actions">
+                        <button className="action-button select" type="button" onClick={handlePrintReceipt}>
+                          Imprimir
+                        </button>
+                        {!selectedReceipt.cancelled ? (
+                          <button
+                            className="action-button delete"
+                            disabled={isLoading}
+                            type="button"
+                            onClick={() => {
+                              void handleCancelReceipt(selectedReceipt);
+                            }}
+                          >
+                            Cancelar recibo
+                          </button>
+                        ) : null}
+                        <button
+                          className="action-button edit"
+                          type="button"
+                          onClick={() => {
+                            setSelectedReceiptId(null);
+                          }}
+                        >
+                          Fechar
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="receipt-paper">
+                      <div className="receipt-header">
+                        <div>
+                          <p className="receipt-kicker">Golf Office</p>
+                          <h3>{selectedReceipt.receiptNumber || `#${selectedReceipt.id}`}</h3>
+                        </div>
+                        <span className={`receipt-status ${selectedReceipt.cancelled ? "cancelled" : ""}`.trim()}>
+                          {getReceiptStatus(selectedReceipt)}
+                        </span>
+                      </div>
+
+                      <div className="receipt-meta">
+                        <span>Player</span>
+                        <strong>{selectedReceipt.playerNameSnapshot || getBookingPlayerDisplayName(selectedReceipt.bookingPlayerId)}</strong>
+                        <span>Tax number</span>
+                        <strong>{selectedReceipt.playerTaxNumberSnapshot || "Sem numero fiscal"}</strong>
+                        <span>Booking</span>
+                        <strong>{selectedReceipt.bookingCodeSnapshot || `Booking #${selectedReceipt.bookingId}`}</strong>
+                        <span>Tee time</span>
+                        <strong>
+                          {selectedReceipt.playDate ? formatDate(selectedReceipt.playDate) : "Sem data"}{" "}
+                          {formatTime(selectedReceipt.startTime || undefined)}
+                        </strong>
+                        <span>Issued at</span>
+                        <strong>{formatDateTime(selectedReceipt.issuedAt)}</strong>
+                        <span>Method</span>
+                        <strong>{selectedReceipt.paymentMethod || "Sem metodo"}</strong>
+                      </div>
+
+                      <div className="receipt-items">
+                        <div className="receipt-item-row header">
+                          <span>Item</span>
+                          <span>Qtd</span>
+                          <span>Unitario</span>
+                          <span>Total</span>
+                        </div>
+                        {selectedReceiptItems.length === 0 ? (
+                          <p className="empty-state">Nenhum item encontrado para este recibo.</p>
+                        ) : (
+                          selectedReceiptItems.map((item) => (
+                            <div className="receipt-item-row" key={item.id}>
+                              <span>{item.description}</span>
+                              <span>{item.quantity}</span>
+                              <span>{formatMoney(item.unitPrice)}</span>
+                              <strong>{formatMoney(item.totalPrice)}</strong>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="receipt-total-line">
+                        <span>Green fee</span>
+                        <strong>{formatMoney(selectedReceipt.greenFeeAmount)}</strong>
+                      </div>
+                      <div className="receipt-total-line">
+                        <span>Rental</span>
+                        <strong>{formatMoney(selectedReceipt.rentalAmount)}</strong>
+                      </div>
+                      <div className="receipt-total-line grand-total">
+                        <span>Total</span>
+                        <strong>{formatMoney(selectedReceipt.totalAmount)}</strong>
+                      </div>
+
+                      {selectedReceipt.cancelled ? (
+                        <p className="receipt-cancel-note">
+                          Cancelado em {formatDateTime(selectedReceipt.cancelledAt)}.
+                          {selectedReceipt.cancellationReason ? ` Motivo: ${selectedReceipt.cancellationReason}` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
               </>
             ) : null}
           </>
