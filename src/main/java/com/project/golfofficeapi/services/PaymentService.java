@@ -57,6 +57,9 @@ public class PaymentService {
     @Autowired
     BookingStatusService bookingStatusService;
 
+    @Autowired
+    ReceiptService receiptService;
+
     private final Logger logger = Logger.getLogger(PaymentService.class.getName());
 
     public PaymentService(
@@ -64,13 +67,15 @@ public class PaymentService {
             BookingRepository bookingRepository,
             BookingPlayerRepository bookingPlayerRepository,
             RentalTransactionRepository rentalTransactionRepository,
-            BookingStatusService bookingStatusService
+            BookingStatusService bookingStatusService,
+            ReceiptService receiptService
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
         this.bookingPlayerRepository = bookingPlayerRepository;
         this.rentalTransactionRepository = rentalTransactionRepository;
         this.bookingStatusService = bookingStatusService;
+        this.receiptService = receiptService;
     }
 
     public List<PaymentDTO> findAll() {
@@ -115,7 +120,9 @@ public class PaymentService {
         preparePayment(payment, bookingPlayer, null, null);
 
         var entity = parseObject(payment, Payment.class);
-        var dto = parseObject(repository.save(entity), PaymentDTO.class);
+        Payment savedPayment = repository.save(entity);
+        receiptService.syncReceiptForPayment(savedPayment);
+        var dto = parseObject(savedPayment, PaymentDTO.class);
         bookingStatusService.syncBookingStatus(booking.getId());
         addHateoasLinks(dto);
         return dto;
@@ -141,7 +148,9 @@ public class PaymentService {
         entity.setStatus(payment.getStatus());
         entity.setPaidAt(payment.getPaidAt());
 
-        var dto = parseObject(repository.save(entity), PaymentDTO.class);
+        Payment savedPayment = repository.save(entity);
+        receiptService.syncReceiptForPayment(savedPayment);
+        var dto = parseObject(savedPayment, PaymentDTO.class);
         bookingStatusService.syncBookingStatus(oldBookingId);
         bookingStatusService.syncBookingStatus(booking.getId());
         addHateoasLinks(dto);
@@ -154,6 +163,7 @@ public class PaymentService {
         Payment entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
         Long bookingId = entity.getBookingId();
+        receiptService.cancelReceiptsByPaymentId(entity.getId(), "Payment deleted");
         repository.delete(entity);
         bookingStatusService.syncBookingStatus(bookingId);
     }
