@@ -13,12 +13,14 @@ type ErrorBody = {
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly statusText: string;
   readonly body: unknown;
 
-  constructor(message: string, status: number, body: unknown) {
+  constructor(message: string, status: number, statusText: string, body: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.statusText = statusText;
     this.body = body;
   }
 }
@@ -65,7 +67,7 @@ async function request<T>(path: string, method: string, options: RequestOptions 
       ? parsedBody.message || parsedBody.error || fallbackMessage
       : String(parsedBody || fallbackMessage);
 
-    throw new ApiError(message, response.status, parsedBody);
+    throw new ApiError(message, response.status, response.statusText, parsedBody);
   }
 
   return parsedBody as T;

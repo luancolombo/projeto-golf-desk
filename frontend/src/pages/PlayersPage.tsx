@@ -44,6 +44,18 @@ function getErrorMessage(error: unknown) {
   return "Nao foi possivel concluir a operacao.";
 }
 
+function getErrorResponse(error: unknown) {
+  if (error instanceof ApiError) {
+    return {
+      status: error.status,
+      statusText: error.statusText,
+      body: error.body ?? { message: error.message }
+    };
+  }
+
+  return { error: getErrorMessage(error) };
+}
+
 function toPayload(form: PlayerFormState): PlayerPayload {
   return {
     id: form.id ? Number(form.id) : undefined,
@@ -128,7 +140,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
       setVisiblePlayers([]);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +170,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
     } catch (error) {
       const message = getErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -186,7 +198,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
       const message = getErrorMessage(error);
       setVisiblePlayers([]);
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -224,7 +236,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
       const message = getErrorMessage(error);
       setVisiblePlayers([]);
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -249,7 +261,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
     } catch (error) {
       const message = getErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -280,11 +292,14 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
         <button className="tab-button active" type="button">
           Players
         </button>
-        <button className="tab-button" type="button" disabled>
+        <button className="tab-button" type="button" onClick={() => onNavigate("agenda")}>
           Agenda
         </button>
         <button className="tab-button" type="button" onClick={() => onNavigate("materials")}>
           Materiais
+        </button>
+        <button className="tab-button soon" disabled title="Modulo futuro" type="button">
+          Caixa
         </button>
       </section>
 

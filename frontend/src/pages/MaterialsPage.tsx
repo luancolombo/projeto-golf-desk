@@ -46,6 +46,18 @@ function getErrorMessage(error: unknown) {
   return "Nao foi possivel concluir a operacao.";
 }
 
+function getErrorResponse(error: unknown) {
+  if (error instanceof ApiError) {
+    return {
+      status: error.status,
+      statusText: error.statusText,
+      body: error.body ?? { message: error.message }
+    };
+  }
+
+  return { error: getErrorMessage(error) };
+}
+
 function toPayload(form: RentalItemFormState): RentalItemPayload {
   return {
     id: form.id ? Number(form.id) : undefined,
@@ -130,7 +142,7 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
       setVisibleRentalItems([]);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +172,7 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
     } catch (error) {
       const message = getErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -188,7 +200,7 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
       const message = getErrorMessage(error);
       setVisibleRentalItems([]);
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -213,7 +225,7 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
     } catch (error) {
       const message = getErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse({ error: message });
+      showResponse(getErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -244,11 +256,14 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
         <button className="tab-button" type="button" onClick={() => onNavigate("players")}>
           Players
         </button>
-        <button className="tab-button" type="button" disabled>
+        <button className="tab-button" type="button" onClick={() => onNavigate("agenda")}>
           Agenda
         </button>
         <button className="tab-button active" type="button">
           Materiais
+        </button>
+        <button className="tab-button soon" disabled title="Modulo futuro" type="button">
+          Caixa
         </button>
       </section>
 
