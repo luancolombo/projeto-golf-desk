@@ -2,10 +2,14 @@ const PLAYER_API_URL = "/player";
 const TEE_TIME_API_URL = "/tee-time";
 const BOOKING_API_URL = "/booking";
 const BOOKING_PLAYER_API_URL = "/booking-player";
+const RENTAL_ITEM_API_URL = "/rental-item";
+const RENTAL_TRANSACTION_API_URL = "/rental-transaction";
+const PAYMENT_API_URL = "/payment";
 
 const tabButtons = document.querySelectorAll("[data-view]");
 const playersView = document.getElementById("players-view");
 const agendaView = document.getElementById("agenda-view");
+const materialsView = document.getElementById("materials-view");
 const teeTimesView = document.getElementById("tee-times-view");
 const bookingsView = document.getElementById("bookings-view");
 const agendaDateInput = document.getElementById("agenda-date-input");
@@ -98,6 +102,62 @@ const bookingPlayerFields = {
     checkedIn: document.getElementById("bookingPlayerCheckedIn")
 };
 
+const rentalTransactionForm = document.getElementById("rental-transaction-form");
+const rentalTransactionFormTitle = document.getElementById("rental-transaction-form-title");
+const rentalTransactionClearButton = document.getElementById("rental-transaction-clear-button");
+const rentalTransactionFeedback = document.getElementById("rental-transaction-feedback");
+const rentalTransactionsTableBody = document.getElementById("rental-transactions-table-body");
+const rentalTransactionCount = document.getElementById("rental-transaction-count");
+const selectedRentalTitle = document.getElementById("selected-rental-title");
+const returnAllRentalsButton = document.getElementById("return-all-rentals-button");
+
+const rentalTransactionFields = {
+    id: document.getElementById("rental-transaction-id"),
+    bookingId: document.getElementById("rentalTransactionBookingId"),
+    bookingPlayerId: document.getElementById("rentalTransactionBookingPlayerId"),
+    rentalItemId: document.getElementById("rentalTransactionRentalItemId"),
+    quantity: document.getElementById("rentalTransactionQuantity"),
+    status: document.getElementById("rentalTransactionStatus"),
+    unitPrice: document.getElementById("rentalTransactionUnitPrice"),
+    totalPrice: document.getElementById("rentalTransactionTotalPrice")
+};
+
+const paymentForm = document.getElementById("payment-form");
+const paymentFormTitle = document.getElementById("payment-form-title");
+const paymentClearButton = document.getElementById("payment-clear-button");
+const paymentFeedback = document.getElementById("payment-feedback");
+const paymentsTableBody = document.getElementById("payments-table-body");
+const paymentCount = document.getElementById("payment-count");
+const selectedPaymentTitle = document.getElementById("selected-payment-title");
+
+const paymentFields = {
+    id: document.getElementById("payment-id"),
+    bookingId: document.getElementById("paymentBookingId"),
+    bookingPlayerId: document.getElementById("paymentBookingPlayerId"),
+    amount: document.getElementById("paymentAmount"),
+    method: document.getElementById("paymentMethod"),
+    status: document.getElementById("paymentStatus"),
+    paidAt: document.getElementById("paymentPaidAt")
+};
+
+const rentalItemForm = document.getElementById("rental-item-form");
+const rentalItemFormTitle = document.getElementById("rental-item-form-title");
+const rentalItemClearButton = document.getElementById("rental-item-clear-button");
+const rentalItemFindAllButton = document.getElementById("rental-item-find-all-button");
+const rentalItemFeedback = document.getElementById("rental-item-feedback");
+const rentalItemsTableBody = document.getElementById("rental-items-table-body");
+const rentalItemCount = document.getElementById("rental-item-count");
+
+const rentalItemFields = {
+    id: document.getElementById("rental-item-id"),
+    name: document.getElementById("rentalItemName"),
+    type: document.getElementById("rentalItemType"),
+    totalStock: document.getElementById("rentalItemTotalStock"),
+    availableStock: document.getElementById("rentalItemAvailableStock"),
+    rentalPrice: document.getElementById("rentalItemRentalPrice"),
+    active: document.getElementById("rentalItemActive")
+};
+
 let players = [];
 let visiblePlayers = [];
 let teeTimes = [];
@@ -105,6 +165,10 @@ let visibleTeeTimes = [];
 let bookings = [];
 let visibleBookings = [];
 let bookingPlayers = [];
+let rentalItems = [];
+let visibleRentalItems = [];
+let rentalTransactions = [];
+let payments = [];
 let selectedBookingId = null;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -115,7 +179,11 @@ document.addEventListener("DOMContentLoaded", () => {
     setTeeTimeFeedback("Aguardando comando para consultar a agenda.", "success");
     setBookingFeedback("Aguardando comando para consultar bookings.", "success");
     setBookingPlayerFeedback("Selecione um booking para adicionar jogadores.", "success");
+    setRentalTransactionFeedback("Selecione um booking para adicionar alugueres.", "success");
+    setPaymentFeedback("Selecione um booking para registrar pagamentos.", "success");
+    setRentalItemFeedback("Cadastre ou consulte itens de aluguer.", "success");
     setAgendaFeedback("Escolha um dia para ver os horarios disponiveis.", "success");
+    updateReturnAllRentalsButton();
     apiStatus.textContent = "Aguardando consulta";
 });
 
@@ -168,6 +236,21 @@ function bindEvents() {
     bookingPlayerForm.addEventListener("submit", handleBookingPlayerSubmit);
     bookingPlayerClearButton.addEventListener("click", resetBookingPlayerForm);
 
+    rentalTransactionForm.addEventListener("submit", handleRentalTransactionSubmit);
+    rentalTransactionClearButton.addEventListener("click", resetRentalTransactionForm);
+    rentalTransactionFields.bookingPlayerId.addEventListener("change", updateRentalTransactionPricePreview);
+    rentalTransactionFields.rentalItemId.addEventListener("change", updateRentalTransactionPricePreview);
+    rentalTransactionFields.quantity.addEventListener("input", updateRentalTransactionPricePreview);
+    returnAllRentalsButton.addEventListener("click", returnAllRentalTransactions);
+
+    paymentForm.addEventListener("submit", handlePaymentSubmit);
+    paymentClearButton.addEventListener("click", resetPaymentForm);
+    paymentFields.bookingPlayerId.addEventListener("change", () => updatePaymentAmountPreview({ force: true }));
+
+    rentalItemForm.addEventListener("submit", handleRentalItemSubmit);
+    rentalItemClearButton.addEventListener("click", resetRentalItemForm);
+    rentalItemFindAllButton.addEventListener("click", loadRentalItems);
+
     agendaDateInput.addEventListener("change", refreshBookingContext);
     agendaTodayButton.addEventListener("click", () => {
         agendaDateInput.value = todayIsoDate();
@@ -179,7 +262,8 @@ function bindEvents() {
 function switchView(view) {
     const views = {
         players: playersView,
-        agenda: agendaView
+        agenda: agendaView,
+        materials: materialsView
     };
 
     Object.entries(views).forEach(([viewName, element]) => {
@@ -195,6 +279,10 @@ function switchView(view) {
 
     if (view === "agenda") {
         refreshBookingContext();
+    }
+
+    if (view === "materials") {
+        loadRentalItems();
     }
 }
 
@@ -732,7 +820,11 @@ async function loadBookings() {
     showRequest("GET", BOOKING_API_URL);
 
     try {
-        await loadBookingPlayers({ silent: true });
+        await Promise.all([
+            loadBookingPlayers({ silent: true }),
+            loadRentalTransactions({ silent: true }),
+            loadPayments({ silent: true })
+        ]);
         const response = await fetch(BOOKING_API_URL);
 
         if (!response.ok) {
@@ -749,6 +841,8 @@ async function loadBookings() {
         apiStatus.textContent = "Conectada";
         renderBookings();
         renderSelectedBookingPlayers();
+        renderSelectedRentalTransactions();
+        renderSelectedPayments();
         renderDailyAgenda();
         setBookingFeedback("Bookings carregados com sucesso.", "success");
     } catch (error) {
@@ -936,6 +1030,8 @@ function fillBookingForm(booking) {
 
     bookingFormTitle.textContent = `Editando #${booking.id}`;
     bookingPlayerFields.bookingId.value = booking.id ?? "";
+    rentalTransactionFields.bookingId.value = booking.id ?? "";
+    paymentFields.bookingId.value = booking.id ?? "";
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -980,6 +1076,8 @@ async function deleteBooking(id) {
         if (selectedBookingId === id) {
             selectedBookingId = null;
             resetBookingPlayerForm();
+            resetRentalTransactionForm();
+            resetPaymentForm();
         }
         await loadBookings();
         setBookingFeedback("Booking excluido com sucesso.", "success");
@@ -993,11 +1091,17 @@ async function refreshBookingContext() {
         await Promise.all([
             loadPlayersForSelect(),
             loadTeeTimesForSelect(),
-            loadBookingPlayers({ silent: true })
+            loadBookingPlayers({ silent: true }),
+            loadRentalItemsForSelect(),
+            loadRentalTransactions({ silent: true }),
+            loadPayments({ silent: true })
         ]);
         renderTeeTimes();
+        renderRentalItems();
         await loadBookings();
         renderSelectedBookingPlayers();
+        renderSelectedRentalTransactions();
+        renderSelectedPayments();
         renderDailyAgenda();
     } catch (error) {
         setBookingFeedback(error.message, "error");
@@ -1063,6 +1167,312 @@ function populateTeeTimeOptions() {
         `).join("")}
     `;
     bookingFields.teeTimeId.value = currentValue;
+}
+
+async function loadRentalItems() {
+    setRentalItemFeedback("Carregando itens de aluguer...", "success");
+    showRequest("GET", RENTAL_ITEM_API_URL);
+
+    try {
+        const response = await fetch(RENTAL_ITEM_API_URL);
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        rentalItems = await response.json();
+        showResponse(rentalItems);
+        apiStatus.textContent = "Conectada";
+        renderRentalItems();
+        populateRentalItemOptions();
+        setRentalItemFeedback("Itens de aluguer carregados com sucesso.", "success");
+    } catch (error) {
+        apiStatus.textContent = "Falha na conexao";
+        rentalItemsTableBody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(error.message)}</td></tr>`;
+        rentalItemCount.textContent = "0 itens";
+        setRentalItemFeedback(error.message, "error");
+    }
+}
+
+async function loadRentalItemsForSelect() {
+    const response = await fetch(RENTAL_ITEM_API_URL);
+
+    if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+    }
+
+    rentalItems = await response.json();
+    populateRentalItemOptions();
+}
+
+function populateRentalItemOptions() {
+    const currentValue = rentalTransactionFields.rentalItemId.value;
+    const activeItems = rentalItems.filter((item) => Boolean(item.active));
+    rentalTransactionFields.rentalItemId.innerHTML = `
+        <option value="">Selecione um item</option>
+        ${activeItems.map((item) => `
+            <option value="${item.id}">
+                #${item.id} - ${escapeHtml(item.name)} - ${item.availableStock}/${item.totalStock} - ${formatMoney(item.rentalPrice)}
+            </option>
+        `).join("")}
+    `;
+    rentalTransactionFields.rentalItemId.value = currentValue;
+    updateRentalTransactionPricePreview();
+}
+
+function populateRentalBookingPlayerOptions() {
+    const currentValue = rentalTransactionFields.bookingPlayerId.value;
+    const source = getBookingPlayers(selectedBookingId);
+    rentalTransactionFields.bookingPlayerId.innerHTML = `
+        <option value="">Selecione um jogador do booking</option>
+        ${source.map((bookingPlayer) => `
+            <option value="${bookingPlayer.id}">
+                #${bookingPlayer.id} - ${escapeHtml(getPlayerName(bookingPlayer.playerId))}
+            </option>
+        `).join("")}
+    `;
+
+    if (source.some((bookingPlayer) => String(bookingPlayer.id) === String(currentValue))) {
+        rentalTransactionFields.bookingPlayerId.value = currentValue;
+        return;
+    }
+
+    rentalTransactionFields.bookingPlayerId.value = "";
+}
+
+function populatePaymentBookingPlayerOptions() {
+    const currentValue = paymentFields.bookingPlayerId.value;
+    const source = getBookingPlayers(selectedBookingId);
+    paymentFields.bookingPlayerId.innerHTML = `
+        <option value="">Selecione um jogador do booking</option>
+        ${source.map((bookingPlayer) => `
+            <option value="${bookingPlayer.id}">
+                #${bookingPlayer.id} - ${escapeHtml(getPlayerName(bookingPlayer.playerId))} - pendente ${formatMoney(getBookingPlayerPendingAmount(bookingPlayer.id))}
+            </option>
+        `).join("")}
+    `;
+
+    if (source.some((bookingPlayer) => String(bookingPlayer.id) === String(currentValue))) {
+        paymentFields.bookingPlayerId.value = currentValue;
+        updatePaymentAmountPreview();
+        return;
+    }
+
+    paymentFields.bookingPlayerId.value = "";
+    updatePaymentAmountPreview({ force: true });
+}
+
+async function handleRentalItemSubmit(event) {
+    event.preventDefault();
+
+    const payload = getRentalItemFormData();
+    const isEditing = Boolean(payload.id);
+    const method = isEditing ? "PUT" : "POST";
+    showRequest(method, RENTAL_ITEM_API_URL, payload);
+
+    try {
+        const response = await fetch(RENTAL_ITEM_API_URL, {
+            method,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        const savedRentalItem = await response.json();
+        showResponse(savedRentalItem);
+        resetRentalItemForm();
+        await loadRentalItems();
+        setRentalItemFeedback(
+            isEditing ? "Item de aluguer atualizado com sucesso." : "Item de aluguer cadastrado com sucesso.",
+            "success"
+        );
+    } catch (error) {
+        setRentalItemFeedback(error.message, "error");
+    }
+}
+
+function getRentalItemFormData() {
+    return {
+        id: rentalItemFields.id.value ? Number(rentalItemFields.id.value) : null,
+        name: rentalItemFields.name.value.trim(),
+        type: rentalItemFields.type.value.trim(),
+        totalStock: Number(rentalItemFields.totalStock.value),
+        availableStock: rentalItemFields.availableStock.value ? Number(rentalItemFields.availableStock.value) : null,
+        rentalPrice: Number(rentalItemFields.rentalPrice.value || 0),
+        active: rentalItemFields.active.checked
+    };
+}
+
+function renderRentalItems(source = rentalItems) {
+    visibleRentalItems = source;
+    rentalItemCount.textContent = `${source.length} item${source.length === 1 ? "" : "s"}`;
+
+    if (source.length === 0) {
+        rentalItemsTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="empty-state">Nenhum item de aluguer encontrado.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    rentalItemsTableBody.innerHTML = source
+        .map((item) => `
+            <tr>
+                <td>
+                    <div class="row-main">${escapeHtml(item.name)}</div>
+                    <div class="row-sub">ID #${item.id}</div>
+                </td>
+                <td>${escapeHtml(item.type)}</td>
+                <td>${item.availableStock}/${item.totalStock}</td>
+                <td>${formatMoney(item.rentalPrice)}</td>
+                <td><span class="status-pill">${item.active ? "ACTIVE" : "INACTIVE"}</span></td>
+                <td>
+                    <div class="table-actions">
+                        <button class="action-button edit" type="button" data-rental-item-action="edit" data-id="${item.id}">
+                            Editar
+                        </button>
+                        <button class="action-button delete" type="button" data-rental-item-action="delete" data-id="${item.id}">
+                            Excluir
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `)
+        .join("");
+
+    bindRentalItemRowActions();
+}
+
+function bindRentalItemRowActions() {
+    document.querySelectorAll("[data-rental-item-action='edit']").forEach((button) => {
+        button.addEventListener("click", () => {
+            const rentalItemId = Number(button.dataset.id);
+            const rentalItem = visibleRentalItems.find((item) => item.id === rentalItemId);
+
+            if (!rentalItem) {
+                return;
+            }
+
+            fillRentalItemForm(rentalItem);
+        });
+    });
+
+    document.querySelectorAll("[data-rental-item-action='delete']").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const rentalItemId = Number(button.dataset.id);
+            await deleteRentalItem(rentalItemId);
+        });
+    });
+}
+
+function fillRentalItemForm(rentalItem) {
+    rentalItemFields.id.value = rentalItem.id ?? "";
+    rentalItemFields.name.value = rentalItem.name ?? "";
+    rentalItemFields.type.value = rentalItem.type ?? "";
+    rentalItemFields.totalStock.value = rentalItem.totalStock ?? "";
+    rentalItemFields.availableStock.value = rentalItem.availableStock ?? "";
+    rentalItemFields.rentalPrice.value = rentalItem.rentalPrice ?? "";
+    rentalItemFields.active.checked = Boolean(rentalItem.active);
+    rentalItemFormTitle.textContent = `Editando item #${rentalItem.id}`;
+}
+
+function resetRentalItemForm() {
+    rentalItemForm.reset();
+    rentalItemFields.id.value = "";
+    rentalItemFields.active.checked = true;
+    rentalItemFormTitle.textContent = "Novo item";
+}
+
+async function deleteRentalItem(id) {
+    const confirmed = window.confirm("Deseja realmente excluir este item de aluguer?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    showRequest("DELETE", `${RENTAL_ITEM_API_URL}/${id}`);
+
+    try {
+        const response = await fetch(`${RENTAL_ITEM_API_URL}/${id}`, {
+            method: "DELETE"
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        showResponse({
+            status: response.status,
+            message: `Item de aluguer ${id} excluido com sucesso.`
+        });
+        resetRentalItemForm();
+        await loadRentalItems();
+        setRentalItemFeedback("Item de aluguer excluido com sucesso.", "success");
+    } catch (error) {
+        setRentalItemFeedback(error.message, "error");
+    }
+}
+
+async function loadRentalTransactions({ silent = false } = {}) {
+    if (!silent) {
+        setRentalTransactionFeedback("Carregando alugueres...", "success");
+    }
+
+    const response = await fetch(RENTAL_TRANSACTION_API_URL);
+
+    if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+    }
+
+    rentalTransactions = await response.json();
+    updateReturnAllRentalsButton();
+
+    if (!silent) {
+        showResponse(rentalTransactions);
+        renderSelectedRentalTransactions();
+        setRentalTransactionFeedback("Alugueres carregados com sucesso.", "success");
+    }
+}
+
+async function loadPayments({ silent = false } = {}) {
+    if (!silent) {
+        setPaymentFeedback("Carregando pagamentos...", "success");
+    }
+
+    const response = await fetch(PAYMENT_API_URL);
+
+    if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+    }
+
+    payments = await response.json();
+
+    if (!silent) {
+        showResponse(payments);
+        renderSelectedPayments();
+        setPaymentFeedback("Pagamentos carregados com sucesso.", "success");
+    }
 }
 
 function renderDailyAgenda() {
@@ -1300,6 +1710,8 @@ async function handleBookingPlayerSubmit(event) {
         await loadTeeTimesForSelect();
         renderTeeTimes();
         renderDailyAgenda();
+        populateRentalBookingPlayerOptions();
+        populatePaymentBookingPlayerOptions();
         setBookingPlayerFeedback(
             isEditing ? "Jogador atualizado com sucesso." : "Jogador adicionado com sucesso.",
             "success"
@@ -1321,10 +1733,690 @@ function getBookingPlayerFormData() {
     };
 }
 
+async function handleRentalTransactionSubmit(event) {
+    event.preventDefault();
+
+    const payload = getRentalTransactionFormData();
+    const isEditing = Boolean(payload.id);
+    const method = isEditing ? "PUT" : "POST";
+    showRequest(method, RENTAL_TRANSACTION_API_URL, payload);
+
+    try {
+        const response = await fetch(RENTAL_TRANSACTION_API_URL, {
+            method,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        const savedRentalTransaction = await response.json();
+        showResponse(savedRentalTransaction);
+        selectedBookingId = savedRentalTransaction.bookingId;
+        resetRentalTransactionForm({ keepBooking: true });
+        await loadRentalItemsForSelect();
+        await loadBookings();
+        renderRentalItems();
+        setRentalTransactionFeedback(
+            isEditing ? "Aluguer atualizado com sucesso." : "Aluguer adicionado com sucesso.",
+            "success"
+        );
+    } catch (error) {
+        setRentalTransactionFeedback(error.message, "error");
+    }
+}
+
+function getRentalTransactionFormData() {
+    return {
+        id: rentalTransactionFields.id.value ? Number(rentalTransactionFields.id.value) : null,
+        bookingId: rentalTransactionFields.bookingId.value ? Number(rentalTransactionFields.bookingId.value) : null,
+        bookingPlayerId: rentalTransactionFields.bookingPlayerId.value ? Number(rentalTransactionFields.bookingPlayerId.value) : null,
+        rentalItemId: rentalTransactionFields.rentalItemId.value ? Number(rentalTransactionFields.rentalItemId.value) : null,
+        quantity: Number(rentalTransactionFields.quantity.value || 1),
+        status: rentalTransactionFields.status.value,
+        unitPrice: rentalTransactionFields.unitPrice.value ? Number(rentalTransactionFields.unitPrice.value) : null,
+        totalPrice: rentalTransactionFields.totalPrice.value ? Number(rentalTransactionFields.totalPrice.value) : null
+    };
+}
+
+async function handlePaymentSubmit(event) {
+    event.preventDefault();
+
+    const payload = getPaymentFormData();
+    const isEditing = Boolean(payload.id);
+    const method = isEditing ? "PUT" : "POST";
+    showRequest(method, PAYMENT_API_URL, payload);
+
+    try {
+        const response = await fetch(PAYMENT_API_URL, {
+            method,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        const savedPayment = await response.json();
+        showResponse(savedPayment);
+        selectedBookingId = savedPayment.bookingId;
+        resetPaymentForm({ keepBooking: true });
+        await loadPayments({ silent: true });
+        renderSelectedBookingPlayers();
+        renderSelectedPayments();
+        setPaymentFeedback(
+            isEditing ? "Pagamento atualizado com sucesso." : "Pagamento registrado com sucesso.",
+            "success"
+        );
+    } catch (error) {
+        setPaymentFeedback(error.message, "error");
+    }
+}
+
+function getPaymentFormData() {
+    return {
+        id: paymentFields.id.value ? Number(paymentFields.id.value) : null,
+        bookingId: paymentFields.bookingId.value ? Number(paymentFields.bookingId.value) : null,
+        bookingPlayerId: paymentFields.bookingPlayerId.value ? Number(paymentFields.bookingPlayerId.value) : null,
+        amount: paymentFields.amount.value ? Number(paymentFields.amount.value) : null,
+        method: paymentFields.method.value,
+        status: paymentFields.status.value,
+        paidAt: null
+    };
+}
+
+function renderSelectedRentalTransactions() {
+    const booking = bookings.find((item) => item.id === selectedBookingId)
+        || visibleBookings.find((item) => item.id === selectedBookingId);
+    const source = getRentalTransactions(selectedBookingId);
+
+    if (!selectedBookingId || !booking) {
+        selectedRentalTitle.textContent = "Nenhum booking selecionado";
+        rentalTransactionCount.textContent = "0 itens";
+        updateReturnAllRentalsButton();
+        rentalTransactionsTableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="empty-state">Selecione um booking para ver os alugueres.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    selectedRentalTitle.textContent = `${booking.code || "Booking"} #${booking.id}`;
+    rentalTransactionCount.textContent = `${source.length} item${source.length === 1 ? "" : "s"}`;
+    rentalTransactionFields.bookingId.value = booking.id;
+    populateRentalBookingPlayerOptions();
+    updateReturnAllRentalsButton();
+
+    if (source.length === 0) {
+        rentalTransactionsTableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="empty-state">Nenhum item alugado neste booking.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    rentalTransactionsTableBody.innerHTML = source
+        .map((rentalTransaction) => `
+            <tr>
+                <td>
+                    <div class="row-main">${escapeHtml(getBookingPlayerDisplayName(rentalTransaction.bookingPlayerId))}</div>
+                    <div class="row-sub">Booking player #${rentalTransaction.bookingPlayerId}</div>
+                </td>
+                <td>
+                    <div class="row-main">${escapeHtml(getRentalItemName(rentalTransaction.rentalItemId))}</div>
+                    <div class="row-sub">Item #${rentalTransaction.rentalItemId}</div>
+                </td>
+                <td>${rentalTransaction.quantity}</td>
+                <td><span class="status-pill">${escapeHtml(rentalTransaction.status || "RENTED")}</span></td>
+                <td>${formatMoney(rentalTransaction.unitPrice)}</td>
+                <td>${formatMoney(rentalTransaction.totalPrice)}</td>
+                <td>
+                    <div class="table-actions">
+                        ${(rentalTransaction.status || "RENTED") === "RENTED" ? `
+                            <button class="action-button checkin" type="button" data-rental-transaction-action="return" data-id="${rentalTransaction.id}">
+                                Devolver
+                            </button>
+                        ` : ""}
+                        <button class="action-button edit" type="button" data-rental-transaction-action="edit" data-id="${rentalTransaction.id}">
+                            Editar
+                        </button>
+                        <button class="action-button delete" type="button" data-rental-transaction-action="delete" data-id="${rentalTransaction.id}">
+                            Excluir
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `)
+        .join("");
+
+    bindRentalTransactionRowActions();
+}
+
+function bindRentalTransactionRowActions() {
+    document.querySelectorAll("[data-rental-transaction-action='edit']").forEach((button) => {
+        button.addEventListener("click", () => {
+            const rentalTransactionId = Number(button.dataset.id);
+            const rentalTransaction = rentalTransactions.find((item) => item.id === rentalTransactionId);
+
+            if (!rentalTransaction) {
+                return;
+            }
+
+            fillRentalTransactionForm(rentalTransaction);
+        });
+    });
+
+    document.querySelectorAll("[data-rental-transaction-action='delete']").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const rentalTransactionId = Number(button.dataset.id);
+            await deleteRentalTransaction(rentalTransactionId);
+        });
+    });
+
+    document.querySelectorAll("[data-rental-transaction-action='return']").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const rentalTransactionId = Number(button.dataset.id);
+            await returnRentalTransaction(rentalTransactionId);
+        });
+    });
+}
+
+function renderSelectedPayments() {
+    const booking = bookings.find((item) => item.id === selectedBookingId)
+        || visibleBookings.find((item) => item.id === selectedBookingId);
+    const source = getPayments(selectedBookingId);
+
+    if (!selectedBookingId || !booking) {
+        selectedPaymentTitle.textContent = "Nenhum booking selecionado";
+        paymentCount.textContent = "0 pagamentos";
+        paymentsTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="empty-state">Selecione um booking para ver os pagamentos.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    selectedPaymentTitle.textContent = `${booking.code || "Booking"} #${booking.id}`;
+    paymentCount.textContent = `${source.length} pagamento${source.length === 1 ? "" : "s"}`;
+    paymentFields.bookingId.value = booking.id;
+    populatePaymentBookingPlayerOptions();
+
+    if (source.length === 0) {
+        paymentsTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="empty-state">Nenhum pagamento registrado neste booking.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    paymentsTableBody.innerHTML = source
+        .map((payment) => `
+            <tr>
+                <td>
+                    <div class="row-main">${escapeHtml(getBookingPlayerDisplayName(payment.bookingPlayerId))}</div>
+                    <div class="row-sub">Booking player #${payment.bookingPlayerId}</div>
+                </td>
+                <td>
+                    <div class="row-main">${formatMoney(payment.amount)}</div>
+                    <div class="row-sub">Pendente: ${formatMoney(getBookingPlayerPendingAmount(payment.bookingPlayerId))}</div>
+                </td>
+                <td>${escapeHtml(payment.method || "-")}</td>
+                <td><span class="status-pill">${escapeHtml(payment.status || "PAID")}</span></td>
+                <td>${formatDateTime(payment.paidAt) || "-"}</td>
+                <td>
+                    <div class="table-actions">
+                        ${(payment.status || "PAID") === "PAID" ? `
+                            <button class="action-button checkin" type="button" data-payment-action="refund" data-id="${payment.id}">
+                                Reembolsar
+                            </button>
+                        ` : ""}
+                        <button class="action-button edit" type="button" data-payment-action="edit" data-id="${payment.id}">
+                            Editar
+                        </button>
+                        <button class="action-button delete" type="button" data-payment-action="delete" data-id="${payment.id}">
+                            Excluir
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `)
+        .join("");
+
+    bindPaymentRowActions();
+}
+
+function bindPaymentRowActions() {
+    document.querySelectorAll("[data-payment-action='edit']").forEach((button) => {
+        button.addEventListener("click", () => {
+            const paymentId = Number(button.dataset.id);
+            const payment = payments.find((item) => item.id === paymentId);
+
+            if (!payment) {
+                return;
+            }
+
+            fillPaymentForm(payment);
+        });
+    });
+
+    document.querySelectorAll("[data-payment-action='delete']").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const paymentId = Number(button.dataset.id);
+            await deletePayment(paymentId);
+        });
+    });
+
+    document.querySelectorAll("[data-payment-action='refund']").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const paymentId = Number(button.dataset.id);
+            await refundPayment(paymentId);
+        });
+    });
+}
+
+function fillRentalTransactionForm(rentalTransaction) {
+    rentalTransactionFields.id.value = rentalTransaction.id ?? "";
+    rentalTransactionFields.bookingId.value = rentalTransaction.bookingId ?? "";
+    populateRentalBookingPlayerOptions();
+    rentalTransactionFields.bookingPlayerId.value = rentalTransaction.bookingPlayerId ?? "";
+    rentalTransactionFields.rentalItemId.value = rentalTransaction.rentalItemId ?? "";
+    rentalTransactionFields.quantity.value = rentalTransaction.quantity ?? 1;
+    rentalTransactionFields.status.value = rentalTransaction.status ?? "RENTED";
+    rentalTransactionFields.unitPrice.value = rentalTransaction.unitPrice ?? "";
+    rentalTransactionFields.totalPrice.value = rentalTransaction.totalPrice ?? "";
+    rentalTransactionFormTitle.textContent = `Editando aluguer #${rentalTransaction.id}`;
+}
+
+function resetRentalTransactionForm({ keepBooking = false } = {}) {
+    const bookingId = keepBooking ? rentalTransactionFields.bookingId.value : "";
+    rentalTransactionForm.reset();
+    rentalTransactionFields.id.value = "";
+    rentalTransactionFields.bookingId.value = bookingId;
+    rentalTransactionFields.bookingPlayerId.value = "";
+    rentalTransactionFields.quantity.value = 1;
+    rentalTransactionFields.status.value = "RENTED";
+    rentalTransactionFields.unitPrice.value = "";
+    rentalTransactionFields.totalPrice.value = "";
+    rentalTransactionFormTitle.textContent = "Adicionar item";
+}
+
+function fillPaymentForm(payment) {
+    paymentFields.id.value = payment.id ?? "";
+    paymentFields.bookingId.value = payment.bookingId ?? "";
+    populatePaymentBookingPlayerOptions();
+    paymentFields.bookingPlayerId.value = payment.bookingPlayerId ?? "";
+    paymentFields.amount.value = payment.amount ?? "";
+    paymentFields.method.value = payment.method ?? "CARD";
+    paymentFields.status.value = payment.status ?? "PAID";
+    paymentFields.paidAt.value = formatDateTime(payment.paidAt);
+    paymentFormTitle.textContent = `Editando pagamento #${payment.id}`;
+}
+
+function resetPaymentForm({ keepBooking = false } = {}) {
+    const bookingId = keepBooking ? paymentFields.bookingId.value : "";
+    paymentForm.reset();
+    paymentFields.id.value = "";
+    paymentFields.bookingId.value = bookingId;
+    paymentFields.bookingPlayerId.value = "";
+    paymentFields.method.value = "CARD";
+    paymentFields.status.value = "PAID";
+    paymentFields.amount.value = "";
+    paymentFields.paidAt.value = "";
+    paymentFormTitle.textContent = "Registrar pagamento";
+}
+
+function preparePaymentForBookingPlayer(bookingPlayerId) {
+    const bookingPlayer = bookingPlayers.find((item) => item.id === bookingPlayerId);
+
+    if (!bookingPlayer) {
+        setPaymentFeedback("Jogador do booking nao encontrado.", "error");
+        return;
+    }
+
+    paymentFields.id.value = "";
+    paymentFields.bookingId.value = bookingPlayer.bookingId ?? "";
+    paymentFields.bookingPlayerId.value = bookingPlayer.id ?? "";
+    paymentFields.method.value = "CARD";
+    paymentFields.status.value = "PAID";
+    paymentFields.paidAt.value = "";
+    updatePaymentAmountPreview({ force: true });
+    paymentFormTitle.textContent = `Pagamento de ${getPlayerName(bookingPlayer.playerId)}`;
+    paymentForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updatePaymentAmountPreview({ force = false } = {}) {
+    const bookingPlayerId = Number(paymentFields.bookingPlayerId.value);
+    const ignoredPaymentId = paymentFields.id.value ? Number(paymentFields.id.value) : null;
+
+    if (!bookingPlayerId) {
+        if (force) {
+            paymentFields.amount.value = "";
+        }
+        return;
+    }
+
+    if (force || !paymentFields.amount.value) {
+        paymentFields.amount.value = getBookingPlayerPendingAmount(bookingPlayerId, ignoredPaymentId).toFixed(2);
+    }
+}
+
+async function deletePayment(id) {
+    const confirmed = window.confirm("Deseja realmente remover este pagamento?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    showRequest("DELETE", `${PAYMENT_API_URL}/${id}`);
+
+    try {
+        const response = await fetch(`${PAYMENT_API_URL}/${id}`, {
+            method: "DELETE"
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        showResponse({
+            status: response.status,
+            message: `Pagamento ${id} removido com sucesso.`
+        });
+        resetPaymentForm({ keepBooking: true });
+        await loadPayments({ silent: true });
+        renderSelectedBookingPlayers();
+        renderSelectedPayments();
+        setPaymentFeedback("Pagamento removido com sucesso.", "success");
+    } catch (error) {
+        setPaymentFeedback(error.message, "error");
+    }
+}
+
+async function refundPayment(id) {
+    const payment = payments.find((item) => item.id === id);
+
+    if (!payment) {
+        setPaymentFeedback("Pagamento nao encontrado.", "error");
+        return;
+    }
+
+    const payload = {
+        ...payment,
+        status: "REFUNDED"
+    };
+
+    showRequest("PUT", PAYMENT_API_URL, payload);
+
+    try {
+        const response = await fetch(PAYMENT_API_URL, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        const refundedPayment = await response.json();
+        showResponse(refundedPayment);
+        selectedBookingId = refundedPayment.bookingId;
+        await loadPayments({ silent: true });
+        renderSelectedBookingPlayers();
+        renderSelectedPayments();
+        setPaymentFeedback("Pagamento marcado como reembolsado.", "success");
+    } catch (error) {
+        setPaymentFeedback(error.message, "error");
+    }
+}
+
+async function deleteRentalTransaction(id) {
+    const confirmed = window.confirm("Deseja realmente remover este aluguer do booking?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    showRequest("DELETE", `${RENTAL_TRANSACTION_API_URL}/${id}`);
+
+    try {
+        const response = await fetch(`${RENTAL_TRANSACTION_API_URL}/${id}`, {
+            method: "DELETE"
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        showResponse({
+            status: response.status,
+            message: `Aluguer ${id} removido do booking com sucesso.`
+        });
+        resetRentalTransactionForm({ keepBooking: true });
+        await loadRentalItemsForSelect();
+        await loadBookings();
+        renderRentalItems();
+        setRentalTransactionFeedback("Aluguer removido com sucesso.", "success");
+    } catch (error) {
+        setRentalTransactionFeedback(error.message, "error");
+    }
+}
+
+async function returnRentalTransaction(id) {
+    const rentalTransaction = rentalTransactions.find((item) => item.id === id);
+
+    if (!rentalTransaction) {
+        setRentalTransactionFeedback("Aluguer nao encontrado.", "error");
+        return;
+    }
+
+    const payload = {
+        ...rentalTransaction,
+        status: "RETURNED"
+    };
+
+    showRequest("PUT", RENTAL_TRANSACTION_API_URL, payload);
+
+    try {
+        const response = await fetch(RENTAL_TRANSACTION_API_URL, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        const returnedRentalTransaction = await response.json();
+        showResponse(returnedRentalTransaction);
+        selectedBookingId = returnedRentalTransaction.bookingId;
+        await loadRentalItemsForSelect();
+        await loadBookings();
+        renderRentalItems();
+        setRentalTransactionFeedback("Item devolvido e estoque atualizado com sucesso.", "success");
+    } catch (error) {
+        setRentalTransactionFeedback(error.message, "error");
+    }
+}
+
+async function returnAllRentalTransactions() {
+    const pendingRentals = rentalTransactions
+        .filter((rentalTransaction) => (rentalTransaction.status || "RENTED") === "RENTED");
+
+    if (pendingRentals.length === 0) {
+        setRentalTransactionFeedback("Nao ha materiais alugados pendentes de devolucao.", "success");
+        updateReturnAllRentalsButton();
+        return;
+    }
+
+    const materialLabel = pendingRentals.length === 1 ? "material" : "materiais";
+    const confirmed = window.confirm(`Deseja marcar ${pendingRentals.length} ${materialLabel} como devolvido${pendingRentals.length === 1 ? "" : "s"}?`);
+
+    if (!confirmed) {
+        return;
+    }
+
+    const url = `${RENTAL_TRANSACTION_API_URL}/return-all`;
+    showRequest("PUT", url);
+
+    try {
+        const response = await fetch(url, {
+            method: "PUT"
+        });
+
+        if (!response.ok) {
+            const errorMessage = await extractErrorMessage(response);
+            showResponse({
+                status: response.status,
+                error: errorMessage
+            });
+            throw new Error(errorMessage);
+        }
+
+        const returnedRentalTransactions = await response.json();
+        showResponse(returnedRentalTransactions);
+        await loadRentalItemsForSelect();
+        await loadBookings();
+        renderRentalItems();
+        updateReturnAllRentalsButton();
+        setRentalTransactionFeedback("Todos os materiais pendentes foram marcados como devolvidos.", "success");
+    } catch (error) {
+        setRentalTransactionFeedback(error.message, "error");
+    }
+}
+
+function updateReturnAllRentalsButton() {
+    const pendingRentals = rentalTransactions
+        .filter((rentalTransaction) => (rentalTransaction.status || "RENTED") === "RENTED");
+
+    returnAllRentalsButton.disabled = pendingRentals.length === 0;
+    returnAllRentalsButton.textContent = pendingRentals.length === 0
+        ? "Todos os materiais devolvidos"
+        : `Devolver todos os materiais (${pendingRentals.length})`;
+}
+
+function updateRentalTransactionPricePreview() {
+    const rentalItemId = Number(rentalTransactionFields.rentalItemId.value);
+    const bookingId = Number(rentalTransactionFields.bookingId.value);
+    const bookingPlayerId = Number(rentalTransactionFields.bookingPlayerId.value);
+    const quantity = Number(rentalTransactionFields.quantity.value || 0);
+    const rentalItem = rentalItems.find((item) => item.id === rentalItemId);
+
+    if (!rentalItem || quantity < 1) {
+        rentalTransactionFields.unitPrice.value = "";
+        rentalTransactionFields.totalPrice.value = "";
+        return;
+    }
+
+    const booking = bookings.find((item) => item.id === bookingId);
+    const bookingPlayer = bookingPlayers.find((item) => item.id === bookingPlayerId);
+    const unitPrice = calculateRentalUnitPricePreview(rentalItem, booking, bookingPlayer);
+    rentalTransactionFields.unitPrice.value = unitPrice.toFixed(2);
+    rentalTransactionFields.totalPrice.value = (unitPrice * quantity).toFixed(2);
+}
+
+function calculateRentalUnitPricePreview(rentalItem, booking, bookingPlayer) {
+    let unitPrice = Number(rentalItem.rentalPrice || 0);
+
+    if (!isBuggyOrElectricTrolley(rentalItem)) {
+        return unitPrice;
+    }
+
+    if (isTwilightBooking(booking)) {
+        unitPrice *= 0.60;
+    }
+
+    if (isMemberBookingPlayer(bookingPlayer)) {
+        unitPrice *= 0.50;
+    }
+
+    return unitPrice;
+}
+
+function isBuggyOrElectricTrolley(rentalItem) {
+    const searchableText = normalizeSearchText(`${rentalItem.name || ""} ${rentalItem.type || ""}`).toUpperCase();
+
+    return searchableText.includes("BUGGY")
+        || (searchableText.includes("TROLLEY")
+            && (searchableText.includes("ELECTRIC") || searchableText.includes("ELETRICO")));
+}
+
+function isTwilightBooking(booking) {
+    if (!booking) {
+        return false;
+    }
+
+    const teeTime = teeTimes.find((item) => item.id === booking.teeTimeId);
+
+    return Boolean(teeTime) && formatTime(teeTime.startTime) >= "16:00";
+}
+
+function isMemberBookingPlayer(bookingPlayer) {
+    if (!bookingPlayer) {
+        return false;
+    }
+
+    const player = players.find((item) => item.id === bookingPlayer.playerId);
+
+    return Boolean(player?.member);
+}
+
 function selectBooking(bookingId) {
     selectedBookingId = bookingId;
     bookingPlayerFields.bookingId.value = bookingId ?? "";
+    rentalTransactionFields.bookingId.value = bookingId ?? "";
+    paymentFields.bookingId.value = bookingId ?? "";
+    populateRentalBookingPlayerOptions();
+    populatePaymentBookingPlayerOptions();
     renderSelectedBookingPlayers();
+    renderSelectedRentalTransactions();
+    renderSelectedPayments();
     renderDailyAgenda();
 }
 
@@ -1369,10 +2461,19 @@ function renderSelectedBookingPlayers() {
                     <div class="row-main">${escapeHtml(getPlayerName(bookingPlayer.playerId))}</div>
                     <div class="row-sub">Player #${bookingPlayer.playerId}</div>
                 </td>
-                <td>${formatMoney(bookingPlayer.greenFeeAmount)}</td>
+                <td>
+                    <div class="row-main">${formatMoney(bookingPlayer.greenFeeAmount)}</div>
+                    <div class="row-sub">Rentals: ${formatMoney(getBookingPlayerRentalTotal(bookingPlayer.id))}</div>
+                    <div class="row-sub">Total: ${formatMoney(getBookingPlayerTotal(bookingPlayer))}</div>
+                    <div class="row-sub">Pago: ${formatMoney(getBookingPlayerPaidAmount(bookingPlayer.id))}</div>
+                    <div class="row-sub">Pendente: ${formatMoney(getBookingPlayerPendingAmount(bookingPlayer.id))}</div>
+                </td>
                 <td>${bookingPlayer.checkedIn ? "Sim" : "Nao"}</td>
                 <td>
                     <div class="table-actions">
+                        <button class="action-button select" type="button" data-booking-player-action="payment" data-id="${bookingPlayer.id}">
+                            Pagar
+                        </button>
                         <button class="action-button checkin" type="button" data-booking-player-action="toggle-checkin" data-id="${bookingPlayer.id}">
                             ${bookingPlayer.checkedIn ? "Desfazer check-in" : "Check-in"}
                         </button>
@@ -1416,6 +2517,12 @@ function bindBookingPlayerRowActions() {
         button.addEventListener("click", async () => {
             const bookingPlayerId = Number(button.dataset.id);
             await toggleBookingPlayerCheckIn(bookingPlayerId);
+        });
+    });
+
+    document.querySelectorAll("[data-booking-player-action='payment']").forEach((button) => {
+        button.addEventListener("click", () => {
+            preparePaymentForBookingPlayer(Number(button.dataset.id));
         });
     });
 }
@@ -1469,6 +2576,8 @@ async function deleteBookingPlayer(id) {
         await loadTeeTimesForSelect();
         renderTeeTimes();
         renderDailyAgenda();
+        populateRentalBookingPlayerOptions();
+        populatePaymentBookingPlayerOptions();
         setBookingPlayerFeedback("Jogador removido com sucesso.", "success");
     } catch (error) {
         setBookingPlayerFeedback(error.message, "error");
@@ -1515,6 +2624,8 @@ async function toggleBookingPlayerCheckIn(id) {
         await loadTeeTimesForSelect();
         renderTeeTimes();
         renderDailyAgenda();
+        populateRentalBookingPlayerOptions();
+        populatePaymentBookingPlayerOptions();
         setBookingPlayerFeedback("Check-in atualizado com sucesso.", "success");
     } catch (error) {
         setBookingPlayerFeedback(error.message, "error");
@@ -1527,6 +2638,38 @@ function getBookingPlayers(bookingId) {
     }
 
     return bookingPlayers.filter((bookingPlayer) => bookingPlayer.bookingId === bookingId);
+}
+
+function getRentalTransactions(bookingId) {
+    if (!bookingId) {
+        return [];
+    }
+
+    return rentalTransactions.filter((rentalTransaction) => rentalTransaction.bookingId === bookingId);
+}
+
+function getRentalTransactionsByBookingPlayer(bookingPlayerId) {
+    if (!bookingPlayerId) {
+        return [];
+    }
+
+    return rentalTransactions.filter((rentalTransaction) => rentalTransaction.bookingPlayerId === bookingPlayerId);
+}
+
+function getPayments(bookingId) {
+    if (!bookingId) {
+        return [];
+    }
+
+    return payments.filter((payment) => payment.bookingId === bookingId);
+}
+
+function getPaymentsByBookingPlayer(bookingPlayerId) {
+    if (!bookingPlayerId) {
+        return [];
+    }
+
+    return payments.filter((payment) => payment.bookingPlayerId === bookingPlayerId);
 }
 
 async function extractErrorMessage(response) {
@@ -1556,6 +2699,21 @@ function setBookingFeedback(message, type = "") {
 function setBookingPlayerFeedback(message, type = "") {
     bookingPlayerFeedback.textContent = message;
     bookingPlayerFeedback.className = `feedback ${type}`.trim();
+}
+
+function setRentalTransactionFeedback(message, type = "") {
+    rentalTransactionFeedback.textContent = message;
+    rentalTransactionFeedback.className = `feedback ${type}`.trim();
+}
+
+function setPaymentFeedback(message, type = "") {
+    paymentFeedback.textContent = message;
+    paymentFeedback.className = `feedback ${type}`.trim();
+}
+
+function setRentalItemFeedback(message, type = "") {
+    rentalItemFeedback.textContent = message;
+    rentalItemFeedback.className = `feedback ${type}`.trim();
 }
 
 function setAgendaFeedback(message, type = "") {
@@ -1647,6 +2805,43 @@ function formatMoney(value) {
 function getPlayerName(playerId) {
     const player = players.find((item) => item.id === playerId);
     return player ? player.fullName : `Player #${playerId}`;
+}
+
+function getRentalItemName(rentalItemId) {
+    const rentalItem = rentalItems.find((item) => item.id === rentalItemId);
+    return rentalItem ? rentalItem.name : `Item #${rentalItemId}`;
+}
+
+function getBookingPlayerDisplayName(bookingPlayerId) {
+    const bookingPlayer = bookingPlayers.find((item) => item.id === bookingPlayerId);
+    return bookingPlayer ? getPlayerName(bookingPlayer.playerId) : `Booking player #${bookingPlayerId}`;
+}
+
+function getBookingPlayerRentalTotal(bookingPlayerId) {
+    return getRentalTransactionsByBookingPlayer(bookingPlayerId)
+        .filter((rentalTransaction) => (rentalTransaction.status || "RENTED") !== "CANCELLED")
+        .reduce((total, rentalTransaction) => total + Number(rentalTransaction.totalPrice || 0), 0);
+}
+
+function getBookingPlayerTotal(bookingPlayer) {
+    return Number(bookingPlayer.greenFeeAmount || 0) + getBookingPlayerRentalTotal(bookingPlayer.id);
+}
+
+function getBookingPlayerPaidAmount(bookingPlayerId, ignoredPaymentId = null) {
+    return getPaymentsByBookingPlayer(bookingPlayerId)
+        .filter((payment) => (payment.status || "PAID") === "PAID")
+        .filter((payment) => ignoredPaymentId === null || payment.id !== ignoredPaymentId)
+        .reduce((total, payment) => total + Number(payment.amount || 0), 0);
+}
+
+function getBookingPlayerPendingAmount(bookingPlayerId, ignoredPaymentId = null) {
+    const bookingPlayer = bookingPlayers.find((item) => item.id === bookingPlayerId);
+
+    if (!bookingPlayer) {
+        return 0;
+    }
+
+    return Math.max(getBookingPlayerTotal(bookingPlayer) - getBookingPlayerPaidAmount(bookingPlayerId, ignoredPaymentId), 0);
 }
 
 function normalizeSearchText(value) {

@@ -28,6 +28,7 @@
     <nav class="entity-tabs" aria-label="Navegacao principal">
         <button class="tab-button active" type="button" data-view="players">Players</button>
         <button class="tab-button" type="button" data-view="agenda">Agenda</button>
+        <button class="tab-button" type="button" data-view="materials">Materiais</button>
     </nav>
 
     <section id="players-view" class="content-grid entity-view">
@@ -132,6 +133,7 @@
                     <h2 id="agenda-day-title">Agenda diaria</h2>
                 </div>
                 <div class="toolbar">
+                    <button id="return-all-rentals-button" class="ghost-button" type="button">Devolver todos os materiais</button>
                     <input id="agenda-date-input" type="date" aria-label="Data da agenda">
                     <button id="agenda-today-button" class="ghost-button" type="button">Hoje</button>
                     <button id="agenda-refresh-button" class="ghost-button" type="button">Atualizar agenda</button>
@@ -332,6 +334,134 @@
 
                 <p id="booking-player-feedback" class="feedback" aria-live="polite"></p>
             </div>
+
+            <div class="sub-panel">
+                <div class="panel-header compact-header">
+                    <div>
+                        <p class="section-tag">Alugueres</p>
+                        <h2 id="rental-transaction-form-title">Adicionar item</h2>
+                    </div>
+                    <button id="rental-transaction-clear-button" class="ghost-button" type="button">Limpar</button>
+                </div>
+
+                <form id="rental-transaction-form" class="player-form">
+                    <input id="rental-transaction-id" type="hidden">
+
+                    <label>
+                        <span>Booking ID</span>
+                        <input id="rentalTransactionBookingId" name="bookingId" type="number" min="1" step="1" required>
+                    </label>
+
+                    <label>
+                        <span>Jogador</span>
+                        <select id="rentalTransactionBookingPlayerId" name="bookingPlayerId" required>
+                            <option value="">Selecione um jogador do booking</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Item</span>
+                        <select id="rentalTransactionRentalItemId" name="rentalItemId" required>
+                            <option value="">Selecione um item</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Quantidade</span>
+                        <input id="rentalTransactionQuantity" name="quantity" type="number" min="1" step="1" value="1" required>
+                    </label>
+
+                    <label>
+                        <span>Status</span>
+                        <select id="rentalTransactionStatus" name="status" required>
+                            <option value="RENTED">RENTED</option>
+                            <option value="RETURNED">RETURNED</option>
+                            <option value="LOST">LOST</option>
+                            <option value="DAMAGED">DAMAGED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Preco unitario</span>
+                        <input id="rentalTransactionUnitPrice" name="unitPrice" type="number" min="0" step="0.01" readonly>
+                    </label>
+
+                    <label>
+                        <span>Total do aluguer</span>
+                        <input id="rentalTransactionTotalPrice" name="totalPrice" type="number" min="0" step="0.01" readonly>
+                    </label>
+
+                    <div class="form-actions">
+                        <button class="primary-button" type="submit">Salvar aluguer</button>
+                    </div>
+                </form>
+
+                <p id="rental-transaction-feedback" class="feedback" aria-live="polite"></p>
+            </div>
+
+            <div class="sub-panel">
+                <div class="panel-header compact-header">
+                    <div>
+                        <p class="section-tag">Pagamentos</p>
+                        <h2 id="payment-form-title">Registrar pagamento</h2>
+                    </div>
+                    <button id="payment-clear-button" class="ghost-button" type="button">Limpar</button>
+                </div>
+
+                <form id="payment-form" class="player-form">
+                    <input id="payment-id" type="hidden">
+
+                    <label>
+                        <span>Booking ID</span>
+                        <input id="paymentBookingId" name="bookingId" type="number" min="1" step="1" required>
+                    </label>
+
+                    <label>
+                        <span>Jogador</span>
+                        <select id="paymentBookingPlayerId" name="bookingPlayerId" required>
+                            <option value="">Selecione um jogador do booking</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Valor</span>
+                        <input id="paymentAmount" name="amount" type="number" min="0.01" step="0.01" required>
+                    </label>
+
+                    <label>
+                        <span>Metodo</span>
+                        <select id="paymentMethod" name="method" required>
+                            <option value="CARD">CARD</option>
+                            <option value="CASH">CASH</option>
+                            <option value="MBWAY">MBWAY</option>
+                            <option value="TRANSFER">TRANSFER</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Status</span>
+                        <select id="paymentStatus" name="status" required>
+                            <option value="PAID">PAID</option>
+                            <option value="PENDING">PENDING</option>
+                            <option value="REFUNDED">REFUNDED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Pago em</span>
+                        <input id="paymentPaidAt" name="paidAt" type="text" placeholder="Gerado automaticamente" readonly>
+                    </label>
+
+                    <div class="form-actions">
+                        <button class="primary-button" type="submit">Salvar pagamento</button>
+                    </div>
+                </form>
+
+                <p id="payment-feedback" class="feedback" aria-live="polite"></p>
+            </div>
+
         </article>
 
         <article class="panel list-panel">
@@ -400,8 +530,157 @@
                     </table>
                 </div>
             </div>
+
+            <div class="booking-player-list">
+                <div class="panel-header compact-header">
+                    <div>
+                        <p class="section-tag">Alugueres do booking</p>
+                        <h2 id="selected-rental-title">Nenhum booking selecionado</h2>
+                    </div>
+                    <span id="rental-transaction-count" class="count-badge">0 itens</span>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Jogador</th>
+                            <th>Item</th>
+                            <th>Qtd</th>
+                            <th>Status</th>
+                            <th>Unitario</th>
+                            <th>Total</th>
+                            <th>Acoes</th>
+                        </tr>
+                        </thead>
+                        <tbody id="rental-transactions-table-body">
+                        <tr>
+                            <td colspan="7" class="empty-state">Selecione um booking para ver os alugueres.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="booking-player-list">
+                <div class="panel-header compact-header">
+                    <div>
+                        <p class="section-tag">Pagamentos do booking</p>
+                        <h2 id="selected-payment-title">Nenhum booking selecionado</h2>
+                    </div>
+                    <span id="payment-count" class="count-badge">0 pagamentos</span>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Jogador</th>
+                            <th>Valor</th>
+                            <th>Metodo</th>
+                            <th>Status</th>
+                            <th>Pago em</th>
+                            <th>Acoes</th>
+                        </tr>
+                        </thead>
+                        <tbody id="payments-table-body">
+                        <tr>
+                            <td colspan="6" class="empty-state">Selecione um booking para ver os pagamentos.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </article>
     </section>
+    </section>
+
+    <section id="materials-view" class="content-grid entity-view is-hidden" hidden>
+        <article class="panel form-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Inventario</p>
+                    <h2 id="rental-item-form-title">Novo material</h2>
+                </div>
+                <button id="rental-item-clear-button" class="ghost-button" type="button">Limpar</button>
+            </div>
+
+            <form id="rental-item-form" class="player-form">
+                <input id="rental-item-id" type="hidden">
+
+                <label>
+                    <span>Nome</span>
+                    <input id="rentalItemName" name="name" type="text" maxlength="50" required>
+                </label>
+
+                <label>
+                    <span>Tipo</span>
+                    <input id="rentalItemType" name="type" type="text" maxlength="50" placeholder="Ex.: BUGGY, CLUBS, TROLLEY" required>
+                </label>
+
+                <label>
+                    <span>Estoque total</span>
+                    <input id="rentalItemTotalStock" name="totalStock" type="number" min="0" step="1" required>
+                </label>
+
+                <label>
+                    <span>Estoque disponivel</span>
+                    <input id="rentalItemAvailableStock" name="availableStock" type="number" min="0" step="1" placeholder="Automatico se vazio">
+                </label>
+
+                <label>
+                    <span>Preco de aluguer</span>
+                    <input id="rentalItemRentalPrice" name="rentalPrice" type="number" min="0" step="0.01" required>
+                </label>
+
+                <label class="checkbox-field">
+                    <input id="rentalItemActive" name="active" type="checkbox" checked>
+                    <span>Material ativo</span>
+                </label>
+
+                <div class="form-actions">
+                    <button class="primary-button" type="submit">Salvar material</button>
+                </div>
+            </form>
+
+            <p id="rental-item-feedback" class="feedback" aria-live="polite"></p>
+        </article>
+
+        <article class="panel list-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="section-tag">Estoque</p>
+                    <h2>Materiais cadastrados</h2>
+                </div>
+                <div class="toolbar">
+                    <button id="rental-item-find-all-button" class="ghost-button" type="button">Listar materiais</button>
+                    <span id="rental-item-count" class="count-badge">0 materiais</span>
+                </div>
+            </div>
+
+            <p class="feedback success">Controle de estoque total, estoque disponivel e preco dos materiais.</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Material</th>
+                        <th>Tipo</th>
+                        <th>Estoque</th>
+                        <th>Preco</th>
+                        <th>Status</th>
+                        <th>Acoes</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rental-items-table-body">
+                    <tr>
+                        <td colspan="6" class="empty-state">Use "Listar materiais" para consultar o estoque.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
     </section>
 
     <section class="panel json-panel">
