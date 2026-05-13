@@ -1,5 +1,7 @@
 package com.project.golfofficeapi.model;
 
+import com.project.golfofficeapi.enums.PaymentMethod;
+import com.project.golfofficeapi.enums.PaymentStatus;
 import jakarta.persistence.*;
 
 import java.io.Serial;
@@ -26,10 +28,12 @@ public class Payment implements Serializable {
     private BookingPlayer bookingPlayer;
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String method;
+    private PaymentMethod method;
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String status;
+    private PaymentStatus status;
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
@@ -97,19 +101,19 @@ public class Payment implements Serializable {
         this.amount = amount;
     }
 
-    public String getMethod() {
+    public PaymentMethod getMethod() {
         return method;
     }
 
-    public void setMethod(String method) {
+    public void setMethod(PaymentMethod method) {
         this.method = method;
     }
 
-    public String getStatus() {
+    public PaymentStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(PaymentStatus status) {
         this.status = status;
     }
 

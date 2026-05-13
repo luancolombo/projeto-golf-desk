@@ -1,5 +1,6 @@
 package com.project.golfofficeapi.services;
 
+import com.project.golfofficeapi.enums.BookingStatus;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.BookingPlayer;
@@ -15,10 +16,6 @@ import java.util.List;
 
 @Service
 public class BookingStatusService {
-
-    private static final String STATUS_CANCELLED = "CANCELLED";
-    private static final String STATUS_CONFIRMED = "CONFIRMED";
-    private static final String STATUS_CREATED = "CREATED";
 
     private final BookingRepository bookingRepository;
     private final BookingPlayerRepository bookingPlayerRepository;
@@ -41,16 +38,16 @@ public class BookingStatusService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
-        if (STATUS_CANCELLED.equalsIgnoreCase(booking.getStatus())) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
             return;
         }
 
         boolean readyToConfirm = isReadyToConfirm(bookingId);
 
         if (readyToConfirm) {
-            booking.setStatus(STATUS_CONFIRMED);
-        } else if (STATUS_CONFIRMED.equalsIgnoreCase(booking.getStatus())) {
-            booking.setStatus(STATUS_CREATED);
+            booking.setStatus(BookingStatus.CONFIRMED);
+        } else if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            booking.setStatus(BookingStatus.CREATED);
         }
 
         bookingRepository.save(booking);

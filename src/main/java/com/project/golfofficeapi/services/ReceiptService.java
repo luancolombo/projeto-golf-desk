@@ -2,6 +2,8 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.controllers.ReceiptController;
 import com.project.golfofficeapi.dto.ReceiptDTO;
+import com.project.golfofficeapi.enums.PaymentStatus;
+import com.project.golfofficeapi.enums.RentalTransactionStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
@@ -16,7 +18,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.logging.Logger;
 
@@ -26,7 +27,6 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 @Service
 public class ReceiptService {
 
-    private static final String STATUS_PAID = "PAID";
     private final ReceiptRepository repository;
     private final ReceiptItemRepository receiptItemRepository;
     private final BookingRepository bookingRepository;
@@ -168,7 +168,7 @@ public class ReceiptService {
             return;
         }
 
-        if (!STATUS_PAID.equalsIgnoreCase(payment.getStatus())) {
+        if (payment.getStatus() != PaymentStatus.PAID) {
             cancelActiveReceiptsByPaymentId(payment.getId(), "Payment status changed to " + payment.getStatus());
             return;
         }
@@ -184,7 +184,7 @@ public class ReceiptService {
         boolean amountChanged = receipt.getTotalAmount() == null
                 || receipt.getTotalAmount().compareTo(payment.getAmount()) != 0;
         boolean methodChanged = receipt.getPaymentMethod() == null
-                || !receipt.getPaymentMethod().equalsIgnoreCase(payment.getMethod());
+                || !receipt.getPaymentMethod().equalsIgnoreCase(payment.getMethod().name());
 
         if (amountChanged || methodChanged) {
             cancelReceiptEntity(receipt, "Payment was updated");
@@ -232,8 +232,8 @@ public class ReceiptService {
         receipt.setGreenFeeAmount(greenFeePaid);
         receipt.setRentalAmount(rentalPaid);
         receipt.setTotalAmount(paymentAmount);
-        receipt.setPaymentMethod(payment.getMethod().trim().toUpperCase(Locale.ROOT));
-        receipt.setPaymentStatus(payment.getStatus().trim().toUpperCase(Locale.ROOT));
+        receipt.setPaymentMethod(payment.getMethod().name());
+        receipt.setPaymentStatus(payment.getStatus().name());
         receipt.setIssuedAt(LocalDateTime.now());
         receipt.setCancelled(false);
         receipt.setCancelledAt(null);
@@ -258,7 +258,7 @@ public class ReceiptService {
 
         List<RentalTransaction> rentals = rentalTransactionRepository.findByBookingPlayerId(bookingPlayer.getId())
                 .stream()
-                .filter(rental -> !"CANCELLED".equalsIgnoreCase(rental.getStatus()))
+                .filter(rental -> rental.getStatus() != RentalTransactionStatus.CANCELLED)
                 .toList();
         BigDecimal rentalTotal = rentals.stream()
                 .map(rental -> money(rental.getTotalPrice()))
@@ -317,7 +317,7 @@ public class ReceiptService {
             throw new ResourceNotFoundException("Payment not found");
         }
 
-        if (!STATUS_PAID.equalsIgnoreCase(payment.getStatus())) {
+        if (payment.getStatus() != PaymentStatus.PAID) {
             throw new BusinessException("Only PAID payments can issue receipts");
         }
 

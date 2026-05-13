@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.mapper.custom;
 
 import com.project.golfofficeapi.dto.BookingDTO;
+import com.project.golfofficeapi.enums.BookingStatus;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.TeeTime;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,7 @@ public class BookingMapper {
         entity.setId(dto.getId());
         entity.setCode(dto.getCode());
         entity.setCreatedAt(dto.getCreatedAt());
-        entity.setStatus(dto.getStatus());
+        entity.setStatus(BookingStatus.fromString(dto.getStatus()));
         entity.setTotalAmount(dto.getTotalAmount());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setTeeTime(teeTime);
@@ -27,7 +28,7 @@ public class BookingMapper {
         dto.setId(entity.getId());
         dto.setCode(entity.getCode());
         dto.setCreatedAt(entity.getCreatedAt());
-        dto.setStatus(entity.getStatus());
+        dto.setStatus(entity.getStatus() == null ? null : entity.getStatus().name());
         dto.setTotalAmount(entity.getTotalAmount());
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setTeeTimeId(entity.getTeeTimeId());

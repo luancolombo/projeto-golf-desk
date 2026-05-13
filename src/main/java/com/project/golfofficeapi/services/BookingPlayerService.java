@@ -2,6 +2,8 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.controllers.BookingPlayerController;
 import com.project.golfofficeapi.dto.BookingPlayerDTO;
+import com.project.golfofficeapi.enums.BookingStatus;
+import com.project.golfofficeapi.enums.TeeTimeStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
@@ -204,7 +206,7 @@ public class BookingPlayerService {
     private Booking validateBooking(Long bookingId) {
         Booking booking = findBooking(bookingId);
 
-        if ("CANCELLED".equalsIgnoreCase(booking.getStatus())) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
             throw new BusinessException("Cannot add players to a cancelled booking");
         }
 
@@ -219,7 +221,7 @@ public class BookingPlayerService {
     private TeeTime validateTeeTimeForNewPlayer(Long teeTimeId) {
         TeeTime teeTime = validateTeeTime(teeTimeId);
 
-        if ("CANCELLED".equalsIgnoreCase(teeTime.getStatus())) {
+        if (teeTime.getStatus() == TeeTimeStatus.CANCELLED) {
             throw new BusinessException("Cannot add players to a cancelled tee time");
         }
 
@@ -233,7 +235,7 @@ public class BookingPlayerService {
             return teeTime;
         }
 
-        if ("CANCELLED".equalsIgnoreCase(teeTime.getStatus())) {
+        if (teeTime.getStatus() == TeeTimeStatus.CANCELLED) {
             throw new BusinessException("Cannot move player to a cancelled tee time");
         }
 
@@ -289,11 +291,11 @@ public class BookingPlayerService {
 
         teeTime.setBookedPlayers(bookedPlayers);
 
-        if (!"CANCELLED".equalsIgnoreCase(teeTime.getStatus())) {
+        if (teeTime.getStatus() != TeeTimeStatus.CANCELLED) {
             if (bookedPlayers >= teeTime.getMaxPlayers()) {
-                teeTime.setStatus("FULL");
+                teeTime.setStatus(TeeTimeStatus.FULL);
             } else {
-                teeTime.setStatus("AVAILABLE");
+                teeTime.setStatus(TeeTimeStatus.AVAILABLE);
             }
         }
 

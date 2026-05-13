@@ -43,7 +43,7 @@ public interface BookingPlayerRepository extends JpaRepository<BookingPlayer, Lo
                 select b.id
                 from Booking b
                 where b.teeTime.id = :teeTimeId
-                and upper(b.status) <> 'CANCELLED'
+                and b.status <> com.project.golfofficeapi.enums.BookingStatus.CANCELLED
             )
             """)
     long countByTeeTimeId(@Param("teeTimeId") Long teeTimeId);

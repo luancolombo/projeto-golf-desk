@@ -2,9 +2,11 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.controllers.TeeTimeController;
 import com.project.golfofficeapi.dto.TeeTimeDTO;
+import com.project.golfofficeapi.enums.TeeTimeStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
+import com.project.golfofficeapi.mapper.custom.TeeTimeMapper;
 import com.project.golfofficeapi.model.TeeTime;
 import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.BookingRepository;
@@ -19,8 +21,6 @@ import java.time.Month;
 import java.util.List;
 import java.util.logging.Logger;
 
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
-import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
@@ -36,21 +36,26 @@ public class TeeTimeService {
     @Autowired
     BookingPlayerRepository bookingPlayerRepository;
 
+    @Autowired
+    TeeTimeMapper mapper;
+
     private final Logger logger = Logger.getLogger(TeeTimeService.class.getName());
 
     public TeeTimeService(
             TeeTimeRepository repository,
             BookingRepository bookingRepository,
-            BookingPlayerRepository bookingPlayerRepository
+            BookingPlayerRepository bookingPlayerRepository,
+            TeeTimeMapper mapper
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
         this.bookingPlayerRepository = bookingPlayerRepository;
+        this.mapper = mapper;
     }
 
     public List<TeeTimeDTO> findAll() {
         logger.info("Find All Tee Times");
-        var teeTimes = parseListObject(repository.findAll(), TeeTimeDTO.class);
+        var teeTimes = mapper.toDTOList(repository.findAll());
         teeTimes.forEach(this::addHateoasLinks);
         return teeTimes;
     }
@@ -59,7 +64,7 @@ public class TeeTimeService {
         logger.info("Find Tee Time by ID");
         var teeTime = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
-        var dto = parseObject(teeTime, TeeTimeDTO.class);
+        var dto = mapper.toDTO(teeTime);
         addHateoasLinks(dto);
         return dto;
     }
@@ -73,14 +78,15 @@ public class TeeTimeService {
         teeTime.setBaseGreenFee(
                 calculateBaseGreenFee(teeTime.getPlayDate(), teeTime.getStartTime())
         );
+        teeTime.setStatus(resolveStatus(teeTime.getStatus()).name());
         validatePlayerCapacity(teeTime);
 
         if (repository.existsByPlayDateAndStartTime(teeTime.getPlayDate(), teeTime.getStartTime())) {
             throw new BusinessException("Tee time already registered for this date and start time");
         }
 
-        var entity = parseObject(teeTime, TeeTime.class);
-        var dto = parseObject(repository.save(entity), TeeTimeDTO.class);
+        var entity = mapper.toEntity(teeTime);
+        var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
         return dto;
     }
@@ -94,6 +100,7 @@ public class TeeTimeService {
         teeTime.setBaseGreenFee(
                 calculateBaseGreenFee(teeTime.getPlayDate(), teeTime.getStartTime())
         );
+        TeeTimeStatus status = resolveStatus(teeTime.getStatus());
         validatePlayerCapacity(teeTime);
 
         TeeTime entity = repository.findById(teeTime.getId())
@@ -111,9 +118,9 @@ public class TeeTimeService {
         entity.setStartTime(teeTime.getStartTime());
         entity.setMaxPlayers(teeTime.getMaxPlayers());
         entity.setBookedPlayers(teeTime.getBookedPlayers());
-        entity.setStatus(teeTime.getStatus());
+        entity.setStatus(status);
         entity.setBaseGreenFee(teeTime.getBaseGreenFee());
-        var dto = parseObject(repository.save(entity), TeeTimeDTO.class);
+        var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
         return dto;
     }
@@ -124,7 +131,7 @@ public class TeeTimeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
 
         if (bookingRepository.existsByTeeTimeId(entity.getId())) {
-            entity.setStatus("CANCELLED");
+            entity.setStatus(TeeTimeStatus.CANCELLED);
             entity.setBookedPlayers(Math.toIntExact(bookingPlayerRepository.countByTeeTimeId(entity.getId())));
             repository.save(entity);
             return;
@@ -138,6 +145,14 @@ public class TeeTimeService {
                 && teeTime.getMaxPlayers() != null
                 && teeTime.getBookedPlayers() > teeTime.getMaxPlayers()) {
             throw new BusinessException("Booked players cannot be greater than max players");
+        }
+    }
+
+    private TeeTimeStatus resolveStatus(String status) {
+        try {
+            return TeeTimeStatus.fromString(status);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException("Invalid tee time status");
         }
     }
 

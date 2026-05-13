@@ -1,5 +1,6 @@
 package com.project.golfofficeapi.model;
 
+import com.project.golfofficeapi.enums.TeeTimeStatus;
 import jakarta.persistence.*;
 
 import java.io.Serial;
@@ -29,8 +30,9 @@ public class TeeTime implements Serializable {
     private Integer maxPlayers = 4;
     @Column(name = "booked_players", nullable = false)
     private Integer bookedPlayers;
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String status;
+    private TeeTimeStatus status;
     @Column(name = "base_green_fee", nullable = false, precision = 10, scale = 2)
     private BigDecimal baseGreenFee;
 
@@ -76,11 +78,11 @@ public class TeeTime implements Serializable {
         this.bookedPlayers = bookedPlayers;
     }
 
-    public String getStatus() {
+    public TeeTimeStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(TeeTimeStatus status) {
         this.status = status;
     }
 

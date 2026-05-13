@@ -46,7 +46,7 @@ public interface RentalTransactionRepository extends JpaRepository<RentalTransac
             select coalesce(sum(rt.totalPrice), 0)
             from RentalTransaction rt
             where rt.booking.id = :bookingId
-            and upper(coalesce(rt.status, 'RENTED')) <> 'CANCELLED'
+            and rt.status <> com.project.golfofficeapi.enums.RentalTransactionStatus.CANCELLED
             """)
     BigDecimal sumTotalPriceByBookingId(@Param("bookingId") Long bookingId);
 
@@ -54,7 +54,7 @@ public interface RentalTransactionRepository extends JpaRepository<RentalTransac
             select coalesce(sum(rt.totalPrice), 0)
             from RentalTransaction rt
             where rt.bookingPlayer.id = :bookingPlayerId
-            and upper(coalesce(rt.status, 'RENTED')) <> 'CANCELLED'
+            and rt.status <> com.project.golfofficeapi.enums.RentalTransactionStatus.CANCELLED
             """)
     BigDecimal sumTotalPriceByBookingPlayerId(@Param("bookingPlayerId") Long bookingPlayerId);
 }

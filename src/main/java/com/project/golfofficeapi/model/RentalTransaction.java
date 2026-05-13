@@ -1,5 +1,6 @@
 package com.project.golfofficeapi.model;
 
+import com.project.golfofficeapi.enums.RentalTransactionStatus;
 import jakarta.persistence.*;
 
 import java.io.Serial;
@@ -28,8 +29,9 @@ public class RentalTransaction implements Serializable {
     private RentalItem rentalItem;
     @Column(nullable = false)
     private Integer quantity;
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String status;
+    private RentalTransactionStatus status;
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
     @Column(name = "total_price", nullable = false, precision = 10, scale = 2)
@@ -122,11 +124,11 @@ public class RentalTransaction implements Serializable {
         this.quantity = quantity;
     }
 
-    public String getStatus() {
+    public RentalTransactionStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(RentalTransactionStatus status) {
         this.status = status;
     }
 

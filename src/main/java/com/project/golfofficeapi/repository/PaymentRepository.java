@@ -40,7 +40,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             select coalesce(sum(p.amount), 0)
             from Payment p
             where p.bookingPlayer.id = :bookingPlayerId
-            and upper(p.status) = 'PAID'
+            and p.status = com.project.golfofficeapi.enums.PaymentStatus.PAID
             and (:ignoredPaymentId is null or p.id <> :ignoredPaymentId)
             """)
     BigDecimal sumPaidAmountByBookingPlayerId(

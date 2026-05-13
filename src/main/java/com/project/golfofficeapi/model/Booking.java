@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.model;
 
 
+import com.project.golfofficeapi.enums.BookingStatus;
 import jakarta.persistence.*;
 
 import java.io.Serial;
@@ -23,8 +24,9 @@ public class Booking implements Serializable {
     private String code;
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String status;
+    private BookingStatus status;
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
     @Column(name = "created_by")
@@ -59,11 +61,11 @@ public class Booking implements Serializable {
         this.createdAt = createdAt;
     }
 
-    public String getStatus() {
+    public BookingStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(BookingStatus status) {
         this.status = status;
     }
 

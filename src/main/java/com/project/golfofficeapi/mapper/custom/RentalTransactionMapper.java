@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.mapper.custom;
 
 import com.project.golfofficeapi.dto.RentalTransactionDTO;
+import com.project.golfofficeapi.enums.RentalTransactionStatus;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.BookingPlayer;
 import com.project.golfofficeapi.model.RentalItem;
@@ -24,7 +25,7 @@ public class RentalTransactionMapper {
         entity.setBookingPlayer(bookingPlayer);
         entity.setRentalItem(rentalItem);
         entity.setQuantity(dto.getQuantity());
-        entity.setStatus(dto.getStatus());
+        entity.setStatus(RentalTransactionStatus.fromString(dto.getStatus()));
         entity.setUnitPrice(dto.getUnitPrice());
         entity.setTotalPrice(dto.getTotalPrice());
         return entity;
@@ -37,7 +38,7 @@ public class RentalTransactionMapper {
         dto.setBookingPlayerId(entity.getBookingPlayerId());
         dto.setRentalItemId(entity.getRentalItemId());
         dto.setQuantity(entity.getQuantity());
-        dto.setStatus(entity.getStatus());
+        dto.setStatus(entity.getStatus() == null ? null : entity.getStatus().name());
         dto.setUnitPrice(entity.getUnitPrice());
         dto.setTotalPrice(entity.getTotalPrice());
         return dto;

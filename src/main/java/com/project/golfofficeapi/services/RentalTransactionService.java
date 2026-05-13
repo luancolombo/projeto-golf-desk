@@ -2,6 +2,8 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.controllers.RentalTransactionController;
 import com.project.golfofficeapi.dto.RentalTransactionDTO;
+import com.project.golfofficeapi.enums.BookingStatus;
+import com.project.golfofficeapi.enums.RentalTransactionStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
@@ -36,19 +38,6 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class RentalTransactionService {
-
-    private static final String STATUS_RENTED = "RENTED";
-    private static final String STATUS_RETURNED = "RETURNED";
-    private static final String STATUS_LOST = "LOST";
-    private static final String STATUS_DAMAGED = "DAMAGED";
-    private static final String STATUS_CANCELLED = "CANCELLED";
-    private static final Set<String> VALID_STATUSES = Set.of(
-            STATUS_RENTED,
-            STATUS_RETURNED,
-            STATUS_LOST,
-            STATUS_DAMAGED,
-            STATUS_CANCELLED
-    );
 
     private final RentalTransactionRepository repository;
     private final BookingRepository bookingRepository;
@@ -152,12 +141,12 @@ public class RentalTransactionService {
     private void returnRentalTransaction(RentalTransaction rentalTransaction) {
         RentalItem rentalItem = findRentalItem(rentalTransaction.getRentalItemId());
         increaseAvailableStock(rentalItem, rentalTransaction.getQuantity());
-        rentalTransaction.setStatus(STATUS_RETURNED);
+        rentalTransaction.setStatus(RentalTransactionStatus.RETURNED);
         repository.save(rentalTransaction);
     }
 
     private boolean isRented(RentalTransaction rentalTransaction) {
-        return STATUS_RENTED.equalsIgnoreCase(resolveStatus(rentalTransaction.getStatus()));
+        return rentalTransaction.getStatus() == RentalTransactionStatus.RENTED;
     }
 
     @Transactional
@@ -169,9 +158,10 @@ public class RentalTransactionService {
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(rentalTransaction.getBookingPlayerId(), booking.getId());
         RentalItem rentalItem = validateRentalItem(rentalTransaction.getRentalItemId());
         validateQuantity(rentalTransaction.getQuantity());
-        rentalTransaction.setStatus(resolveStatus(rentalTransaction.getStatus()));
+        RentalTransactionStatus status = resolveStatus(rentalTransaction.getStatus());
+        rentalTransaction.setStatus(status.name());
 
-        if (isStockReserved(rentalTransaction.getStatus())) {
+        if (isStockReserved(status)) {
             validateAvailableStock(rentalItem, rentalTransaction.getQuantity());
             decreaseAvailableStock(rentalItem, rentalTransaction.getQuantity());
         }
@@ -201,16 +191,17 @@ public class RentalTransactionService {
         RentalItem newRentalItem = findRentalItem(rentalTransaction.getRentalItemId());
 
         validateQuantity(rentalTransaction.getQuantity());
-        rentalTransaction.setStatus(resolveStatus(rentalTransaction.getStatus()));
-        validateRentalItemCanReserveStock(newRentalItem, rentalTransaction.getStatus());
-        adjustStockForUpdate(entity, oldRentalItem, newRentalItem, rentalTransaction.getQuantity(), rentalTransaction.getStatus());
+        RentalTransactionStatus status = resolveStatus(rentalTransaction.getStatus());
+        rentalTransaction.setStatus(status.name());
+        validateRentalItemCanReserveStock(newRentalItem, status);
+        adjustStockForUpdate(entity, oldRentalItem, newRentalItem, rentalTransaction.getQuantity(), status);
         preparePrices(rentalTransaction, newRentalItem, newBooking, newBookingPlayer);
 
         entity.setBooking(newBooking);
         entity.setBookingPlayer(newBookingPlayer);
         entity.setRentalItem(newRentalItem);
         entity.setQuantity(rentalTransaction.getQuantity());
-        entity.setStatus(rentalTransaction.getStatus());
+        entity.setStatus(status);
         entity.setUnitPrice(rentalTransaction.getUnitPrice());
         entity.setTotalPrice(rentalTransaction.getTotalPrice());
 
@@ -230,13 +221,13 @@ public class RentalTransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Rental transaction not found"));
         Booking booking = findBooking(entity.getBookingId());
 
-        if (!STATUS_CANCELLED.equalsIgnoreCase(entity.getStatus())) {
+        if (entity.getStatus() != RentalTransactionStatus.CANCELLED) {
             if (isStockReserved(entity.getStatus())) {
                 RentalItem rentalItem = findRentalItem(entity.getRentalItemId());
                 increaseAvailableStock(rentalItem, entity.getQuantity());
             }
 
-            entity.setStatus(STATUS_CANCELLED);
+            entity.setStatus(RentalTransactionStatus.CANCELLED);
             repository.save(entity);
         }
 
@@ -252,7 +243,7 @@ public class RentalTransactionService {
     private Booking validateBooking(Long bookingId) {
         Booking booking = findBooking(bookingId);
 
-        if ("CANCELLED".equalsIgnoreCase(booking.getStatus())) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
             throw new BusinessException("Cannot add rental items to a cancelled booking");
         }
 
@@ -281,11 +272,11 @@ public class RentalTransactionService {
 
     private RentalItem validateRentalItem(Long rentalItemId) {
         RentalItem rentalItem = findRentalItem(rentalItemId);
-        validateRentalItemCanReserveStock(rentalItem, STATUS_RENTED);
+        validateRentalItemCanReserveStock(rentalItem, RentalTransactionStatus.RENTED);
         return rentalItem;
     }
 
-    private void validateRentalItemCanReserveStock(RentalItem rentalItem, String status) {
+    private void validateRentalItemCanReserveStock(RentalItem rentalItem, RentalTransactionStatus status) {
         if (isStockReserved(status) && !Boolean.TRUE.equals(rentalItem.getActive())) {
             throw new BusinessException("Cannot rent an inactive rental item");
         }
@@ -301,25 +292,16 @@ public class RentalTransactionService {
         }
     }
 
-    private String resolveStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return STATUS_RENTED;
-        }
-
-        String normalizedStatus = status.trim().toUpperCase();
-
-        if (!VALID_STATUSES.contains(normalizedStatus)) {
+    private RentalTransactionStatus resolveStatus(String status) {
+        try {
+            return RentalTransactionStatus.fromString(status);
+        } catch (IllegalArgumentException exception) {
             throw new BusinessException("Invalid rental transaction status");
         }
-
-        return normalizedStatus;
     }
 
-    private boolean isStockReserved(String status) {
-        String normalizedStatus = resolveStatus(status);
-        return STATUS_RENTED.equals(normalizedStatus)
-                || STATUS_LOST.equals(normalizedStatus)
-                || STATUS_DAMAGED.equals(normalizedStatus);
+    private boolean isStockReserved(RentalTransactionStatus status) {
+        return status != null && status.reservesStock();
     }
 
     private void validateAvailableStock(RentalItem rentalItem, Integer quantity) {
@@ -421,7 +403,7 @@ public class RentalTransactionService {
             RentalItem oldRentalItem,
             RentalItem newRentalItem,
             Integer newQuantity,
-            String newStatus
+            RentalTransactionStatus newStatus
     ) {
         if (isStockReserved(entity.getStatus())) {
             increaseAvailableStock(oldRentalItem, entity.getQuantity());

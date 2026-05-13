@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.mapper.custom;
 
 import com.project.golfofficeapi.dto.PaymentDTO;
+import com.project.golfofficeapi.enums.PaymentMethod;
+import com.project.golfofficeapi.enums.PaymentStatus;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.BookingPlayer;
 import com.project.golfofficeapi.model.Payment;
@@ -17,8 +19,8 @@ public class PaymentMapper {
         entity.setBooking(booking);
         entity.setBookingPlayer(bookingPlayer);
         entity.setAmount(dto.getAmount());
-        entity.setMethod(dto.getMethod());
-        entity.setStatus(dto.getStatus());
+        entity.setMethod(PaymentMethod.fromString(dto.getMethod()));
+        entity.setStatus(PaymentStatus.fromString(dto.getStatus()));
         entity.setPaidAt(dto.getPaidAt());
         return entity;
     }
@@ -29,8 +31,8 @@ public class PaymentMapper {
         dto.setBookingId(entity.getBookingId());
         dto.setBookingPlayerId(entity.getBookingPlayerId());
         dto.setAmount(entity.getAmount());
-        dto.setMethod(entity.getMethod());
-        dto.setStatus(entity.getStatus());
+        dto.setMethod(entity.getMethod() == null ? null : entity.getMethod().name());
+        dto.setStatus(entity.getStatus() == null ? null : entity.getStatus().name());
         dto.setPaidAt(entity.getPaidAt());
         return dto;
     }

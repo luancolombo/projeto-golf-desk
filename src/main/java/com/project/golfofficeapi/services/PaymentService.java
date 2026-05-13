@@ -2,6 +2,9 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.controllers.PaymentController;
 import com.project.golfofficeapi.dto.PaymentDTO;
+import com.project.golfofficeapi.enums.BookingStatus;
+import com.project.golfofficeapi.enums.PaymentMethod;
+import com.project.golfofficeapi.enums.PaymentStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
@@ -21,7 +24,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
@@ -29,17 +31,6 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class PaymentService {
-
-    private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_PAID = "PAID";
-    private static final String STATUS_REFUNDED = "REFUNDED";
-    private static final String STATUS_CANCELLED = "CANCELLED";
-    private static final Set<String> VALID_STATUSES = Set.of(
-            STATUS_PENDING,
-            STATUS_PAID,
-            STATUS_REFUNDED,
-            STATUS_CANCELLED
-    );
 
     @Autowired
     PaymentRepository repository;
@@ -148,8 +139,8 @@ public class PaymentService {
         entity.setBooking(booking);
         entity.setBookingPlayer(bookingPlayer);
         entity.setAmount(payment.getAmount());
-        entity.setMethod(payment.getMethod());
-        entity.setStatus(payment.getStatus());
+        entity.setMethod(PaymentMethod.fromString(payment.getMethod()));
+        entity.setStatus(PaymentStatus.fromString(payment.getStatus()));
         entity.setPaidAt(payment.getPaidAt());
 
         Payment savedPayment = repository.save(entity);
@@ -168,9 +159,9 @@ public class PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
         Long bookingId = entity.getBookingId();
 
-        if (!STATUS_CANCELLED.equalsIgnoreCase(entity.getStatus())) {
+        if (entity.getStatus() != PaymentStatus.CANCELLED) {
             receiptService.cancelReceiptsByPaymentId(entity.getId(), "Payment cancelled");
-            entity.setStatus(STATUS_CANCELLED);
+            entity.setStatus(PaymentStatus.CANCELLED);
             entity.setPaidAt(null);
             repository.save(entity);
         }
@@ -186,7 +177,7 @@ public class PaymentService {
     private Booking validateBooking(Long bookingId) {
         Booking booking = findBooking(bookingId);
 
-        if ("CANCELLED".equalsIgnoreCase(booking.getStatus())) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
             throw new BusinessException("Cannot add payments to a cancelled booking");
         }
 
@@ -214,12 +205,14 @@ public class PaymentService {
             Long ignoredPaymentId,
             LocalDateTime currentPaidAt
     ) {
-        payment.setStatus(resolveStatus(payment.getStatus()));
+        PaymentStatus status = resolveStatus(payment.getStatus());
         validateRequiredFields(payment);
-        payment.setMethod(payment.getMethod().trim().toUpperCase());
+        PaymentMethod method = resolveMethod(payment.getMethod());
+        payment.setStatus(status.name());
+        payment.setMethod(method.name());
         payment.setAmount(payment.getAmount().setScale(2, RoundingMode.HALF_UP));
-        validateAmount(payment.getAmount(), bookingPlayer, ignoredPaymentId, payment.getStatus());
-        preparePaidAt(payment, currentPaidAt);
+        validateAmount(payment.getAmount(), bookingPlayer, ignoredPaymentId, status);
+        preparePaidAt(payment, currentPaidAt, status);
     }
 
     private void validateRequiredFields(PaymentDTO payment) {
@@ -232,25 +225,27 @@ public class PaymentService {
         }
     }
 
-    private String resolveStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return STATUS_PAID;
-        }
-
-        String normalizedStatus = status.trim().toUpperCase();
-
-        if (!VALID_STATUSES.contains(normalizedStatus)) {
+    private PaymentStatus resolveStatus(String status) {
+        try {
+            return PaymentStatus.fromString(status);
+        } catch (IllegalArgumentException exception) {
             throw new BusinessException("Invalid payment status");
         }
+    }
 
-        return normalizedStatus;
+    private PaymentMethod resolveMethod(String method) {
+        try {
+            return PaymentMethod.fromString(method);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException("Invalid payment method");
+        }
     }
 
     private void validateAmount(
             BigDecimal amount,
             BookingPlayer bookingPlayer,
             Long ignoredPaymentId,
-            String status
+            PaymentStatus status
     ) {
         if (amount == null) {
             throw new BusinessException("Amount is required");
@@ -266,7 +261,7 @@ public class PaymentService {
             throw new BusinessException("Payment amount cannot be greater than booking player total");
         }
 
-        if (!STATUS_PAID.equals(status)) {
+        if (status != PaymentStatus.PAID) {
             return;
         }
 
@@ -287,13 +282,13 @@ public class PaymentService {
         return greenFeeAmount.add(rentalAmount).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private void preparePaidAt(PaymentDTO payment, LocalDateTime currentPaidAt) {
-        if (STATUS_PAID.equals(payment.getStatus())) {
+    private void preparePaidAt(PaymentDTO payment, LocalDateTime currentPaidAt, PaymentStatus status) {
+        if (status == PaymentStatus.PAID) {
             payment.setPaidAt(currentPaidAt == null ? LocalDateTime.now() : currentPaidAt);
             return;
         }
 
-        if (STATUS_REFUNDED.equals(payment.getStatus())) {
+        if (status == PaymentStatus.REFUNDED) {
             payment.setPaidAt(currentPaidAt == null ? payment.getPaidAt() : currentPaidAt);
             return;
         }

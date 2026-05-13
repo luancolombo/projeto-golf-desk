@@ -2,6 +2,8 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.controllers.BookingController;
 import com.project.golfofficeapi.dto.BookingDTO;
+import com.project.golfofficeapi.enums.BookingStatus;
+import com.project.golfofficeapi.enums.TeeTimeStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
@@ -114,7 +116,7 @@ public class BookingService {
         }
 
         entity.setCode(resolveCodeForUpdate(booking, entity));
-        entity.setStatus(booking.getStatus());
+        entity.setStatus(resolveStatus(booking.getStatus()));
         entity.setTotalAmount(resolveTotalAmount(booking.getTotalAmount()));
         entity.setCreatedBy(booking.getCreatedBy());
         entity.setTeeTime(teeTime);
@@ -130,7 +132,7 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
         if (hasBookingHistory(entity.getId())) {
-            entity.setStatus("CANCELLED");
+            entity.setStatus(BookingStatus.CANCELLED);
             repository.save(entity);
             syncTeeTimeOccupancy(entity.getTeeTimeId());
             return;
@@ -153,8 +155,10 @@ public class BookingService {
         int bookedPlayers = Math.toIntExact(bookingPlayerRepository.countByTeeTimeId(teeTimeId));
         teeTime.setBookedPlayers(bookedPlayers);
 
-        if (!"CANCELLED".equalsIgnoreCase(teeTime.getStatus())) {
-            teeTime.setStatus(bookedPlayers >= teeTime.getMaxPlayers() ? "FULL" : "AVAILABLE");
+        if (teeTime.getStatus() != TeeTimeStatus.CANCELLED) {
+            teeTime.setStatus(bookedPlayers >= teeTime.getMaxPlayers()
+                    ? TeeTimeStatus.FULL
+                    : TeeTimeStatus.AVAILABLE);
         }
 
         teeTimeRepository.save(teeTime);
@@ -163,7 +167,7 @@ public class BookingService {
     private void prepareNewBooking(BookingDTO booking) {
         booking.setCode(resolveCodeForCreate(booking.getCode()));
         booking.setCreatedAt(LocalDateTime.now());
-        booking.setStatus(resolveStatus(booking.getStatus()));
+        booking.setStatus(resolveStatus(booking.getStatus()).name());
         booking.setTotalAmount(resolveTotalAmount(booking.getTotalAmount()));
     }
 
@@ -171,7 +175,7 @@ public class BookingService {
         TeeTime teeTime = teeTimeRepository.findById(teeTimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
 
-        if ("CANCELLED".equalsIgnoreCase(teeTime.getStatus())) {
+        if (teeTime.getStatus() == TeeTimeStatus.CANCELLED) {
             throw new BusinessException("Cannot create booking for a cancelled tee time");
         }
 
@@ -202,12 +206,12 @@ public class BookingService {
         return booking.getCode();
     }
 
-    private String resolveStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return "CREATED";
+    private BookingStatus resolveStatus(String status) {
+        try {
+            return BookingStatus.fromString(status);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException("Invalid booking status");
         }
-
-        return status;
     }
 
     private BigDecimal resolveTotalAmount(BigDecimal totalAmount) {
