@@ -401,6 +401,15 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       ?? receipts.find((receipt) => receipt.paymentId === paymentId);
   }
 
+  function getReceiptForBookingPlayer(bookingPlayerId: number | undefined) {
+    if (!bookingPlayerId) {
+      return undefined;
+    }
+
+    return receipts.find((receipt) => receipt.bookingPlayerId === bookingPlayerId && !receipt.cancelled)
+      ?? receipts.find((receipt) => receipt.bookingPlayerId === bookingPlayerId);
+  }
+
   function getReceiptStatus(receipt: Receipt | undefined) {
     if (!receipt) {
       return "NAO EMITIDO";
@@ -1858,8 +1867,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                         <strong>
                           {selectedCheckInTicket.playerNameSnapshot || getBookingPlayerDisplayName(selectedCheckInTicket.bookingPlayerId)}
                         </strong>
-                        <span>Booking</span>
-                        <strong>{selectedCheckInTicket.bookingCodeSnapshot || "Sem codigo"}</strong>
+                        <span>Recibo</span>
+                        <strong>
+                          {getReceiptForBookingPlayer(selectedCheckInTicket.bookingPlayerId)?.receiptNumber || "Sem recibo emitido"}
+                        </strong>
                         <span>Data</span>
                         <strong>{selectedCheckInTicket.playDate ? formatDate(selectedCheckInTicket.playDate) : "Sem data"}</strong>
                         <span>Emitido em</span>
