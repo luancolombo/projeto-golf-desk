@@ -30,9 +30,11 @@ Main features already implemented:
 - Automatic update of booking totals and booking status.
 - Individual payments per player inside a booking.
 - Partial payments, refunds, and pending balance per player.
+- Refund workflow that releases the player from the booking operation while preserving historical records.
 - Stock control for rentable items.
 - Individual, global, and automatic return of rented items.
 - Automatic scheduled return of rental items every day at midnight.
+- Domain enums for operational statuses such as booking player, booking, tee time, rental transaction, and payment.
 - MySQL integration with Spring Data JPA.
 - Relational database model with JPA relationships and foreign keys for the main domain flows.
 - Flyway migrations, schema validation, constraints, indexes, and initial seed data.
@@ -85,6 +87,8 @@ Main responsibilities:
 - `mapper`: conversion between entities and DTOs.
 
 The API keeps DTOs simple by exposing IDs such as `bookingId`, `playerId`, `teeTimeId`, and `bookingPlayerId`, while the persistence layer now uses JPA relationships between the main entities. This keeps the REST contract easier to consume and the database model more professional.
+
+Operational statuses are represented with Java enums instead of loose strings. This reduces typo-related bugs, keeps valid states centralized in the backend, and makes business rules easier to evolve. The database stores these enum values as readable strings, preserving clarity in SQL and avoiding fragile numeric ordinal values.
 
 ## Implemented Resources
 
@@ -160,14 +164,17 @@ Highlights:
 
 - Add players to a booking.
 - Allows the same player more than once in a booking, supporting member-with-guests scenarios.
+- Supports group/operator bookings through `playerCount`, allowing one booking player row to represent up to 4 players.
 - Green fee automatically filled from the tee time.
 - Check-in per player.
 - Automatic check-in ticket generation when a player is checked in.
 - Automatic check-in ticket cancellation when check-in is undone.
+- Booking player statuses: `ACTIVE`, `REFUNDED`, and `CANCELLED`.
 - Tee time capacity validation.
 - Automatic update of `teeTime.bookedPlayers`.
 - Automatic update of tee time status.
 - Automatic recalculation of `booking.totalAmount`.
+- Refunded booking players are removed from operational capacity and totals, but kept in the database for payment, receipt, rental, and ticket history.
 - Uses `@Transactional` to keep booking, booking player, and tee time data consistent.
 
 ### Check-in Tickets
@@ -254,7 +261,9 @@ Highlights:
 - Automatic `paidAt` registration when the payment status is `PAID`.
 - Validation to prevent payment above the player amount due.
 - Partial payment support per player.
-- Refund support.
+- Refund support with automatic operational release of the player.
+- When a payment is refunded, the backend returns that player's rental items to stock, marks rentals as returned, cancels the active check-in ticket, undoes check-in, marks the booking player as `REFUNDED`, and recalculates booking and tee time capacity.
+- If the refunded player was the last active player in the booking, the booking is marked as `CANCELLED` so the agenda slot becomes available again.
 - Integration with automatic booking confirmation.
 
 ### Receipts
@@ -324,6 +333,7 @@ Current React migration status:
 - Services created for Players, Tee Times, Bookings, Booking Players, Rental Items, Rental Transactions, and Payments.
 - Services created for Receipts, Receipt Items, and Check-in Tickets.
 - Players page migrated to React.
+- Players page includes search by name, search by ID, listing, CRUD, and member filtering.
 - Materials page migrated to React.
 - Agenda page migrated to React.
 - Daily agenda with slots from 07:00 to 19:00 every 10 minutes.
@@ -333,6 +343,7 @@ Current React migration status:
 - Check-in ticket preview and printing from the Players tab.
 - Materials tab with rental per player, return, edit, delete, and stock handling.
 - Payments tab with partial payment, edit, delete, refund, and pending balance.
+- Refunded players/bookings are removed from the operational agenda view while historical data remains available through backend records.
 - Receipt preview and printing from the Payments tab.
 - Main navigation with Players, Agenda, Materials, and Cash Register as a future module.
 
@@ -430,6 +441,7 @@ Current migration highlights:
 - Foreign keys for Booking Player, Booking, Rental Transaction, Payment, Receipt, and Receipt Item flows.
 - Final constraints and indexes for the relational model.
 - Check-in ticket table.
+- Booking player count and booking player status migrations.
 
 ## Roadmap
 
@@ -453,6 +465,10 @@ Recently implemented roadmap items:
 - Printable receipt preview in the React Agenda.
 - Automatic check-in ticket issuing from player check-in.
 - Printable check-in ticket preview in the React Agenda.
+- Group booking support with player count per booking player.
+- Refund flow with rental return, check-in cancellation, booking player release, booking cancellation when empty, and tee time capacity recalculation.
+- Java enums for core operational statuses.
+- Players member filter in the React frontend.
 - Main navigation prepared for a future Cash Register module.
 
 Planned future implementations:
