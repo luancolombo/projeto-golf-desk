@@ -1,5 +1,6 @@
 package com.project.golfofficeapi.model;
 
+import com.project.golfofficeapi.enums.BookingPlayerStatus;
 import jakarta.persistence.*;
 
 import java.io.Serial;
@@ -25,8 +26,13 @@ public class BookingPlayer implements Serializable {
     private Player player;
     @Column(name = "green_fee_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal greenFeeAmount;
+    @Column(name = "player_count", nullable = false)
+    private Integer playerCount = 1;
     @Column(name = "checked_in", nullable = false)
     private Boolean checkedIn;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private BookingPlayerStatus status = BookingPlayerStatus.ACTIVE;
 
     public BookingPlayer() {}
 
@@ -92,12 +98,28 @@ public class BookingPlayer implements Serializable {
         this.greenFeeAmount = greenFeeAmount;
     }
 
+    public Integer getPlayerCount() {
+        return playerCount;
+    }
+
+    public void setPlayerCount(Integer playerCount) {
+        this.playerCount = playerCount;
+    }
+
     public Boolean getCheckedIn() {
         return checkedIn;
     }
 
     public void setCheckedIn(Boolean checkedIn) {
         this.checkedIn = checkedIn;
+    }
+
+    public BookingPlayerStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(BookingPlayerStatus status) {
+        this.status = status;
     }
 
     @Override

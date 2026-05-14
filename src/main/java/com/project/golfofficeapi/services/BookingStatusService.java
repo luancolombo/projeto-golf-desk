@@ -76,8 +76,13 @@ public class BookingStatusService {
         BigDecimal greenFeeAmount = bookingPlayer.getGreenFeeAmount() == null
                 ? BigDecimal.ZERO
                 : bookingPlayer.getGreenFeeAmount();
+        BigDecimal greenFeeTotal = greenFeeAmount.multiply(BigDecimal.valueOf(resolvePlayerCount(bookingPlayer)));
         BigDecimal rentalAmount = rentalTransactionRepository.sumTotalPriceByBookingPlayerId(bookingPlayer.getId());
 
-        return greenFeeAmount.add(rentalAmount).setScale(2, RoundingMode.HALF_UP);
+        return greenFeeTotal.add(rentalAmount).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private int resolvePlayerCount(BookingPlayer bookingPlayer) {
+        return bookingPlayer.getPlayerCount() == null ? 1 : bookingPlayer.getPlayerCount();
     }
 }

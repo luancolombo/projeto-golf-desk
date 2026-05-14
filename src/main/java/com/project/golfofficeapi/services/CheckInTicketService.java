@@ -149,6 +149,7 @@ public class CheckInTicketService {
         ticket.setTicketNumber(generateTicketNumber());
         ticket.setBookingPlayer(bookingPlayer);
         ticket.setPlayerNameSnapshot(player.getFullName());
+        ticket.setPlayerCountSnapshot(resolvePlayerCount(bookingPlayer));
         ticket.setBookingCodeSnapshot(booking.getCode());
         ticket.setPlayDate(teeTime.getPlayDate());
         ticket.setStartTime(teeTime.getStartTime());
@@ -219,6 +220,10 @@ public class CheckInTicketService {
         }
 
         return candidate;
+    }
+
+    private int resolvePlayerCount(BookingPlayer bookingPlayer) {
+        return bookingPlayer.getPlayerCount() == null ? 1 : bookingPlayer.getPlayerCount();
     }
 
     private Integer extractTicketSequence(String prefix, String ticketNumber) {

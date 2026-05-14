@@ -71,6 +71,7 @@ public class PaymentReceiptServiceIntegrationTests {
         ));
 
         assertThat(rentalTransaction.getTotalPrice()).isEqualByComparingTo("30.00");
+        assertThat(rentalItemService.findById(rentalItem.getId()).getAvailableStock()).isEqualTo(4);
 
         PaymentDTO payment = paymentService.create(newPayment(booking.getId(), bookingPlayer.getId(), "50.00", "CARD", "PAID"));
 
@@ -100,6 +101,16 @@ public class PaymentReceiptServiceIntegrationTests {
         PaymentDTO refundedPayment = paymentService.update(payment);
 
         assertThat(refundedPayment.getStatus()).isEqualTo("REFUNDED");
+        assertThat(rentalTransactionService.findById(rentalTransaction.getId()).getStatus()).isEqualTo("RETURNED");
+        assertThat(rentalItemService.findById(rentalItem.getId()).getAvailableStock()).isEqualTo(5);
+        assertThat(bookingPlayerService.findById(bookingPlayer.getId()).getCheckedIn()).isFalse();
+        assertThat(bookingPlayerService.findById(bookingPlayer.getId()).getStatus()).isEqualTo("REFUNDED");
+        assertThat(bookingPlayerService.findAll())
+                .extracting(BookingPlayerDTO::getId)
+                .doesNotContain(bookingPlayer.getId());
+        assertThat(bookingService.findById(booking.getId()).getStatus()).isEqualTo("CANCELLED");
+        assertThat(teeTimeService.findById(teeTime.getId()).getBookedPlayers()).isZero();
+        assertThat(teeTimeService.findById(teeTime.getId()).getStatus()).isEqualTo("AVAILABLE");
 
         List<ReceiptDTO> cancelledReceipts = receiptService.findByPaymentId(payment.getId());
 

@@ -47,6 +47,7 @@ public interface RentalTransactionRepository extends JpaRepository<RentalTransac
             from RentalTransaction rt
             where rt.booking.id = :bookingId
             and rt.status <> com.project.golfofficeapi.enums.RentalTransactionStatus.CANCELLED
+            and rt.bookingPlayer.status = com.project.golfofficeapi.enums.BookingPlayerStatus.ACTIVE
             """)
     BigDecimal sumTotalPriceByBookingId(@Param("bookingId") Long bookingId);
 

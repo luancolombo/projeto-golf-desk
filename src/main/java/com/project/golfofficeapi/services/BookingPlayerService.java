@@ -2,6 +2,7 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.controllers.BookingPlayerController;
 import com.project.golfofficeapi.dto.BookingPlayerDTO;
+import com.project.golfofficeapi.enums.BookingPlayerStatus;
 import com.project.golfofficeapi.enums.BookingStatus;
 import com.project.golfofficeapi.enums.TeeTimeStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
@@ -97,7 +98,7 @@ public class BookingPlayerService {
 
     public List<BookingPlayerDTO> findAll() {
         logger.info("Find All Booking Players");
-        var bookingPlayers = mapper.toDTOList(repository.findAll());
+        var bookingPlayers = mapper.toDTOList(repository.findByStatus(BookingPlayerStatus.ACTIVE));
         bookingPlayers.forEach(this::addHateoasLinks);
         return bookingPlayers;
     }
@@ -119,8 +120,8 @@ public class BookingPlayerService {
         Booking booking = validateBooking(bookingPlayer.getBookingId());
         Player player = validatePlayer(bookingPlayer.getPlayerId());
         TeeTime teeTime = validateTeeTimeForNewPlayer(booking.getTeeTimeId());
-        validateCapacity(teeTime);
         prepareNewBookingPlayer(bookingPlayer, teeTime);
+        validateCapacity(teeTime, bookingPlayer.getPlayerCount(), 0);
 
         var entity = mapper.toEntity(bookingPlayer, booking, player);
         BookingPlayer savedEntity = repository.save(entity);
@@ -147,15 +148,21 @@ public class BookingPlayerService {
         Booking newBooking = validateBooking(bookingPlayer.getBookingId());
         Player newPlayer = validatePlayer(bookingPlayer.getPlayerId());
         TeeTime newTeeTime = validateTeeTimeForUpdate(newBooking.getTeeTimeId(), oldTeeTime.getId());
+        Integer newPlayerCount = resolvePlayerCount(bookingPlayer.getPlayerCount());
+        Integer currentPlayerCount = resolvePlayerCount(entity.getPlayerCount());
 
-        if (!oldTeeTime.getId().equals(newTeeTime.getId())) {
-            validateCapacity(newTeeTime);
-        }
+        validateCapacity(
+                newTeeTime,
+                newPlayerCount,
+                oldTeeTime.getId().equals(newTeeTime.getId()) ? currentPlayerCount : 0
+        );
 
         entity.setBooking(newBooking);
         entity.setPlayer(newPlayer);
         entity.setGreenFeeAmount(resolveGreenFeeAmount(bookingPlayer.getGreenFeeAmount(), newTeeTime));
+        entity.setPlayerCount(newPlayerCount);
         entity.setCheckedIn(resolveCheckedIn(bookingPlayer.getCheckedIn()));
+        entity.setStatus(resolveStatusForUpdate(bookingPlayer.getStatus(), entity.getStatus()));
         BookingPlayer savedEntity = repository.save(entity);
         boolean isCheckedIn = Boolean.TRUE.equals(savedEntity.getCheckedIn());
         if (wasCheckedIn != isCheckedIn || isCheckedIn) {
@@ -195,6 +202,29 @@ public class BookingPlayerService {
         repository.delete(entity);
         syncBookingTotal(booking.getId());
         bookingStatusService.syncBookingStatus(booking.getId());
+        syncTeeTimeOccupancy(teeTime.getId());
+    }
+
+    @Transactional
+    public void refundAndReleaseFromBooking(Long bookingPlayerId) {
+        logger.info("Refund and release Booking Player");
+        BookingPlayer entity = repository.findById(bookingPlayerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking player not found"));
+        Booking booking = findBooking(entity.getBookingId());
+        TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
+
+        entity.setCheckedIn(false);
+        entity.setStatus(BookingPlayerStatus.REFUNDED);
+        BookingPlayer savedEntity = repository.save(entity);
+        checkInTicketService.syncTicketForBookingPlayer(savedEntity);
+
+        syncBookingTotal(booking.getId());
+        if (repository.countActiveByBookingId(booking.getId()) == 0) {
+            booking.setStatus(BookingStatus.CANCELLED);
+            bookingRepository.save(booking);
+        } else {
+            bookingStatusService.syncBookingStatus(booking.getId());
+        }
         syncTeeTimeOccupancy(teeTime.getId());
     }
 
@@ -247,17 +277,35 @@ public class BookingPlayerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
     }
 
-    private void validateCapacity(TeeTime teeTime) {
+    private void validateCapacity(TeeTime teeTime, Integer requestedPlayerCount, Integer currentPlayerCount) {
         long bookedPlayers = repository.countByTeeTimeId(teeTime.getId());
+        int availableCapacity = teeTime.getMaxPlayers() - Math.toIntExact(bookedPlayers) + currentPlayerCount;
 
-        if (bookedPlayers >= teeTime.getMaxPlayers()) {
+        if (requestedPlayerCount > availableCapacity) {
             throw new BusinessException("Tee time is full");
         }
     }
 
     private void prepareNewBookingPlayer(BookingPlayerDTO bookingPlayer, TeeTime teeTime) {
         bookingPlayer.setGreenFeeAmount(resolveGreenFeeAmount(bookingPlayer.getGreenFeeAmount(), teeTime));
+        bookingPlayer.setPlayerCount(resolvePlayerCount(bookingPlayer.getPlayerCount()));
         bookingPlayer.setCheckedIn(resolveCheckedIn(bookingPlayer.getCheckedIn()));
+    }
+
+    private Integer resolvePlayerCount(Integer playerCount) {
+        if (playerCount == null) {
+            return 1;
+        }
+
+        if (playerCount < 1) {
+            throw new BusinessException("Player count must be at least 1");
+        }
+
+        if (playerCount > 4) {
+            throw new BusinessException("Player count cannot be greater than 4");
+        }
+
+        return playerCount;
     }
 
     private BigDecimal resolveGreenFeeAmount(BigDecimal greenFeeAmount, TeeTime teeTime) {
@@ -274,6 +322,18 @@ public class BookingPlayerService {
         }
 
         return checkedIn;
+    }
+
+    private BookingPlayerStatus resolveStatusForUpdate(String requestedStatus, BookingPlayerStatus currentStatus) {
+        if (currentStatus != BookingPlayerStatus.ACTIVE) {
+            throw new BusinessException("Cannot update refunded or cancelled booking player");
+        }
+
+        try {
+            return BookingPlayerStatus.fromString(requestedStatus);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException("Invalid booking player status");
+        }
     }
 
     private void syncBookingTotal(Long bookingId) {

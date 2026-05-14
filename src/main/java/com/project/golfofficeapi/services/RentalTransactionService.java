@@ -99,6 +99,15 @@ public class RentalTransactionService {
     }
 
     @Transactional
+    public List<RentalTransactionDTO> returnAllByBookingPlayerId(Long bookingPlayerId) {
+        logger.info("Return All Rental Transactions by Booking Player ID");
+        BookingPlayer bookingPlayer = findBookingPlayer(bookingPlayerId);
+        returnRentalTransactions(repository.findByBookingPlayerId(bookingPlayerId), this::isRented);
+        syncBookingTotal(bookingPlayer.getBookingId());
+        return toDTOListWithLinks(repository.findByBookingPlayerId(bookingPlayerId));
+    }
+
+    @Transactional
     public List<RentalTransactionDTO> returnAll() {
         logger.info("Return All Rental Transactions");
         Set<Long> bookingIdsToSync = returnRentalTransactions(repository.findAll(), this::isRented);

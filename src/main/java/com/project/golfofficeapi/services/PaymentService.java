@@ -51,6 +51,12 @@ public class PaymentService {
     ReceiptService receiptService;
 
     @Autowired
+    RentalTransactionService rentalTransactionService;
+
+    @Autowired
+    BookingPlayerService bookingPlayerService;
+
+    @Autowired
     PaymentMapper mapper;
 
     private final Logger logger = Logger.getLogger(PaymentService.class.getName());
@@ -62,6 +68,8 @@ public class PaymentService {
             RentalTransactionRepository rentalTransactionRepository,
             BookingStatusService bookingStatusService,
             ReceiptService receiptService,
+            RentalTransactionService rentalTransactionService,
+            BookingPlayerService bookingPlayerService,
             PaymentMapper mapper
     ) {
         this.repository = repository;
@@ -70,6 +78,8 @@ public class PaymentService {
         this.rentalTransactionRepository = rentalTransactionRepository;
         this.bookingStatusService = bookingStatusService;
         this.receiptService = receiptService;
+        this.rentalTransactionService = rentalTransactionService;
+        this.bookingPlayerService = bookingPlayerService;
         this.mapper = mapper;
     }
 
@@ -110,7 +120,8 @@ public class PaymentService {
         if (payment == null) throw new RequiredObjectIsNullException();
         logger.info("Create Payment");
 
-        Booking booking = validateBooking(payment.getBookingId());
+        PaymentStatus requestedStatus = resolveStatus(payment.getStatus());
+        Booking booking = validateBooking(payment.getBookingId(), requestedStatus);
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(payment.getBookingPlayerId(), booking.getId());
         preparePayment(payment, bookingPlayer, null, null);
 
@@ -132,7 +143,9 @@ public class PaymentService {
         Payment entity = repository.findById(payment.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
         Long oldBookingId = entity.getBookingId();
-        Booking booking = validateBooking(payment.getBookingId());
+        PaymentStatus previousStatus = entity.getStatus();
+        PaymentStatus newStatus = resolveStatus(payment.getStatus());
+        Booking booking = validateBooking(payment.getBookingId(), newStatus);
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(payment.getBookingPlayerId(), booking.getId());
         preparePayment(payment, bookingPlayer, entity.getId(), entity.getPaidAt());
 
@@ -140,16 +153,24 @@ public class PaymentService {
         entity.setBookingPlayer(bookingPlayer);
         entity.setAmount(payment.getAmount());
         entity.setMethod(PaymentMethod.fromString(payment.getMethod()));
-        entity.setStatus(PaymentStatus.fromString(payment.getStatus()));
+        entity.setStatus(newStatus);
         entity.setPaidAt(payment.getPaidAt());
 
         Payment savedPayment = repository.save(entity);
         receiptService.syncReceiptForPayment(savedPayment);
+        returnRentalsAfterRefund(savedPayment, previousStatus, newStatus);
         var dto = mapper.toDTO(savedPayment);
         bookingStatusService.syncBookingStatus(oldBookingId);
         bookingStatusService.syncBookingStatus(booking.getId());
         addHateoasLinks(dto);
         return dto;
+    }
+
+    private void returnRentalsAfterRefund(Payment payment, PaymentStatus previousStatus, PaymentStatus newStatus) {
+        if (newStatus == PaymentStatus.REFUNDED && previousStatus != PaymentStatus.REFUNDED) {
+            rentalTransactionService.returnAllByBookingPlayerId(payment.getBookingPlayerId());
+            bookingPlayerService.refundAndReleaseFromBooking(payment.getBookingPlayerId());
+        }
     }
 
     @Transactional
@@ -174,10 +195,10 @@ public class PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
     }
 
-    private Booking validateBooking(Long bookingId) {
+    private Booking validateBooking(Long bookingId, PaymentStatus requestedStatus) {
         Booking booking = findBooking(bookingId);
 
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
+        if (booking.getStatus() == BookingStatus.CANCELLED && requestedStatus != PaymentStatus.REFUNDED) {
             throw new BusinessException("Cannot add payments to a cancelled booking");
         }
 
@@ -277,9 +298,14 @@ public class PaymentService {
         BigDecimal greenFeeAmount = bookingPlayer.getGreenFeeAmount() == null
                 ? BigDecimal.ZERO
                 : bookingPlayer.getGreenFeeAmount();
+        BigDecimal greenFeeTotal = greenFeeAmount.multiply(BigDecimal.valueOf(resolvePlayerCount(bookingPlayer)));
         BigDecimal rentalAmount = rentalTransactionRepository.sumTotalPriceByBookingPlayerId(bookingPlayer.getId());
 
-        return greenFeeAmount.add(rentalAmount).setScale(2, RoundingMode.HALF_UP);
+        return greenFeeTotal.add(rentalAmount).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private int resolvePlayerCount(BookingPlayer bookingPlayer) {
+        return bookingPlayer.getPlayerCount() == null ? 1 : bookingPlayer.getPlayerCount();
     }
 
     private void preparePaidAt(PaymentDTO payment, LocalDateTime currentPaidAt, PaymentStatus status) {

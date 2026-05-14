@@ -215,7 +215,7 @@ public class ReceiptService {
         TeeTime teeTime = findTeeTime(booking.getTeeTimeId());
 
         BigDecimal paymentAmount = money(payment.getAmount());
-        BigDecimal greenFeeAmount = money(bookingPlayer.getGreenFeeAmount());
+        BigDecimal greenFeeAmount = calculateGreenFeeTotal(bookingPlayer);
         BigDecimal greenFeePaid = paymentAmount.min(greenFeeAmount);
         BigDecimal rentalPaid = paymentAmount.subtract(greenFeePaid).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
@@ -248,12 +248,18 @@ public class ReceiptService {
     }
 
     private void createReceiptItems(Receipt receipt, BookingPlayer bookingPlayer, BigDecimal paymentAmount) {
-        BigDecimal greenFeeAmount = money(bookingPlayer.getGreenFeeAmount());
+        BigDecimal greenFeeUnitAmount = money(bookingPlayer.getGreenFeeAmount());
+        int playerCount = resolvePlayerCount(bookingPlayer);
+        BigDecimal greenFeeAmount = greenFeeUnitAmount.multiply(BigDecimal.valueOf(playerCount));
         BigDecimal greenFeePaid = paymentAmount.min(greenFeeAmount);
         BigDecimal remainingAmount = paymentAmount.subtract(greenFeePaid).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
         if (greenFeePaid.compareTo(BigDecimal.ZERO) > 0) {
-            saveReceiptItem(receipt, "Green fee", 1, greenFeePaid, greenFeePaid);
+            if (greenFeePaid.compareTo(greenFeeAmount) >= 0) {
+                saveReceiptItem(receipt, "Green fee", playerCount, greenFeeUnitAmount, greenFeePaid);
+            } else {
+                saveReceiptItem(receipt, "Partial green fee payment", 1, greenFeePaid, greenFeePaid);
+            }
         }
 
         List<RentalTransaction> rentals = rentalTransactionRepository.findByBookingPlayerId(bookingPlayer.getId())
@@ -291,6 +297,16 @@ public class ReceiptService {
         receiptItem.setUnitPrice(money(unitPrice));
         receiptItem.setTotalPrice(money(totalPrice));
         receiptItemRepository.save(receiptItem);
+    }
+
+    private BigDecimal calculateGreenFeeTotal(BookingPlayer bookingPlayer) {
+        return money(bookingPlayer.getGreenFeeAmount())
+                .multiply(BigDecimal.valueOf(resolvePlayerCount(bookingPlayer)))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private int resolvePlayerCount(BookingPlayer bookingPlayer) {
+        return bookingPlayer.getPlayerCount() == null ? 1 : bookingPlayer.getPlayerCount();
     }
 
     private void cancelActiveReceiptsByPaymentId(Long paymentId, String reason) {

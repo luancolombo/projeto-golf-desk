@@ -58,6 +58,7 @@ public class BookingPlayerServiceIntegrationTests {
         assertThat(created.getBookingId()).isEqualTo(booking.getId());
         assertThat(created.getPlayerId()).isEqualTo(player.getId());
         assertThat(created.getGreenFeeAmount()).isEqualByComparingTo(teeTime.getBaseGreenFee());
+        assertThat(created.getPlayerCount()).isEqualTo(1);
         assertThat(created.getCheckedIn()).isFalse();
 
         assertThat(bookingPlayerService.findAll())
@@ -79,6 +80,7 @@ public class BookingPlayerServiceIntegrationTests {
         assertThat(issuedTickets).hasSize(1);
         assertThat(issuedTickets.getFirst().getTicketNumber()).startsWith("CT-");
         assertThat(issuedTickets.getFirst().getPlayerNameSnapshot()).isEqualTo(player.getFullName());
+        assertThat(issuedTickets.getFirst().getPlayerCountSnapshot()).isEqualTo(1);
         assertThat(issuedTickets.getFirst().getStartTime()).isEqualTo(teeTime.getStartTime());
         assertThat(issuedTickets.getFirst().getStartingTee()).isEqualTo("TEE 1");
         assertThat(issuedTickets.getFirst().getCrossingTee()).isEqualTo("TEE 10");
@@ -112,6 +114,46 @@ public class BookingPlayerServiceIntegrationTests {
         assertThatThrownBy(() -> bookingPlayerService.findById(removableId))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Booking player not found");
+    }
+
+    @Test
+    void shouldAllowGroupBookingPlayerAndUsePlayerCountForCapacity() {
+        TeeTimeDTO teeTime = teeTimeService.create(newTeeTime());
+        BookingDTO booking = bookingService.create(newBooking(teeTime.getId()));
+        PlayerDTO groupLeader = playerService.create(newPlayer());
+
+        BookingPlayerDTO group = newBookingPlayer(booking.getId(), groupLeader.getId());
+        group.setPlayerCount(4);
+
+        BookingPlayerDTO createdGroup = bookingPlayerService.create(group);
+
+        assertThat(createdGroup.getPlayerId()).isEqualTo(groupLeader.getId());
+        assertThat(createdGroup.getPlayerCount()).isEqualTo(4);
+        assertThat(bookingService.findById(booking.getId()).getTotalAmount())
+                .isEqualByComparingTo(teeTime.getBaseGreenFee().multiply(new BigDecimal("4")));
+        assertThat(teeTimeService.findById(teeTime.getId()).getBookedPlayers()).isEqualTo(4);
+        assertThat(teeTimeService.findById(teeTime.getId()).getStatus()).isEqualTo("FULL");
+
+        assertThatThrownBy(() -> bookingPlayerService.create(newBookingPlayer(booking.getId(), groupLeader.getId())))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Tee time is full");
+    }
+
+    @Test
+    void shouldIssueCheckInTicketWithGroupPlayerCountSnapshot() {
+        TeeTimeDTO teeTime = teeTimeService.create(newTeeTime());
+        BookingDTO booking = bookingService.create(newBooking(teeTime.getId()));
+        PlayerDTO groupLeader = playerService.create(newPlayer());
+        BookingPlayerDTO group = newBookingPlayer(booking.getId(), groupLeader.getId());
+        group.setPlayerCount(4);
+        group.setCheckedIn(true);
+
+        BookingPlayerDTO createdGroup = bookingPlayerService.create(group);
+        List<CheckInTicketDTO> tickets = checkInTicketService.findByBookingPlayerId(createdGroup.getId());
+
+        assertThat(tickets).hasSize(1);
+        assertThat(tickets.getFirst().getPlayerNameSnapshot()).isEqualTo(groupLeader.getFullName());
+        assertThat(tickets.getFirst().getPlayerCountSnapshot()).isEqualTo(4);
     }
 
     private TeeTimeDTO newTeeTime() {
@@ -156,6 +198,7 @@ public class BookingPlayerServiceIntegrationTests {
         bookingPlayer.setBookingId(bookingId);
         bookingPlayer.setPlayerId(playerId);
         bookingPlayer.setGreenFeeAmount(null);
+        bookingPlayer.setPlayerCount(null);
         bookingPlayer.setCheckedIn(false);
         return bookingPlayer;
     }

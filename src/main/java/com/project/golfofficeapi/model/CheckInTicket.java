@@ -26,6 +26,8 @@ public class CheckInTicket implements Serializable {
     private BookingPlayer bookingPlayer;
     @Column(name = "player_name_snapshot", nullable = false, length = 100)
     private String playerNameSnapshot;
+    @Column(name = "player_count_snapshot", nullable = false)
+    private Integer playerCountSnapshot;
     @Column(name = "booking_code_snapshot", nullable = false, length = 40)
     private String bookingCodeSnapshot;
     @Column(name = "play_date", nullable = false)
@@ -94,6 +96,14 @@ public class CheckInTicket implements Serializable {
 
     public void setPlayerNameSnapshot(String playerNameSnapshot) {
         this.playerNameSnapshot = playerNameSnapshot;
+    }
+
+    public Integer getPlayerCountSnapshot() {
+        return playerCountSnapshot;
+    }
+
+    public void setPlayerCountSnapshot(Integer playerCountSnapshot) {
+        this.playerCountSnapshot = playerCountSnapshot;
     }
 
     public String getBookingCodeSnapshot() {

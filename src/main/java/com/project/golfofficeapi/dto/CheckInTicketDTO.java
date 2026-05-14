@@ -20,6 +20,7 @@ public class CheckInTicketDTO extends RepresentationModel<CheckInTicketDTO> impl
     @NotNull(message = "Booking player id is Required!")
     private Long bookingPlayerId;
     private String playerNameSnapshot;
+    private Integer playerCountSnapshot;
     private String bookingCodeSnapshot;
     private LocalDate playDate;
     private LocalTime startTime;
@@ -63,6 +64,14 @@ public class CheckInTicketDTO extends RepresentationModel<CheckInTicketDTO> impl
 
     public void setPlayerNameSnapshot(String playerNameSnapshot) {
         this.playerNameSnapshot = playerNameSnapshot;
+    }
+
+    public Integer getPlayerCountSnapshot() {
+        return playerCountSnapshot;
+    }
+
+    public void setPlayerCountSnapshot(Integer playerCountSnapshot) {
+        this.playerCountSnapshot = playerCountSnapshot;
     }
 
     public String getBookingCodeSnapshot() {

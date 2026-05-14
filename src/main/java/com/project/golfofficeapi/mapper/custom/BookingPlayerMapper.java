@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.mapper.custom;
 
 import com.project.golfofficeapi.dto.BookingPlayerDTO;
+import com.project.golfofficeapi.enums.BookingPlayerStatus;
 import com.project.golfofficeapi.model.Booking;
 import com.project.golfofficeapi.model.BookingPlayer;
 import com.project.golfofficeapi.model.Player;
@@ -17,7 +18,9 @@ public class BookingPlayerMapper {
         entity.setBooking(booking);
         entity.setPlayer(player);
         entity.setGreenFeeAmount(dto.getGreenFeeAmount());
+        entity.setPlayerCount(dto.getPlayerCount());
         entity.setCheckedIn(dto.getCheckedIn());
+        entity.setStatus(BookingPlayerStatus.fromString(dto.getStatus()));
         return entity;
     }
 
@@ -27,7 +30,9 @@ public class BookingPlayerMapper {
         dto.setBookingId(entity.getBookingId());
         dto.setPlayerId(entity.getPlayerId());
         dto.setGreenFeeAmount(entity.getGreenFeeAmount());
+        dto.setPlayerCount(entity.getPlayerCount());
         dto.setCheckedIn(entity.getCheckedIn());
+        dto.setStatus(entity.getStatus() == null ? BookingPlayerStatus.ACTIVE.name() : entity.getStatus().name());
         return dto;
     }
 

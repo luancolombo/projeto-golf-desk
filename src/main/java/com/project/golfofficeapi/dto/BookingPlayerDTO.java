@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
 
@@ -21,7 +23,11 @@ public class BookingPlayerDTO extends RepresentationModel<BookingPlayerDTO> impl
     private Long playerId;
     @DecimalMin(value = "0.00", message = "Green fee amount cannot be negative")
     private BigDecimal greenFeeAmount;
+    @Min(value = 1, message = "Player count must be at least 1")
+    @Max(value = 4, message = "Player count cannot be greater than 4")
+    private Integer playerCount;
     private Boolean checkedIn;
+    private String status;
 
     public BookingPlayerDTO() {}
 
@@ -57,12 +63,28 @@ public class BookingPlayerDTO extends RepresentationModel<BookingPlayerDTO> impl
         this.greenFeeAmount = greenFeeAmount;
     }
 
+    public Integer getPlayerCount() {
+        return playerCount;
+    }
+
+    public void setPlayerCount(Integer playerCount) {
+        this.playerCount = playerCount;
+    }
+
     public Boolean getCheckedIn() {
         return checkedIn;
     }
 
     public void setCheckedIn(Boolean checkedIn) {
         this.checkedIn = checkedIn;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     @Override

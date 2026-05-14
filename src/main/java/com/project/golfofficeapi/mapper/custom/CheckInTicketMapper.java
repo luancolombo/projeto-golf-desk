@@ -16,6 +16,7 @@ public class CheckInTicketMapper {
         entity.setTicketNumber(dto.getTicketNumber());
         entity.setBookingPlayer(bookingPlayer);
         entity.setPlayerNameSnapshot(dto.getPlayerNameSnapshot());
+        entity.setPlayerCountSnapshot(dto.getPlayerCountSnapshot());
         entity.setBookingCodeSnapshot(dto.getBookingCodeSnapshot());
         entity.setPlayDate(dto.getPlayDate());
         entity.setStartTime(dto.getStartTime());
@@ -35,6 +36,7 @@ public class CheckInTicketMapper {
         dto.setTicketNumber(entity.getTicketNumber());
         dto.setBookingPlayerId(entity.getBookingPlayerId());
         dto.setPlayerNameSnapshot(entity.getPlayerNameSnapshot());
+        dto.setPlayerCountSnapshot(entity.getPlayerCountSnapshot());
         dto.setBookingCodeSnapshot(entity.getBookingCodeSnapshot());
         dto.setPlayDate(entity.getPlayDate());
         dto.setStartTime(entity.getStartTime());
