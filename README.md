@@ -1,6 +1,6 @@
 # Golf Office API
 
-RESTful API under development for the operational management of a golf course. The project covers player registration, tee time scheduling, bookings, booking players, rental items, player-level payments, receipts, check-in tickets, and tee time capacity rules.
+RESTful API under development for the operational management of a golf course. The project covers player registration, tee time scheduling, bookings, booking players, rental items, player-level payments, receipts, check-in tickets, daily cash register closing, rental damage reports, and tee time capacity rules.
 
 The main focus of this project is Java backend development with Spring Boot, using layered architecture, DTOs, validations, business rules in services, transactions, and HATEOAS links in API responses.
 
@@ -19,6 +19,8 @@ Main features already implemented:
 - Full CRUD for Payments.
 - Full CRUD and automatic issuing for Receipts.
 - Full CRUD and automatic issuing for Check-in Tickets.
+- Full CRUD for Cash Register Closures.
+- Full CRUD for Rental Damage Reports.
 - REST API with endpoints separated by resource.
 - DTOs for input and output data.
 - HATEOAS links in API responses.
@@ -33,7 +35,9 @@ Main features already implemented:
 - Refund workflow that releases the player from the booking operation while preserving historical records.
 - Stock control for rentable items.
 - Individual, global, and automatic return of rented items.
+- Individual rental return inspection with optional damage report persistence.
 - Automatic scheduled return of rental items every day at midnight.
+- Daily cash register closing with preview, persisted closing summary, closing items, printable report, and totals by payment method.
 - Domain enums for operational statuses such as booking player, booking, tee time, rental transaction, and payment.
 - MySQL integration with Spring Data JPA.
 - Relational database model with JPA relationships and foreign keys for the main domain flows.
@@ -236,10 +240,43 @@ Highlights:
 - Automatic stock decrease when renting an item.
 - Item return with stock restoration.
 - Endpoint to return all pending rental items.
+- Individual return inspection in the React Agenda: the attendant must choose between returning the item in good condition or registering damage.
+- Damaged rentals are marked as `DAMAGED` and remain outside available stock.
 - Automatic scheduled return of rentals in `RENTED` status every day at midnight.
 - Prevents deleting an active rental transaction before returning or cancelling it.
 - Automatic inclusion of rentals in the booking total.
 - Pricing rule for buggies and electric trolleys based on twilight and member discounts.
+
+### Rental Damage Reports
+
+Historical record for damaged rental items found during item return.
+
+Base endpoint:
+
+```http
+/rental-damage-report
+```
+
+Operations:
+
+- `GET /rental-damage-report`
+- `GET /rental-damage-report/{id}`
+- `GET /rental-damage-report/status/{status}`
+- `GET /rental-damage-report/rental-item/{rentalItemId}`
+- `GET /rental-damage-report/rental-transaction/{rentalTransactionId}`
+- `POST /rental-damage-report`
+- `PUT /rental-damage-report`
+- `PUT /rental-damage-report/{id}/resolve`
+- `DELETE /rental-damage-report/{id}`
+
+Highlights:
+
+- Damage reports can be linked to a rental transaction and/or rental item.
+- Used by the React Agenda when returning one rented item with damage.
+- Used by the React Materials page when returning all materials at the end of the day and entering damage notes.
+- Statuses: `OPEN`, `RESOLVED`, and `CANCELLED`.
+- Delete behaves as cancellation, preserving the historical report.
+- Provides a future-ready flow for maintenance, repair, replacement, or billing decisions.
 
 ### Payments
 
@@ -286,6 +323,47 @@ Highlights:
 - Receipt cancellation instead of destructive deletion.
 - Printable preview available in the React Agenda.
 
+### Cash Register Closures
+
+Daily cash register closing generated from payments, refunds, receipts, pending bookings, and rental alerts.
+
+Base endpoint:
+
+```http
+/cash-register-closure
+```
+
+Operations:
+
+- `GET /cash-register-closure`
+- `GET /cash-register-closure/{id}`
+- `GET /cash-register-closure/date/{businessDate}`
+- `GET /cash-register-closure/preview?date={businessDate}`
+- `POST /cash-register-closure`
+- `POST /cash-register-closure/close`
+- `PUT /cash-register-closure`
+- `DELETE /cash-register-closure/{id}`
+
+Highlights:
+
+- Preview calculates the daily closing without saving it.
+- Close persists the daily closing summary and its historical items.
+- Totals by payment method: cash, card, MB Way, and transfer.
+- Gross, refunded, and net totals.
+- Counts paid payments, refunded payments, issued receipts, cancelled receipts, pending bookings, and unreturned rentals.
+- Closing items preserve payment, refund, receipt, cancelled receipt, pending booking, and unreturned rental details.
+- Prevents closing the same business date twice with status `CLOSED`.
+- Uses internal calculation classes instead of DTOs as business-rule draft objects.
+- Printable report available in the React Cash Register page.
+
+Cash register closing items are stored in:
+
+```http
+/cash-register-closure-item
+```
+
+These records are generated by the backend when closing the cash register and represent the historical details of that closing.
+
 ## Frontend
 
 The active frontend is the React + TypeScript app inside `frontend`.
@@ -298,7 +376,7 @@ Archived location:
 archive/legacy-static-frontend
 ```
 
-This panel was initially created to consume and test the API directly through Spring Boot. It has been archived because the React frontend now covers the current operational flows: Players, Agenda, booking players, rentals, payments, and materials.
+This panel was initially created to consume and test the API directly through Spring Boot. It has been archived because the React frontend now covers the current operational flows: Players, Agenda, booking players, rentals, payments, receipts, check-in tickets, materials, cash register closing, and rental damage reports.
 
 Note: this frontend was created with support from the Codex agent. I have JavaScript basics, but it is not my main stack; the interface was included mainly to make the RESTful API flows easier to visualize, test, and understand.
 
@@ -341,11 +419,13 @@ Current React migration status:
 - Booking panel with internal tabs: Summary, Players, Materials, and Payments.
 - Players tab with add/remove player, check-in, and player totals.
 - Check-in ticket preview and printing from the Players tab.
-- Materials tab with rental per player, return, edit, delete, and stock handling.
+- Materials tab with rental per player, return inspection, damage report creation, edit, delete, and stock handling.
 - Payments tab with partial payment, edit, delete, refund, and pending balance.
 - Refunded players/bookings are removed from the operational agenda view while historical data remains available through backend records.
 - Receipt preview and printing from the Payments tab.
-- Main navigation with Players, Agenda, Materials, and Cash Register as a future module.
+- Cash Register page with daily preview, persisted closing, totals by payment method, alerts, closing items, and printable report.
+- Materials page with end-of-day return-all action and persisted damage report notes.
+- Main navigation with Players, Agenda, Materials, and Cash Register.
 
 ## Running the Backend
 
@@ -442,6 +522,8 @@ Current migration highlights:
 - Final constraints and indexes for the relational model.
 - Check-in ticket table.
 - Booking player count and booking player status migrations.
+- Cash register closure and cash register closure item tables.
+- Rental damage report table with foreign keys to rental transaction and rental item.
 
 ## Roadmap
 
@@ -469,16 +551,18 @@ Recently implemented roadmap items:
 - Refund flow with rental return, check-in cancellation, booking player release, booking cancellation when empty, and tee time capacity recalculation.
 - Java enums for core operational statuses.
 - Players member filter in the React frontend.
-- Main navigation prepared for a future Cash Register module.
+- Cash Register backend module with preview, close, persisted summary, items, and printable React report.
+- Rental damage report backend module and React integration.
+- Individual rental return inspection in the Agenda.
+- End-of-day return-all workflow in Materials with persisted damage notes.
 
 Planned future implementations:
 
-- Cash Register / Daily Closing module.
-- Daily closing preview with totals by payment method.
-- Pending validation before closing the cash register, such as unreturned rental items and unpaid balances.
 - User entity.
 - Authentication and authorization with Spring Security.
 - Real usage of `createdBy` and `closedBy` with authenticated users.
+- Admin/maintenance view for resolving rental damage reports.
+- Optional billing flow for damaged or lost rental items.
 - Access profiles, such as admin and operator.
 - Pricing rule evolution with professional price, season, and twilight configuration.
 - Additional custom mappers as the domain grows.
