@@ -324,7 +324,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
         <button className="tab-button" type="button" onClick={() => onNavigate("materials")}>
           Materiais
         </button>
-        <button className="tab-button soon" disabled title="Modulo futuro" type="button">
+        <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
           Caixa
         </button>
       </section>

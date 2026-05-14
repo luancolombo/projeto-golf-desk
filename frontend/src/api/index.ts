@@ -5,6 +5,7 @@ export { bookingService } from "./bookingService";
 export { bookingPlayerService } from "./bookingPlayerService";
 export { rentalItemService } from "./rentalItemService";
 export { rentalTransactionService } from "./rentalTransactionService";
+export { rentalDamageReportService } from "./rentalDamageReportService";
 export { paymentService } from "./paymentService";
 export { receiptService } from "./receiptService";
 export { receiptItemService } from "./receiptItemService";

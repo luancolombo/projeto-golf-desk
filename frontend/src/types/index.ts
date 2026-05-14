@@ -5,6 +5,7 @@ export type * from "./booking";
 export type * from "./bookingPlayer";
 export type * from "./rentalItem";
 export type * from "./rentalTransaction";
+export type * from "./rentalDamageReport";
 export type * from "./payment";
 export type * from "./receipt";
 export type * from "./receiptItem";

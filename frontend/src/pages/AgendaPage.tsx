@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ApiError,
   bookingPlayerService,
@@ -8,6 +8,7 @@ import {
   playerService,
   receiptItemService,
   receiptService,
+  rentalDamageReportService,
   rentalItemService,
   rentalTransactionService,
   teeTimeService
@@ -158,6 +159,7 @@ function isActiveBooking(booking: Booking) {
 }
 
 export function AgendaPage({ onNavigate }: AgendaPageProps) {
+  const bookingDetailRef = useRef<HTMLElement | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
   const [teeTimes, setTeeTimes] = useState<TeeTime[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -186,6 +188,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [selectedRentalItemId, setSelectedRentalItemId] = useState("");
   const [rentalQuantity, setRentalQuantity] = useState("1");
   const [rentalStatus, setRentalStatus] = useState("RENTED");
+  const [returnInspectionRentalId, setReturnInspectionRentalId] = useState<number | null>(null);
+  const [returnDamageDescription, setReturnDamageDescription] = useState("");
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
   const [selectedPaymentBookingPlayerId, setSelectedPaymentBookingPlayerId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -694,7 +698,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
 
       if (slot.teeTime && existingBooking?.id) {
         setSelectedBookingId(existingBooking.id);
-        setActiveDetailTab("summary");
+        setActiveDetailTab("players");
+        scrollToBookingDetail();
         showRequest("GET", `/booking/${existingBooking.id}`);
         showResponse(existingBooking);
         setFeedback({ message: `Booking #${existingBooking.id} selecionado.`, type: "success" });
@@ -710,7 +715,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
 
       const refreshedData = await refreshAgendaData();
       setSelectedBookingId(booking.id);
-      setActiveDetailTab("summary");
+      setActiveDetailTab("players");
+      scrollToBookingDetail();
       showRequest(slot.teeTime ? "POST" : "POST", slot.teeTime ? "/booking" : "/tee-time + /booking", {
         teeTime: slot.teeTime ? undefined : {
           playDate: selectedDate,
@@ -971,6 +977,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   }
 
   function handleEditRentalTransaction(rentalTransaction: RentalTransaction) {
+    resetReturnInspection();
     setEditingRentalTransactionId(rentalTransaction.id ?? null);
     setSelectedRentalBookingPlayerId(String(rentalTransaction.bookingPlayerId));
     setSelectedRentalItemId(String(rentalTransaction.rentalItemId));
@@ -979,8 +986,28 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     setActiveDetailTab("rentals");
   }
 
-  async function handleReturnRentalTransaction(rentalTransaction: RentalTransaction) {
+  function startReturnInspection(rentalTransaction: RentalTransaction) {
     if (!rentalTransaction.id) {
+      return;
+    }
+
+    setReturnInspectionRentalId(Number(rentalTransaction.id));
+    setReturnDamageDescription("");
+    setActiveDetailTab("rentals");
+  }
+
+  function resetReturnInspection() {
+    setReturnInspectionRentalId(null);
+    setReturnDamageDescription("");
+  }
+
+  async function handleReturnRentalTransaction(rentalTransaction: RentalTransaction, status: "RETURNED" | "DAMAGED") {
+    if (!rentalTransaction.id) {
+      return;
+    }
+
+    if (status === "DAMAGED" && !returnDamageDescription.trim()) {
+      setFeedback({ message: "Descreva a avaria antes de registrar o material como danificado.", type: "error" });
       return;
     }
 
@@ -990,24 +1017,39 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       bookingPlayerId: rentalTransaction.bookingPlayerId,
       rentalItemId: rentalTransaction.rentalItemId,
       quantity: rentalTransaction.quantity,
-      status: "RETURNED",
+      status,
       unitPrice: rentalTransaction.unitPrice,
       totalPrice: rentalTransaction.totalPrice
     };
 
     setIsLoading(true);
-    showRequest("PUT", "/rental-transaction", payload);
+    showRequest("PUT", status === "DAMAGED" ? "/rental-transaction + /rental-damage-report" : "/rental-transaction", payload);
 
     try {
       const savedRentalTransaction = await rentalTransactionService.update(payload);
+      const damageReport = status === "DAMAGED"
+        ? await rentalDamageReportService.create({
+            rentalTransactionId: Number(savedRentalTransaction.id),
+            rentalItemId: Number(savedRentalTransaction.rentalItemId),
+            description: returnDamageDescription.trim(),
+            status: "OPEN"
+          })
+        : null;
       const refreshedData = await refreshAgendaData();
       setSelectedBookingId(savedRentalTransaction.bookingId);
       setActiveDetailTab("rentals");
       resetRentalTransactionForm();
+      resetReturnInspection();
       setApiStatus("Conectada");
-      setFeedback({ message: "Material devolvido ao estoque com sucesso.", type: "success" });
+      setFeedback({
+        message: status === "DAMAGED"
+          ? "Avaria registrada. Material marcado como danificado e mantido fora do estoque disponivel."
+          : "Material devolvido ao estoque com sucesso.",
+        type: "success"
+      });
       showResponse({
         savedRentalTransaction,
+        damageReport,
         refreshedRentalItems: refreshedData.rentalItems,
         refreshedBooking: refreshedData.bookings.find((booking) => booking.id === savedRentalTransaction.bookingId)
       });
@@ -1026,6 +1068,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       return;
     }
 
+    resetReturnInspection();
     setIsLoading(true);
     showRequest("DELETE", `/rental-transaction/${rentalTransaction.id}`);
 
@@ -1267,6 +1310,15 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function scrollToBookingDetail() {
+    window.setTimeout(() => {
+      bookingDetailRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 0);
   }
 
   async function handleCancelReceipt(receipt: Receipt) {
@@ -1557,7 +1609,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         <button className="tab-button" type="button" onClick={() => onNavigate("materials")}>
           Materiais
         </button>
-        <button className="tab-button soon" disabled title="Modulo futuro" type="button">
+        <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
           Caixa
         </button>
       </section>
@@ -1626,7 +1678,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         </div>
       </section>
 
-      <section className="panel selected-booking-panel">
+      <section className="panel selected-booking-panel" ref={bookingDetailRef}>
         <div className="panel-header">
           <div>
             <p className="section-tag">Booking selecionado</p>
@@ -2082,48 +2134,93 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                       const canDelete = !isRentalStockReserved(status);
 
                       return (
-                        <div className="detail-list-row rental-transaction-row" key={rentalTransaction.id}>
-                          <div>
-                            <strong>{getRentalItemName(rentalTransaction.rentalItemId)}</strong>
-                            <span>Item #{rentalTransaction.rentalItemId}</span>
-                            <span>{getBookingPlayerDisplayName(rentalTransaction.bookingPlayerId)}</span>
+                        <div className="rental-transaction-card" key={rentalTransaction.id}>
+                          <div className="detail-list-row rental-transaction-row">
+                            <div>
+                              <strong>{getRentalItemName(rentalTransaction.rentalItemId)}</strong>
+                              <span>Item #{rentalTransaction.rentalItemId}</span>
+                              <span>{getBookingPlayerDisplayName(rentalTransaction.bookingPlayerId)}</span>
+                            </div>
+                            <div>
+                              <span>{rentalTransaction.quantity} unidade(s)</span>
+                              <span>Unitario {formatMoney(rentalTransaction.unitPrice)}</span>
+                              <span>Total {formatMoney(rentalTransaction.totalPrice)}</span>
+                            </div>
+                            <span className="status-pill">{status}</span>
+                            <div className="table-actions">
+                              <button
+                                className="action-button edit"
+                                disabled={isLoading}
+                                type="button"
+                                onClick={() => handleEditRentalTransaction(rentalTransaction)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                className="action-button select"
+                                disabled={isLoading || !canReturn}
+                                type="button"
+                                onClick={() => startReturnInspection(rentalTransaction)}
+                              >
+                                Devolver
+                              </button>
+                              <button
+                                className="action-button delete"
+                                disabled={isLoading || !canDelete}
+                                type="button"
+                                onClick={() => {
+                                  void handleDeleteRentalTransaction(rentalTransaction);
+                                }}
+                              >
+                                Excluir
+                              </button>
+                            </div>
                           </div>
-                          <div>
-                            <span>{rentalTransaction.quantity} unidade(s)</span>
-                            <span>Unitario {formatMoney(rentalTransaction.unitPrice)}</span>
-                            <span>Total {formatMoney(rentalTransaction.totalPrice)}</span>
-                          </div>
-                          <span className="status-pill">{status}</span>
-                          <div className="table-actions">
-                            <button
-                              className="action-button edit"
-                              disabled={isLoading}
-                              type="button"
-                              onClick={() => handleEditRentalTransaction(rentalTransaction)}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="action-button select"
-                              disabled={isLoading || !canReturn}
-                              type="button"
-                              onClick={() => {
-                                void handleReturnRentalTransaction(rentalTransaction);
-                              }}
-                            >
-                              Devolver
-                            </button>
-                            <button
-                              className="action-button delete"
-                              disabled={isLoading || !canDelete}
-                              type="button"
-                              onClick={() => {
-                                void handleDeleteRentalTransaction(rentalTransaction);
-                              }}
-                            >
-                              Excluir
-                            </button>
-                          </div>
+
+                          {returnInspectionRentalId === Number(rentalTransaction.id) ? (
+                            <div className="return-inspection-panel">
+                              <div>
+                                <span className="detail-label">Inspecao de retorno</span>
+                                <strong>{getRentalItemName(rentalTransaction.rentalItemId)}</strong>
+                                <p>Confirme se o material voltou em bom estado ou registre a avaria encontrada.</p>
+                              </div>
+                              <label>
+                                <span>Avaria observada</span>
+                                <textarea
+                                  maxLength={500}
+                                  placeholder="Ex.: trolley voltou com roda danificada."
+                                  rows={3}
+                                  value={returnDamageDescription}
+                                  onChange={(event) => setReturnDamageDescription(event.target.value)}
+                                />
+                              </label>
+                              <div className="return-inspection-actions">
+                                <button
+                                  className="primary-button"
+                                  disabled={isLoading}
+                                  type="button"
+                                  onClick={() => {
+                                    void handleReturnRentalTransaction(rentalTransaction, "RETURNED");
+                                  }}
+                                >
+                                  Sem avaria
+                                </button>
+                                <button
+                                  className="action-button delete"
+                                  disabled={isLoading || !returnDamageDescription.trim()}
+                                  type="button"
+                                  onClick={() => {
+                                    void handleReturnRentalTransaction(rentalTransaction, "DAMAGED");
+                                  }}
+                                >
+                                  Registrar avaria
+                                </button>
+                                <button className="ghost-button" disabled={isLoading} type="button" onClick={resetReturnInspection}>
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })

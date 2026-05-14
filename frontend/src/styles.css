@@ -718,6 +718,48 @@ tbody tr:hover {
   grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.6fr) auto auto;
 }
 
+.rental-transaction-card {
+  display: grid;
+  gap: 8px;
+}
+
+.return-inspection-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(244, 191, 106, 0.22);
+  border-radius: 8px;
+  background: rgba(244, 191, 106, 0.08);
+  padding: 14px;
+}
+
+.return-inspection-panel p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.return-inspection-panel label {
+  display: grid;
+  gap: 8px;
+}
+
+.return-inspection-panel label > span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.return-inspection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.return-inspection-actions .primary-button,
+.return-inspection-actions .ghost-button {
+  width: auto;
+  min-height: 42px;
+  white-space: nowrap;
+}
+
 .payment-form {
   display: grid;
   grid-template-columns: minmax(220px, 1.1fr) minmax(130px, 0.45fr) minmax(140px, 0.5fr) minmax(140px, 0.5fr) auto;
@@ -891,6 +933,220 @@ tbody tr:hover {
   padding: 12px;
 }
 
+.cash-register-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.cash-toolbar {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.cash-register-content {
+  display: grid;
+  gap: 18px;
+}
+
+.cash-summary-grid,
+.cash-method-grid,
+.cash-alert-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.cash-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cash-method-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.cash-alert-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cash-summary-grid article,
+.cash-method-grid article,
+.cash-alert {
+  border: 1px solid rgba(164, 184, 198, 0.12);
+  border-radius: 8px;
+  background: rgba(6, 16, 28, 0.58);
+  padding: 16px;
+}
+
+.cash-summary-grid strong,
+.cash-method-grid strong,
+.cash-alert strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.2rem;
+}
+
+.cash-summary-grid small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.cash-method-grid span,
+.cash-alert span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cash-alert.ok strong {
+  color: var(--accent);
+}
+
+.cash-alert.warning strong {
+  color: #f4bf6a;
+}
+
+.cash-alert.danger strong,
+.money-cell.negative {
+  color: var(--danger);
+}
+
+.money-cell {
+  font-weight: 900;
+}
+
+.money-cell.positive {
+  color: var(--accent);
+}
+
+.cash-close-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(280px, 0.8fr) auto;
+  gap: 16px;
+  align-items: end;
+  border: 1px solid rgba(164, 184, 198, 0.12);
+  border-radius: 8px;
+  background: rgba(6, 16, 28, 0.58);
+  padding: 18px;
+}
+
+.cash-close-panel label {
+  display: grid;
+  gap: 8px;
+}
+
+.cash-close-panel label > span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.cash-close-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cash-close-actions .primary-button,
+.cash-close-actions .ghost-button {
+  width: auto;
+  min-height: 46px;
+  white-space: nowrap;
+}
+
+.cash-items-section {
+  display: grid;
+  gap: 12px;
+}
+
+.cash-report-paper {
+  display: grid;
+  gap: 16px;
+  max-width: 860px;
+  border: 1px solid rgba(164, 184, 198, 0.18);
+  border-radius: 8px;
+  background: #f9fbf7;
+  color: #18251d;
+  padding: 24px;
+}
+
+.cash-report-date {
+  margin: 6px 0 0;
+  color: #607267;
+}
+
+.cash-report-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cash-report-totals > div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(24, 37, 29, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.cash-report-totals span,
+.cash-report-note {
+  color: #607267;
+}
+
+.cash-report-items {
+  display: grid;
+  gap: 8px;
+}
+
+.cash-report-items .receipt-item-row {
+  grid-template-columns: 150px 150px minmax(180px, 1fr) 110px;
+}
+
+.cash-report-note {
+  margin: 0;
+  border-radius: 8px;
+  background: rgba(84, 115, 94, 0.08);
+  padding: 12px;
+}
+
+.material-return-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.material-return-panel .primary-button {
+  width: auto;
+  min-height: 46px;
+  white-space: nowrap;
+}
+
+.material-return-notes {
+  display: grid;
+  gap: 8px;
+}
+
+.material-return-notes span,
+.return-note-preview span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.return-note-preview {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(244, 191, 106, 0.22);
+  border-radius: 8px;
+  background: rgba(244, 191, 106, 0.08);
+  padding: 14px;
+}
+
+.return-note-preview p {
+  margin: 0;
+  color: var(--text);
+}
+
 .json-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -960,7 +1216,16 @@ pre {
 
   .receipt-meta,
   .ticket-route-grid,
-  .receipt-item-row {
+  .receipt-item-row,
+  .cash-report-totals,
+  .cash-report-items .receipt-item-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-summary-grid,
+  .cash-method-grid,
+  .cash-alert-grid,
+  .cash-close-panel {
     grid-template-columns: 1fr;
   }
 }
@@ -1011,12 +1276,15 @@ pre {
   #receipt-print-area,
   #receipt-print-area *,
   #check-in-ticket-print-area,
-  #check-in-ticket-print-area * {
+  #check-in-ticket-print-area *,
+  #cash-register-report-print-area,
+  #cash-register-report-print-area * {
     visibility: visible;
   }
 
   #receipt-print-area,
-  #check-in-ticket-print-area {
+  #check-in-ticket-print-area,
+  #cash-register-report-print-area {
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
@@ -1027,7 +1295,8 @@ pre {
     display: none !important;
   }
 
-  .receipt-paper {
+  .receipt-paper,
+  .cash-report-paper {
     max-width: none;
     border: 0;
     border-radius: 0;
@@ -1046,5 +1315,13 @@ pre {
 
   .receipt-item-row {
     grid-template-columns: minmax(180px, 1fr) 70px 110px 110px;
+  }
+
+  .cash-report-totals {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .cash-report-items .receipt-item-row {
+    grid-template-columns: 150px 150px minmax(180px, 1fr) 110px;
   }
 }

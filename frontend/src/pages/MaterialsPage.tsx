@@ -1,5 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react";
-import { ApiError, rentalItemService } from "../api";
+import { ApiError, rentalDamageReportService, rentalItemService, rentalTransactionService } from "../api";
 import type { AppPage } from "../App";
 import type { RentalItem, RentalItemPayload } from "../types";
 
@@ -22,6 +22,13 @@ type RentalItemFormState = {
 
 type MaterialsPageProps = {
   onNavigate: (page: AppPage) => void;
+};
+
+type ReturnNote = {
+  createdAt: string;
+  reportId?: number;
+  returnedCount: number;
+  notes: string;
 };
 
 const emptyForm: RentalItemFormState = {
@@ -98,6 +105,11 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
   const [visibleRentalItems, setVisibleRentalItems] = useState<RentalItem[]>([]);
   const [form, setForm] = useState<RentalItemFormState>(emptyForm);
   const [searchId, setSearchId] = useState("");
+  const [returnNotes, setReturnNotes] = useState("");
+  const [lastReturnNote, setLastReturnNote] = useState<ReturnNote | null>(() => {
+    const storedNote = window.localStorage.getItem("golf-office-last-material-return-note");
+    return storedNote ? JSON.parse(storedNote) as ReturnNote : null;
+  });
   const [feedback, setFeedback] = useState<Feedback>({
     message: "Cadastre ou consulte materiais da API.",
     type: "success"
@@ -123,6 +135,11 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
 
   function resetForm() {
     setForm(emptyForm);
+  }
+
+  function saveReturnNote(note: ReturnNote) {
+    window.localStorage.setItem("golf-office-last-material-return-note", JSON.stringify(note));
+    setLastReturnNote(note);
   }
 
   async function loadRentalItems() {
@@ -236,6 +253,56 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  async function returnAllMaterials() {
+    const confirmed = window.confirm("Confirmar devolucao de todos os materiais alugados ao estoque?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsLoading(true);
+    showRequest("PUT", "/rental-transaction/return-all");
+
+    try {
+      const returnedTransactions = await rentalTransactionService.returnAll();
+      const damageReport = returnNotes.trim()
+        ? await rentalDamageReportService.create({
+            description: returnNotes.trim(),
+            status: "OPEN"
+          })
+        : null;
+      const note = {
+        createdAt: new Date().toISOString(),
+        reportId: damageReport?.id,
+        returnedCount: returnedTransactions.length,
+        notes: returnNotes.trim()
+      };
+
+      if (damageReport && note.notes) {
+        saveReturnNote(note);
+      }
+
+      showResponse({
+        returnedTransactions,
+        damageReport
+      });
+      setReturnNotes("");
+      await loadRentalItems();
+      setApiStatus("Conectada");
+      setFeedback({
+        message: `${returnedTransactions.length} transacao${returnedTransactions.length === 1 ? "" : "es"} de material processada${returnedTransactions.length === 1 ? "" : "s"} para devolucao.`,
+        type: "success"
+      });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setApiStatus("Falha na conexao");
+      setFeedback({ message, type: "error" });
+      showResponse(getErrorResponse(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -262,9 +329,43 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
         <button className="tab-button active" type="button">
           Materiais
         </button>
-        <button className="tab-button soon" disabled title="Modulo futuro" type="button">
+        <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
           Caixa
         </button>
+      </section>
+
+      <section className="panel material-return-panel">
+        <div className="panel-header">
+          <div>
+            <p className="section-tag">Fim do dia</p>
+            <h2>Devolucao de materiais</h2>
+          </div>
+          <button className="primary-button" disabled={isLoading} type="button" onClick={() => void returnAllMaterials()}>
+            {isLoading ? "Devolvendo..." : "Devolver todos ao estoque"}
+          </button>
+        </div>
+
+        <label className="material-return-notes">
+          <span>Avarias observadas</span>
+          <textarea
+            maxLength={300}
+            placeholder="Ex.: Buggy #4 voltou com pneu danificado."
+            rows={3}
+            value={returnNotes}
+            onChange={(event) => setReturnNotes(event.target.value)}
+          />
+        </label>
+
+        {lastReturnNote ? (
+          <div className="return-note-preview">
+            <span>Ultima anotacao</span>
+            <strong>
+              {new Date(lastReturnNote.createdAt).toLocaleString("pt-PT")}
+              {lastReturnNote.reportId ? ` - Report #${lastReturnNote.reportId}` : ""}
+            </strong>
+            <p>{lastReturnNote.notes}</p>
+          </div>
+        ) : null}
       </section>
 
       <section className="content-grid">
