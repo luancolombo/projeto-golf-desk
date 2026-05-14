@@ -150,6 +150,7 @@ public class BookingPlayerService {
         TeeTime newTeeTime = validateTeeTimeForUpdate(newBooking.getTeeTimeId(), oldTeeTime.getId());
         Integer newPlayerCount = resolvePlayerCount(bookingPlayer.getPlayerCount());
         Integer currentPlayerCount = resolvePlayerCount(entity.getPlayerCount());
+        validatePastTeeTimeForUpdate(newTeeTime, bookingPlayer, entity);
 
         validateCapacity(
                 newTeeTime,
@@ -255,6 +256,10 @@ public class BookingPlayerService {
             throw new BusinessException("Cannot add players to a cancelled tee time");
         }
 
+        if (isPastTeeTime(teeTime)) {
+            throw new BusinessException("Cannot add players to a past tee time");
+        }
+
         return teeTime;
     }
 
@@ -275,6 +280,21 @@ public class BookingPlayerService {
     private TeeTime validateTeeTime(Long teeTimeId) {
         return teeTimeRepository.findById(teeTimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
+    }
+
+    private void validatePastTeeTimeForUpdate(TeeTime teeTime, BookingPlayerDTO requestedBookingPlayer, BookingPlayer currentBookingPlayer) {
+        if (!isPastTeeTime(teeTime)) {
+            return;
+        }
+
+        if (Boolean.TRUE.equals(requestedBookingPlayer.getCheckedIn())
+                && !Boolean.TRUE.equals(currentBookingPlayer.getCheckedIn())) {
+            throw new BusinessException("Cannot check in player for a past tee time");
+        }
+    }
+
+    private boolean isPastTeeTime(TeeTime teeTime) {
+        return teeTime.getPlayDate() != null && teeTime.getPlayDate().isBefore(java.time.LocalDate.now());
     }
 
     private void validateCapacity(TeeTime teeTime, Integer requestedPlayerCount, Integer currentPlayerCount) {

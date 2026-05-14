@@ -75,6 +75,7 @@ public class TeeTimeService {
         if (teeTime.getMaxPlayers() == null) {
             teeTime.setMaxPlayers(4);
         }
+        validateTeeTimeDateIsNotInPast(teeTime.getPlayDate(), "Cannot create tee time in the past");
         teeTime.setBaseGreenFee(
                 calculateBaseGreenFee(teeTime.getPlayDate(), teeTime.getStartTime())
         );
@@ -97,6 +98,7 @@ public class TeeTimeService {
         if (teeTime.getMaxPlayers() == null) {
             teeTime.setMaxPlayers(4);
         }
+        validateTeeTimeDateIsNotInPast(teeTime.getPlayDate(), "Cannot update tee time to a past date");
         teeTime.setBaseGreenFee(
                 calculateBaseGreenFee(teeTime.getPlayDate(), teeTime.getStartTime())
         );
@@ -145,6 +147,12 @@ public class TeeTimeService {
                 && teeTime.getMaxPlayers() != null
                 && teeTime.getBookedPlayers() > teeTime.getMaxPlayers()) {
             throw new BusinessException("Booked players cannot be greater than max players");
+        }
+    }
+
+    private void validateTeeTimeDateIsNotInPast(LocalDate playDate, String message) {
+        if (playDate != null && playDate.isBefore(LocalDate.now())) {
+            throw new BusinessException(message);
         }
     }
 

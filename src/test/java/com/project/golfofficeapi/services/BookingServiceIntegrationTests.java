@@ -2,6 +2,7 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.dto.BookingDTO;
 import com.project.golfofficeapi.dto.TeeTimeDTO;
+import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +69,16 @@ public class BookingServiceIntegrationTests {
         assertThatThrownBy(() -> bookingService.findById(updated.getId()))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Booking not found");
+    }
+
+    @Test
+    void shouldRejectTeeTimeCreationInThePast() {
+        TeeTimeDTO teeTime = newTeeTime();
+        teeTime.setPlayDate(LocalDate.now().minusDays(1));
+
+        assertThatThrownBy(() -> teeTimeService.create(teeTime))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Cannot create tee time in the past");
     }
 
     private TeeTimeDTO newTeeTime() {

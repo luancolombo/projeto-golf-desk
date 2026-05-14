@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -177,6 +178,10 @@ public class BookingService {
 
         if (teeTime.getStatus() == TeeTimeStatus.CANCELLED) {
             throw new BusinessException("Cannot create booking for a cancelled tee time");
+        }
+
+        if (teeTime.getPlayDate() != null && teeTime.getPlayDate().isBefore(LocalDate.now())) {
+            throw new BusinessException("Cannot create booking for a past tee time");
         }
 
         return teeTime;

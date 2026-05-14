@@ -134,6 +134,10 @@ public class CheckInTicketService {
             throw new BusinessException("Booking player must be checked in to issue a ticket");
         }
 
+        Booking booking = findBooking(bookingPlayer.getBookingId());
+        TeeTime teeTime = findTeeTime(booking.getTeeTimeId());
+        validateTeeTimeIsNotInPast(teeTime);
+
         var activeTicket = repository.findFirstByBookingPlayer_IdAndCancelledFalseOrderByIdDesc(bookingPlayer.getId());
         if (activeTicket.isPresent()) {
             var dto = mapper.toDTO(activeTicket.get());
@@ -141,9 +145,7 @@ public class CheckInTicketService {
             return dto;
         }
 
-        Booking booking = findBooking(bookingPlayer.getBookingId());
         Player player = findPlayer(bookingPlayer.getPlayerId());
-        TeeTime teeTime = findTeeTime(booking.getTeeTimeId());
 
         CheckInTicket ticket = new CheckInTicket();
         ticket.setTicketNumber(generateTicketNumber());
@@ -202,6 +204,12 @@ public class CheckInTicketService {
     private TeeTime findTeeTime(Long teeTimeId) {
         return teeTimeRepository.findById(teeTimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
+    }
+
+    private void validateTeeTimeIsNotInPast(TeeTime teeTime) {
+        if (teeTime.getPlayDate() != null && teeTime.getPlayDate().isBefore(LocalDate.now())) {
+            throw new BusinessException("Cannot issue check-in ticket for a past tee time");
+        }
     }
 
     private String generateTicketNumber() {
