@@ -5,6 +5,7 @@ export type CheckInTicket = HateoasResource & {
   ticketNumber?: string | null;
   bookingPlayerId: Id;
   playerNameSnapshot?: string | null;
+  playerCountSnapshot?: number | null;
   bookingCodeSnapshot?: string | null;
   playDate?: LocalDateString | null;
   startTime?: LocalTimeString | null;

@@ -5,7 +5,9 @@ export type BookingPlayer = HateoasResource & {
   bookingId: Id;
   playerId: Id;
   greenFeeAmount?: number | null;
+  playerCount?: number | null;
   checkedIn: boolean;
+  status?: "ACTIVE" | "REFUNDED" | "CANCELLED" | string;
 };
 
 export type BookingPlayerPayload = Omit<BookingPlayer, "_links">;

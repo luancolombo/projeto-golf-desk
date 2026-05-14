@@ -10,6 +10,8 @@ type Feedback = {
   type: FeedbackType;
 };
 
+type MemberFilter = "all" | "members" | "nonMembers";
+
 type PlayerFormState = {
   id: string;
   fullName: string;
@@ -93,6 +95,7 @@ type PlayersPageProps = {
 export function PlayersPage({ onNavigate }: PlayersPageProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [visiblePlayers, setVisiblePlayers] = useState<Player[]>([]);
+  const [memberFilter, setMemberFilter] = useState<MemberFilter>("all");
   const [form, setForm] = useState<PlayerFormState>(emptyForm);
   const [searchName, setSearchName] = useState("");
   const [searchId, setSearchId] = useState("");
@@ -106,10 +109,33 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const formTitle = form.id ? `Editando #${form.id}` : "Novo player";
+  const filteredPlayers = useMemo(() => {
+    if (memberFilter === "members") {
+      return visiblePlayers.filter((player) => player.member);
+    }
+
+    if (memberFilter === "nonMembers") {
+      return visiblePlayers.filter((player) => !player.member);
+    }
+
+    return visiblePlayers;
+  }, [memberFilter, visiblePlayers]);
   const playerCountLabel = useMemo(
-    () => `${visiblePlayers.length} player${visiblePlayers.length === 1 ? "" : "s"}`,
-    [visiblePlayers.length]
+    () => `${filteredPlayers.length} player${filteredPlayers.length === 1 ? "" : "s"}`,
+    [filteredPlayers.length]
   );
+
+  function getEmptyMessage() {
+    if (isLoading) {
+      return "Carregando players...";
+    }
+
+    if (visiblePlayers.length > 0 && filteredPlayers.length === 0) {
+      return "Nenhum player encontrado para este filtro.";
+    }
+
+    return "Nenhum player encontrado.";
+  }
 
   function showRequest(method: string, url: string, body?: unknown) {
     setRequestJson(formatJson({ method, url, body: body ?? null }));
@@ -441,6 +467,29 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
             <button className="ghost-button" disabled={isLoading} type="button" onClick={loadPlayers}>
               Listar todos
             </button>
+            <div className="member-filter" role="group" aria-label="Filtro de membros">
+              <button
+                className={memberFilter === "all" ? "active" : ""}
+                type="button"
+                onClick={() => setMemberFilter("all")}
+              >
+                Todos
+              </button>
+              <button
+                className={memberFilter === "members" ? "active" : ""}
+                type="button"
+                onClick={() => setMemberFilter("members")}
+              >
+                Membros
+              </button>
+              <button
+                className={memberFilter === "nonMembers" ? "active" : ""}
+                type="button"
+                onClick={() => setMemberFilter("nonMembers")}
+              >
+                Nao membros
+              </button>
+            </div>
           </div>
 
           <p className={`feedback ${feedback.type}`.trim()}>{feedback.message}</p>
@@ -458,14 +507,14 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
                 </tr>
               </thead>
               <tbody>
-                {visiblePlayers.length === 0 ? (
+                {filteredPlayers.length === 0 ? (
                   <tr>
                     <td className="empty-state" colSpan={6}>
-                      {isLoading ? "Carregando players..." : "Nenhum player encontrado."}
+                      {getEmptyMessage()}
                     </td>
                   </tr>
                 ) : (
-                  visiblePlayers.map((player) => (
+                  filteredPlayers.map((player) => (
                     <tr key={player.id}>
                       <td>
                         <div className="row-main">{player.fullName}</div>

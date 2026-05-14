@@ -153,6 +153,10 @@ function getSlotLabel(slot: AgendaSlot) {
   return "Aberto";
 }
 
+function isActiveBooking(booking: Booking) {
+  return String(booking.status || "CREATED").toUpperCase() !== "CANCELLED";
+}
+
 export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
   const [teeTimes, setTeeTimes] = useState<TeeTime[]>([]);
@@ -171,6 +175,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [activeDetailTab, setActiveDetailTab] = useState<BookingDetailTab>("summary");
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [newBookingPlayerGreenFee, setNewBookingPlayerGreenFee] = useState("");
+  const [newBookingPlayerCount, setNewBookingPlayerCount] = useState("1");
   const [newBookingPlayerCheckedIn, setNewBookingPlayerCheckedIn] = useState(false);
   const [bookingPlayerFeedback, setBookingPlayerFeedback] = useState<Feedback>({
     message: "",
@@ -206,14 +211,14 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   );
   const dailyBookings = useMemo(() => {
     const dailyTeeTimeIds = new Set(dailyTeeTimes.map((teeTime) => teeTime.id));
-    return bookings.filter((booking) => dailyTeeTimeIds.has(booking.teeTimeId));
+    return bookings.filter((booking) => dailyTeeTimeIds.has(booking.teeTimeId) && isActiveBooking(booking));
   }, [bookings, dailyTeeTimes]);
   const agendaSlots = useMemo<AgendaSlot[]>(
     () =>
       slots.map((time) => {
         const teeTime = dailyTeeTimes.find((item) => formatTime(item.startTime) === time);
         const slotBookings = teeTime?.id
-          ? bookings.filter((booking) => booking.teeTimeId === teeTime.id)
+          ? bookings.filter((booking) => booking.teeTimeId === teeTime.id && isActiveBooking(booking))
           : [];
 
         return {
@@ -236,17 +241,30 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     () => bookingPlayers.filter((bookingPlayer) => bookingPlayer.bookingId === selectedBookingId),
     [bookingPlayers, selectedBookingId]
   );
+  const selectedBookingPlayerIds = useMemo(
+    () => new Set(selectedBookingPlayers.map((bookingPlayer) => bookingPlayer.id)),
+    [selectedBookingPlayers]
+  );
   const selectedRentalTransactions = useMemo(
-    () => rentalTransactions.filter((rentalTransaction) => rentalTransaction.bookingId === selectedBookingId),
-    [rentalTransactions, selectedBookingId]
+    () => rentalTransactions.filter((rentalTransaction) =>
+      rentalTransaction.bookingId === selectedBookingId
+      && selectedBookingPlayerIds.has(rentalTransaction.bookingPlayerId)
+    ),
+    [rentalTransactions, selectedBookingId, selectedBookingPlayerIds]
   );
   const selectedPayments = useMemo(
-    () => payments.filter((payment) => payment.bookingId === selectedBookingId),
-    [payments, selectedBookingId]
+    () => payments.filter((payment) =>
+      payment.bookingId === selectedBookingId
+      && selectedBookingPlayerIds.has(payment.bookingPlayerId)
+    ),
+    [payments, selectedBookingId, selectedBookingPlayerIds]
   );
   const selectedReceipts = useMemo(
-    () => receipts.filter((receipt) => receipt.bookingId === selectedBookingId),
-    [receipts, selectedBookingId]
+    () => receipts.filter((receipt) =>
+      receipt.bookingId === selectedBookingId
+      && selectedBookingPlayerIds.has(receipt.bookingPlayerId)
+    ),
+    [receipts, selectedBookingId, selectedBookingPlayerIds]
   );
   const selectedReceipt = useMemo(
     () => receipts.find((receipt) => receipt.id === selectedReceiptId),
@@ -276,8 +294,16 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     () => payments.find((payment) => payment.id === editingPaymentId),
     [editingPaymentId, payments]
   );
+  const selectedPlayerCount = useMemo(
+    () => selectedBookingPlayers.reduce((total, bookingPlayer) => total + getBookingPlayerCount(bookingPlayer), 0),
+    [selectedBookingPlayers]
+  );
   const selectedGreenFeeTotal = useMemo(
-    () => selectedBookingPlayers.reduce((total, bookingPlayer) => total + Number(bookingPlayer.greenFeeAmount || 0), 0),
+    () =>
+      selectedBookingPlayers.reduce(
+        (total, bookingPlayer) => total + getBookingPlayerGreenFeeTotal(bookingPlayer),
+        0
+      ),
     [selectedBookingPlayers]
   );
   const selectedRentalTotal = useMemo(
@@ -303,7 +329,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     [payments, rentalTransactions, selectedBookingPlayers]
   );
   const selectedCheckedInCount = useMemo(
-    () => selectedBookingPlayers.filter((bookingPlayer) => bookingPlayer.checkedIn).length,
+    () =>
+      selectedBookingPlayers
+        .filter((bookingPlayer) => bookingPlayer.checkedIn)
+        .reduce((total, bookingPlayer) => total + getBookingPlayerCount(bookingPlayer), 0),
     [selectedBookingPlayers]
   );
   const selectedActiveRentalCount = useMemo(
@@ -332,10 +361,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   );
   const isSelectedBookingReady = useMemo(
     () =>
-      selectedBookingPlayers.length > 0
-      && selectedCheckedInCount === selectedBookingPlayers.length
+      selectedPlayerCount > 0
+      && selectedCheckedInCount === selectedPlayerCount
       && selectedPendingTotal <= 0,
-    [selectedBookingPlayers, selectedCheckedInCount, selectedPendingTotal]
+    [selectedPlayerCount, selectedCheckedInCount, selectedPendingTotal]
   );
 
   function showRequest(method: string, url: string, body?: unknown) {
@@ -361,8 +390,16 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       .reduce((total, rentalTransaction) => total + Number(rentalTransaction.totalPrice || 0), 0);
   }
 
+  function getBookingPlayerCount(bookingPlayer: BookingPlayer) {
+    return Number(bookingPlayer.playerCount || 1);
+  }
+
+  function getBookingPlayerGreenFeeTotal(bookingPlayer: BookingPlayer) {
+    return Number(bookingPlayer.greenFeeAmount || 0) * getBookingPlayerCount(bookingPlayer);
+  }
+
   function getBookingPlayerTotal(bookingPlayer: BookingPlayer) {
-    return Number(bookingPlayer.greenFeeAmount || 0) + getBookingPlayerRentalTotal(bookingPlayer.id);
+    return getBookingPlayerGreenFeeTotal(bookingPlayer) + getBookingPlayerRentalTotal(bookingPlayer.id);
   }
 
   function getBookingPlayerPaidAmount(bookingPlayerId: number | undefined, ignoredPaymentId: number | null = null) {
@@ -435,6 +472,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     return ticket.cancelled ? "CANCELADO" : "EMITIDO";
   }
 
+  function getCheckInTicketPlayerCount(ticket: CheckInTicket) {
+    return Number(ticket.playerCountSnapshot || 1);
+  }
+
   function getRentalItem(rentalItemId: number | undefined) {
     return rentalItems.find((item) => item.id === rentalItemId);
   }
@@ -498,6 +539,11 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     setPaymentAmount("");
     setPaymentMethod("CARD");
     setPaymentStatus("PAID");
+  }
+
+  function clearReceiptSelection() {
+    setSelectedReceiptId(null);
+    setReceiptFeedback({ message: "", type: "" });
   }
 
   async function loadAgenda() {
@@ -644,8 +690,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     setFeedback({ message: `Preparando booking para ${slot.time}...`, type: "success" });
 
     try {
-      const existingBooking = slot.bookings.find((booking) => String(booking.status).toUpperCase() !== "CANCELLED")
-        ?? slot.bookings[0];
+      const existingBooking = slot.bookings.find(isActiveBooking);
 
       if (slot.teeTime && existingBooking?.id) {
         setSelectedBookingId(existingBooking.id);
@@ -717,10 +762,18 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       return;
     }
 
+    const playerCount = Number(newBookingPlayerCount || 1);
+
+    if (!Number.isInteger(playerCount) || playerCount < 1 || playerCount > 4) {
+      setBookingPlayerFeedback({ message: "Quantidade de jogadores deve ser entre 1 e 4.", type: "error" });
+      return;
+    }
+
     const payload = {
       bookingId: selectedBooking.id,
       playerId: Number(selectedPlayerId),
       greenFeeAmount: newBookingPlayerGreenFee ? Number(newBookingPlayerGreenFee) : null,
+      playerCount,
       checkedIn: newBookingPlayerCheckedIn
     };
 
@@ -735,6 +788,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       setActiveDetailTab("players");
       setSelectedPlayerId("");
       setNewBookingPlayerGreenFee("");
+      setNewBookingPlayerCount("1");
       setNewBookingPlayerCheckedIn(false);
       setApiStatus("Conectada");
       setBookingPlayerFeedback({ message: "Jogador adicionado ao booking com sucesso.", type: "success" });
@@ -772,6 +826,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       bookingId: bookingPlayer.bookingId,
       playerId: bookingPlayer.playerId,
       greenFeeAmount: bookingPlayer.greenFeeAmount,
+      playerCount: getBookingPlayerCount(bookingPlayer),
       checkedIn: !bookingPlayer.checkedIn
     };
 
@@ -1047,6 +1102,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       setSelectedBookingId(savedPayment.bookingId);
       setActiveDetailTab("payments");
       resetPaymentForm();
+      clearReceiptSelection();
       setApiStatus("Conectada");
       setFeedback({
         message: editingPaymentId ? "Pagamento atualizado com sucesso." : "Pagamento registrado com sucesso.",
@@ -1099,15 +1155,22 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     try {
       const savedPayment = await paymentService.update(payload);
       const refreshedData = await refreshAgendaData();
-      setSelectedBookingId(savedPayment.bookingId);
-      setSelectedReceiptId(null);
+      const refreshedBooking = refreshedData.bookings.find((booking) => booking.id === savedPayment.bookingId);
+      const refreshedBookingPlayers = refreshedData.bookingPlayers.filter(
+        (bookingPlayer) => bookingPlayer.bookingId === savedPayment.bookingId
+      );
+      setSelectedBookingId(refreshedBooking && isActiveBooking(refreshedBooking) && refreshedBookingPlayers.length > 0
+        ? savedPayment.bookingId
+        : null);
+      clearReceiptSelection();
       setActiveDetailTab("payments");
       resetPaymentForm();
       setApiStatus("Conectada");
       setFeedback({ message: "Pagamento reembolsado com sucesso.", type: "success" });
       showResponse({
         savedPayment,
-        refreshedBooking: refreshedData.bookings.find((booking) => booking.id === savedPayment.bookingId),
+        refreshedBooking,
+        refreshedBookingPlayers,
         refreshedPayments: refreshedData.payments.filter((item) => item.bookingId === savedPayment.bookingId),
         refreshedReceipts: refreshedData.receipts.filter((receipt) => receipt.bookingId === savedPayment.bookingId),
         refreshedReceiptItems: refreshedData.receiptItems
@@ -1134,7 +1197,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       await paymentService.remove(payment.id);
       const refreshedData = await refreshAgendaData();
       setSelectedBookingId(payment.bookingId);
-      setSelectedReceiptId(null);
+      clearReceiptSelection();
       setActiveDetailTab("payments");
       resetPaymentForm();
       setApiStatus("Conectada");
@@ -1463,6 +1526,11 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     void loadAgenda();
   }, [selectedDate]);
 
+  useEffect(() => {
+    clearReceiptSelection();
+    setSelectedCheckInTicketId(null);
+  }, [selectedBookingId]);
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -1625,13 +1693,13 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                   <div>
                     <span className="detail-label">Jogadores</span>
                     <strong>
-                      {selectedBookingPlayers.length}/{selectedTeeTime.maxPlayers}
+                      {selectedPlayerCount}/{selectedTeeTime.maxPlayers}
                     </strong>
                   </div>
                   <div>
                     <span className="detail-label">Check-ins</span>
                     <strong>
-                      {selectedCheckedInCount}/{selectedBookingPlayers.length}
+                      {selectedCheckedInCount}/{selectedPlayerCount}
                     </strong>
                   </div>
                   <div>
@@ -1674,7 +1742,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                   <div className="summary-section-header">
                     <div>
                       <span className="detail-label">Resumo por jogador</span>
-                      <strong>{selectedBookingPlayers.length} jogador(es)</strong>
+                      <strong>{selectedPlayerCount} jogador(es)</strong>
                     </div>
                   </div>
 
@@ -1690,10 +1758,13 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                         <div className="summary-player-row" key={bookingPlayer.id}>
                           <div>
                             <strong>{getPlayerName(bookingPlayer.playerId)}</strong>
+                            <span>{getBookingPlayerCount(bookingPlayer)} jogador(es) nesta linha</span>
                             <span>{bookingPlayer.checkedIn ? "Check-in feito" : "Check-in pendente"}</span>
                           </div>
                           <div>
-                            <span>Green fee {formatMoney(bookingPlayer.greenFeeAmount)}</span>
+                            <span>
+                              Green fee {formatMoney(bookingPlayer.greenFeeAmount)} x {getBookingPlayerCount(bookingPlayer)}
+                            </span>
                             <span>Rental {formatMoney(rentalTotal)}</span>
                           </div>
                           <div>
@@ -1734,6 +1805,17 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                       type="number"
                       value={newBookingPlayerGreenFee}
                       onChange={(event) => setNewBookingPlayerGreenFee(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Qtd jogadores</span>
+                    <input
+                      max="4"
+                      min="1"
+                      step="1"
+                      type="number"
+                      value={newBookingPlayerCount}
+                      onChange={(event) => setNewBookingPlayerCount(event.target.value)}
                     />
                   </label>
                   <label className="checkbox-field compact-checkbox">
@@ -1779,9 +1861,14 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                             <span>
                               Player #{bookingPlayer.playerId} - Booking player #{bookingPlayer.id}
                             </span>
+                            <span>
+                              {getPlayerName(bookingPlayer.playerId)} x {getBookingPlayerCount(bookingPlayer)} player(s)
+                            </span>
                           </div>
                           <div>
-                            <span>Green fee {formatMoney(bookingPlayer.greenFeeAmount)}</span>
+                            <span>
+                              Green fee {formatMoney(bookingPlayer.greenFeeAmount)} x {getBookingPlayerCount(bookingPlayer)}
+                            </span>
                             <span>Rental {formatMoney(rentalTotal)}</span>
                             <span>Total {formatMoney(playerTotal)}</span>
                             <span>Pago {formatMoney(paidAmount)}</span>
@@ -1867,6 +1954,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                         <strong>
                           {selectedCheckInTicket.playerNameSnapshot || getBookingPlayerDisplayName(selectedCheckInTicket.bookingPlayerId)}
                         </strong>
+                        <span>Jogadores</span>
+                        <strong>{getCheckInTicketPlayerCount(selectedCheckInTicket)} player(s)</strong>
                         <span>Recibo</span>
                         <strong>
                           {getReceiptForBookingPlayer(selectedCheckInTicket.bookingPlayerId)?.receiptNumber || "Sem recibo emitido"}
@@ -1914,7 +2003,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                       <option value="">Selecione um jogador</option>
                       {selectedBookingPlayers.map((bookingPlayer) => (
                         <option key={bookingPlayer.id} value={bookingPlayer.id}>
-                          {getPlayerName(bookingPlayer.playerId)} - BP #{bookingPlayer.id}
+                          {getPlayerName(bookingPlayer.playerId)} x {getBookingPlayerCount(bookingPlayer)} - BP #{bookingPlayer.id}
                         </option>
                       ))}
                     </select>
@@ -2061,7 +2150,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                       <option value="">Selecione um jogador</option>
                       {selectedBookingPlayers.map((bookingPlayer) => (
                         <option key={bookingPlayer.id} value={bookingPlayer.id}>
-                          {getPlayerName(bookingPlayer.playerId)} - pendente{" "}
+                          {getPlayerName(bookingPlayer.playerId)} x {getBookingPlayerCount(bookingPlayer)} - pendente{" "}
                           {formatMoney(getBookingPlayerPendingAmount(bookingPlayer.id, editingPaymentId))}
                         </option>
                       ))}
