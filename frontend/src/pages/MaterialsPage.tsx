@@ -1,6 +1,15 @@
 import { type FormEvent, useMemo, useState } from "react";
-import { ApiError, rentalDamageReportService, rentalItemService, rentalTransactionService } from "../api";
+import {
+  getApiErrorMessage,
+  getApiErrorResponse,
+  rentalDamageReportService,
+  rentalItemService,
+  rentalTransactionService
+} from "../api";
 import type { AppPage } from "../App";
+import { useAuth } from "../features/auth/AuthContext";
+import { canCloseCashRegister, canDeleteRecords, canManageRentalItems } from "../features/auth/permissions";
+import { SessionBadge } from "../features/auth/SessionBadge";
 import type { RentalItem, RentalItemPayload } from "../types";
 
 type FeedbackType = "success" | "error" | "";
@@ -41,30 +50,6 @@ const emptyForm: RentalItemFormState = {
   active: true
 };
 
-function getErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Nao foi possivel concluir a operacao.";
-}
-
-function getErrorResponse(error: unknown) {
-  if (error instanceof ApiError) {
-    return {
-      status: error.status,
-      statusText: error.statusText,
-      body: error.body ?? { message: error.message }
-    };
-  }
-
-  return { error: getErrorMessage(error) };
-}
-
 function toPayload(form: RentalItemFormState): RentalItemPayload {
   return {
     id: form.id ? Number(form.id) : undefined,
@@ -101,6 +86,7 @@ function formatMoney(value: number | null | undefined) {
 }
 
 export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
+  const { role } = useAuth();
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
   const [visibleRentalItems, setVisibleRentalItems] = useState<RentalItem[]>([]);
   const [form, setForm] = useState<RentalItemFormState>(emptyForm);
@@ -124,6 +110,9 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
     () => `${visibleRentalItems.length} material${visibleRentalItems.length === 1 ? "" : "is"}`,
     [visibleRentalItems.length]
   );
+  const canManageInventory = canManageRentalItems(role);
+  const canDelete = canDeleteRecords(role);
+  const canViewCashRegister = canCloseCashRegister(role);
 
   function showRequest(method: string, url: string, body?: unknown) {
     setRequestJson(formatJson({ method, url, body: body ?? null }));
@@ -155,11 +144,11 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
       setApiStatus("Conectada");
       setFeedback({ message: "Materiais carregados com sucesso.", type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setVisibleRentalItems([]);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -187,9 +176,9 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
         type: "success"
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -214,10 +203,10 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
       setApiStatus("Conectada");
       setFeedback({ message: `Material #${id} encontrado com sucesso.`, type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setVisibleRentalItems([]);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -240,9 +229,9 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
       await loadRentalItems();
       setFeedback({ message: "Material excluido com sucesso.", type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -294,10 +283,10 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
         type: "success"
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -313,10 +302,7 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
             Controle de estoque, preco e disponibilidade dos materiais alugaveis consumindo a API Spring Boot.
           </p>
         </div>
-        <div className="api-status">
-          <span>API</span>
-          <strong>{apiStatus}</strong>
-        </div>
+        <SessionBadge apiStatus={apiStatus} />
       </header>
 
       <section className="entity-tabs" aria-label="Navegacao principal">
@@ -329,9 +315,11 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
         <button className="tab-button active" type="button">
           Materiais
         </button>
-        <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
-          Caixa
-        </button>
+        {canViewCashRegister ? (
+          <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
+            Caixa
+          </button>
+        ) : null}
       </section>
 
       <section className="panel material-return-panel">
@@ -368,94 +356,96 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
         ) : null}
       </section>
 
-      <section className="content-grid">
-        <article className="panel form-panel">
-          <div className="panel-header">
-            <div>
-              <p className="section-tag">Inventario</p>
-              <h2>{formTitle}</h2>
-            </div>
-            <button className="ghost-button" type="button" onClick={resetForm}>
-              Limpar
-            </button>
-          </div>
-
-          <form className="player-form" onSubmit={handleSubmit}>
-            <label>
-              <span>Nome</span>
-              <input
-                maxLength={50}
-                required
-                type="text"
-                value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
-              />
-            </label>
-
-            <label>
-              <span>Tipo</span>
-              <input
-                maxLength={50}
-                placeholder="Ex.: BUGGY, TROLLEY, CLUBS"
-                required
-                type="text"
-                value={form.type}
-                onChange={(event) => setForm({ ...form, type: event.target.value })}
-              />
-            </label>
-
-            <label>
-              <span>Estoque total</span>
-              <input
-                min={0}
-                required
-                step={1}
-                type="number"
-                value={form.totalStock}
-                onChange={(event) => setForm({ ...form, totalStock: event.target.value })}
-              />
-            </label>
-
-            <label>
-              <span>Estoque disponivel</span>
-              <input
-                min={0}
-                placeholder="Automatico se vazio"
-                step={1}
-                type="number"
-                value={form.availableStock}
-                onChange={(event) => setForm({ ...form, availableStock: event.target.value })}
-              />
-            </label>
-
-            <label>
-              <span>Preco de aluguer</span>
-              <input
-                min={0}
-                required
-                step={0.01}
-                type="number"
-                value={form.rentalPrice}
-                onChange={(event) => setForm({ ...form, rentalPrice: event.target.value })}
-              />
-            </label>
-
-            <label className="checkbox-field">
-              <input
-                checked={form.active}
-                type="checkbox"
-                onChange={(event) => setForm({ ...form, active: event.target.checked })}
-              />
-              <span>Material ativo</span>
-            </label>
-
-            <div className="form-actions">
-              <button className="primary-button" disabled={isLoading} type="submit">
-                {isLoading ? "Salvando..." : "Salvar material"}
+      <section className={`content-grid ${canManageInventory ? "" : "single-column"}`.trim()}>
+        {canManageInventory ? (
+          <article className="panel form-panel">
+            <div className="panel-header">
+              <div>
+                <p className="section-tag">Inventario</p>
+                <h2>{formTitle}</h2>
+              </div>
+              <button className="ghost-button" type="button" onClick={resetForm}>
+                Limpar
               </button>
             </div>
-          </form>
-        </article>
+
+            <form className="player-form" onSubmit={handleSubmit}>
+              <label>
+                <span>Nome</span>
+                <input
+                  maxLength={50}
+                  required
+                  type="text"
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                />
+              </label>
+
+              <label>
+                <span>Tipo</span>
+                <input
+                  maxLength={50}
+                  placeholder="Ex.: BUGGY, TROLLEY, CLUBS"
+                  required
+                  type="text"
+                  value={form.type}
+                  onChange={(event) => setForm({ ...form, type: event.target.value })}
+                />
+              </label>
+
+              <label>
+                <span>Estoque total</span>
+                <input
+                  min={0}
+                  required
+                  step={1}
+                  type="number"
+                  value={form.totalStock}
+                  onChange={(event) => setForm({ ...form, totalStock: event.target.value })}
+                />
+              </label>
+
+              <label>
+                <span>Estoque disponivel</span>
+                <input
+                  min={0}
+                  placeholder="Automatico se vazio"
+                  step={1}
+                  type="number"
+                  value={form.availableStock}
+                  onChange={(event) => setForm({ ...form, availableStock: event.target.value })}
+                />
+              </label>
+
+              <label>
+                <span>Preco de aluguer</span>
+                <input
+                  min={0}
+                  required
+                  step={0.01}
+                  type="number"
+                  value={form.rentalPrice}
+                  onChange={(event) => setForm({ ...form, rentalPrice: event.target.value })}
+                />
+              </label>
+
+              <label className="checkbox-field">
+                <input
+                  checked={form.active}
+                  type="checkbox"
+                  onChange={(event) => setForm({ ...form, active: event.target.checked })}
+                />
+                <span>Material ativo</span>
+              </label>
+
+              <div className="form-actions">
+                <button className="primary-button" disabled={isLoading} type="submit">
+                  {isLoading ? "Salvando..." : "Salvar material"}
+                </button>
+              </div>
+            </form>
+          </article>
+        ) : null}
 
         <article className="panel list-panel">
           <div className="panel-header">
@@ -498,13 +488,13 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                   <th>Estoque</th>
                   <th>Preco</th>
                   <th>Status</th>
-                  <th>Acoes</th>
+                  {canManageInventory || canDelete ? <th>Acoes</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {visibleRentalItems.length === 0 ? (
                   <tr>
-                    <td className="empty-state" colSpan={6}>
+                    <td className="empty-state" colSpan={canManageInventory || canDelete ? 6 : 5}>
                       {isLoading ? "Carregando materiais..." : "Nenhum material encontrado."}
                     </td>
                   </tr>
@@ -526,20 +516,26 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                       <td>
                         <span className="status-pill">{rentalItem.active ? "ACTIVE" : "INACTIVE"}</span>
                       </td>
-                      <td>
-                        <div className="table-actions">
-                          <button className="action-button edit" type="button" onClick={() => editRentalItem(rentalItem)}>
-                            Editar
-                          </button>
-                          <button
-                            className="action-button delete"
-                            type="button"
-                            onClick={() => rentalItem.id && void deleteRentalItem(rentalItem.id)}
-                          >
-                            Excluir
-                          </button>
-                        </div>
-                      </td>
+                      {canManageInventory || canDelete ? (
+                        <td>
+                          <div className="table-actions">
+                            {canManageInventory ? (
+                              <button className="action-button edit" type="button" onClick={() => editRentalItem(rentalItem)}>
+                                Editar
+                              </button>
+                            ) : null}
+                            {canDelete ? (
+                              <button
+                                className="action-button delete"
+                                type="button"
+                                onClick={() => rentalItem.id && void deleteRentalItem(rentalItem.id)}
+                              >
+                                Excluir
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))
                 )}

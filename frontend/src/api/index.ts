@@ -1,4 +1,15 @@
-export { ApiError, apiClient } from "./apiClient";
+export {
+  ApiError,
+  apiClient,
+  clearApiAccessToken,
+  clearApiAuthTokens,
+  setApiAccessToken,
+  setApiAuthTokens,
+  setApiRefreshFailureHandler,
+  setApiTokenRefreshHandler
+} from "./apiClient";
+export { getApiErrorMessage, getApiErrorResponse } from "./apiErrorHelpers";
+export { authService } from "./authService";
 export { playerService } from "./playerService";
 export { teeTimeService } from "./teeTimeService";
 export { bookingService } from "./bookingService";

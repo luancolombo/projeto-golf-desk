@@ -97,14 +97,60 @@ h2 {
   padding: 20px;
 }
 
-.api-status span {
+.header-status-stack {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.9fr) minmax(240px, 1fr);
+  align-items: start;
+  min-width: min(520px, 100%);
+  gap: 12px;
+}
+
+.header-status-stack .api-status {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.session-status {
+  grid-column: 2;
+  grid-row: 1;
+  border: 1px solid rgba(159, 232, 112, 0.2);
+  border-radius: 8px;
+  background: rgba(159, 232, 112, 0.1);
+  padding: 16px 18px;
+}
+
+.api-status span,
+.session-status span {
   color: var(--muted);
   font-size: 0.84rem;
 }
 
-.api-status strong {
+.api-status strong,
+.session-status strong {
   display: block;
   margin-top: 4px;
+}
+
+.session-status small {
+  display: block;
+  margin-top: 5px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.session-logout-button {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid rgba(244, 106, 106, 0.2);
+  border-radius: 8px;
+  background: rgba(244, 106, 106, 0.12);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 9px 11px;
 }
 
 .entity-tabs {
@@ -154,6 +200,54 @@ h2 {
   grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.55fr);
   gap: 22px;
   align-items: start;
+}
+
+.content-grid.single-column {
+  grid-template-columns: 1fr;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  align-items: center;
+}
+
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 460px);
+  gap: 34px;
+  align-items: center;
+}
+
+.login-intro h1 {
+  font-size: clamp(3.4rem, 10vw, 6.8rem);
+}
+
+.login-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.login-seed-note {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(164, 184, 198, 0.12);
+  border-radius: 8px;
+  background: rgba(6, 16, 28, 0.58);
+  padding: 14px;
+}
+
+.login-seed-note span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-seed-note p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .panel,
@@ -1182,12 +1276,31 @@ pre {
   }
 
   .content-grid,
+  .login-layout,
   .json-grid {
     grid-template-columns: 1fr;
   }
 
   .api-status {
     min-width: 0;
+  }
+
+  .header-status-stack {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .header-status-stack .api-status,
+  .session-status {
+    grid-column: 1;
+  }
+
+  .session-status {
+    grid-row: 1;
+  }
+
+  .header-status-stack .api-status {
+    grid-row: 2;
   }
 
   .detail-list-row {

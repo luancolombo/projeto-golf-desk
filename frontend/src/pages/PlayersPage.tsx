@@ -1,6 +1,9 @@
 import { type FormEvent, useMemo, useState } from "react";
-import { ApiError, playerService } from "../api";
+import { getApiErrorMessage, getApiErrorResponse, playerService } from "../api";
 import type { AppPage } from "../App";
+import { useAuth } from "../features/auth/AuthContext";
+import { canCloseCashRegister, canDeleteRecords } from "../features/auth/permissions";
+import { SessionBadge } from "../features/auth/SessionBadge";
 import type { Player, PlayerPayload } from "../types";
 
 type FeedbackType = "success" | "error" | "";
@@ -33,30 +36,6 @@ const emptyForm: PlayerFormState = {
   member: false,
   notes: ""
 };
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Nao foi possivel concluir a operacao.";
-}
-
-function getErrorResponse(error: unknown) {
-  if (error instanceof ApiError) {
-    return {
-      status: error.status,
-      statusText: error.statusText,
-      body: error.body ?? { message: error.message }
-    };
-  }
-
-  return { error: getErrorMessage(error) };
-}
 
 function toPayload(form: PlayerFormState): PlayerPayload {
   return {
@@ -93,6 +72,7 @@ type PlayersPageProps = {
 };
 
 export function PlayersPage({ onNavigate }: PlayersPageProps) {
+  const { role } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [visiblePlayers, setVisiblePlayers] = useState<Player[]>([]);
   const [memberFilter, setMemberFilter] = useState<MemberFilter>("all");
@@ -124,6 +104,8 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
     () => `${filteredPlayers.length} player${filteredPlayers.length === 1 ? "" : "s"}`,
     [filteredPlayers.length]
   );
+  const canDelete = canDeleteRecords(role);
+  const canViewCashRegister = canCloseCashRegister(role);
 
   function getEmptyMessage() {
     if (isLoading) {
@@ -162,11 +144,11 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
       setApiStatus("Conectada");
       setFeedback({ message: "Players carregados com sucesso.", type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setVisiblePlayers([]);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -194,9 +176,9 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
         type: "success"
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -221,10 +203,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
       setApiStatus("Conectada");
       setFeedback({ message: `Player #${id} encontrado com sucesso.`, type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setVisiblePlayers([]);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -259,10 +241,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
         type: "success"
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setVisiblePlayers([]);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -285,9 +267,9 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
       await loadPlayers();
       setFeedback({ message: "Player excluido com sucesso.", type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -308,10 +290,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
             Cadastro e consulta de jogadores consumindo diretamente a API Spring Boot.
           </p>
         </div>
-        <div className="api-status">
-          <span>API</span>
-          <strong>{apiStatus}</strong>
-        </div>
+        <SessionBadge apiStatus={apiStatus} />
       </header>
 
       <section className="entity-tabs" aria-label="Navegacao principal">
@@ -324,9 +303,11 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
         <button className="tab-button" type="button" onClick={() => onNavigate("materials")}>
           Materiais
         </button>
-        <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
-          Caixa
-        </button>
+        {canViewCashRegister ? (
+          <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
+            Caixa
+          </button>
+        ) : null}
       </section>
 
       <section className="content-grid">
@@ -532,13 +513,15 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
                           <button className="action-button edit" type="button" onClick={() => editPlayer(player)}>
                             Editar
                           </button>
-                          <button
-                            className="action-button delete"
-                            type="button"
-                            onClick={() => player.id && void deletePlayer(player.id)}
-                          >
-                            Excluir
-                          </button>
+                          {canDelete ? (
+                            <button
+                              className="action-button delete"
+                              type="button"
+                              onClick={() => player.id && void deletePlayer(player.id)}
+                            >
+                              Excluir
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

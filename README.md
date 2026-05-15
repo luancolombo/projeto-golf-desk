@@ -48,6 +48,7 @@ Main features already implemented:
 - Flyway migrations, schema validation, constraints, indexes, and initial seed data.
 - Development seed user for testing authenticated endpoints.
 - React + TypeScript frontend migration to consume the API.
+- React authenticated frontend flow with login, session storage, automatic token refresh, logout, and role-aware UI.
 - Legacy static frontend archived after the React migration covered the current flows.
 - Docker Compose setup for Spring Boot API and MySQL.
 - Integration tests for business flows and security tests with MockMvc.
@@ -552,6 +553,15 @@ Current React migration status:
 
 - React + TypeScript structure created with Vite.
 - `apiClient` layer created to consume the Spring Boot API through `/api`.
+- `apiClient` sends `Authorization: Bearer <accessToken>` on protected requests.
+- `apiClient` automatically tries `/auth/refresh` once when a protected request returns `401 Unauthorized`.
+- Central authentication state created with React Context.
+- Authenticated session stored in `sessionStorage`, including user, role, access token, and refresh token.
+- Login screen consuming `/auth/login`.
+- Logout flow consuming `/auth/logout`, revoking the refresh token in the backend and clearing the local session.
+- Session expiration handling: failed refresh clears the frontend session and returns the user to the login screen.
+- User badge in the header showing who is logged in and the current role.
+- Role-aware UI for `MANAGER` and `RECEPTIONIST`.
 - TypeScript types created for the main entities.
 - Services created for Players, Tee Times, Bookings, Booking Players, Rental Items, Rental Transactions, and Payments.
 - Services created for Receipts, Receipt Items, and Check-in Tickets.
@@ -571,6 +581,56 @@ Current React migration status:
 - Cash Register page with daily preview, persisted closing, totals by payment method, alerts, closing items, and printable report.
 - Materials page with end-of-day return-all action and persisted damage report notes.
 - Main navigation with Players, Agenda, Materials, and Cash Register.
+- `RECEPTIONIST` does not see restricted actions such as delete buttons, rental item stock/price maintenance, or cash register closing.
+- `MANAGER` keeps full operational access in the frontend.
+
+### Authenticated Frontend Flow
+
+The React frontend consumes the same JWT flow exposed by the Spring Boot API.
+
+```text
+Login page
+-> POST /api/auth/login
+-> AuthContext stores user, role, access token, and refresh token in sessionStorage
+-> apiClient sends Authorization: Bearer <accessToken>
+-> protected API request succeeds
+```
+
+When the access token expires, the frontend tries to renew the session automatically:
+
+```text
+Protected request returns 401
+-> apiClient calls POST /api/auth/refresh with the refresh token
+-> backend rotates the refresh token
+-> frontend updates the stored tokens
+-> original request is retried once
+```
+
+If refresh fails, the session is cleared and the user is sent back to the login screen with an expiration message.
+
+Logout calls:
+
+```http
+POST /api/auth/logout
+```
+
+The backend revokes the current refresh token, and the frontend clears the local session.
+
+Development login:
+
+```text
+Email: manager@golfoffice.dev
+Password: admin123
+Role: MANAGER
+```
+
+This seed user is created by Flyway for local development and demo usage.
+
+Frontend permission rules mirror the backend role model:
+
+- `MANAGER` can use all screens and actions.
+- `RECEPTIONIST` can use the daily operation screens, but restricted management actions are hidden.
+- Destructive actions and maintenance actions are still protected by the backend, even when the frontend hides the buttons.
 
 ## Running the Backend
 
@@ -782,13 +842,20 @@ Recently implemented roadmap items:
 - Role rules for `MANAGER` and `RECEPTIONIST`.
 - Development manager seed user for local testing.
 - MockMvc security integration tests.
+- React login/session handling using the JWT endpoints.
+- Frontend automatic refresh token flow.
+- Frontend logout with backend refresh token revocation.
+- Frontend role-aware screens and actions.
 - Docker Compose for API and MySQL.
 
 Planned future implementations:
 
 - Real usage of `createdBy` and `closedBy` with authenticated users.
-- React login/session handling using the JWT endpoints.
-- Frontend role-aware screens and actions.
+- Aggregated Agenda endpoint, such as `GET /agenda/day?date=YYYY-MM-DD`, to reduce multiple frontend requests into one optimized daily payload.
+- Agenda performance optimization to avoid unnecessary `findAll` calls and refresh only the data affected by each operation.
+- Review high-volume service logs, moving repetitive operational logs such as authenticated user lookup from `INFO` to `DEBUG`.
+- Evaluate JWT authentication lookup optimization, reducing repeated user database reads when the token already carries safe claims.
+- Add database indexes for the most used Agenda queries, especially by play date, booking, booking player, payment, rental, receipt, and ticket relationships.
 - Admin/maintenance view for resolving rental damage reports.
 - Optional billing flow for damaged or lost rental items.
 - Pricing rule evolution with professional price, season, and twilight configuration.

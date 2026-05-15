@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ApiError } from "../../../api";
+import { ApiError, getApiErrorMessage, getApiErrorResponse } from "../../../api";
 import type { AppPage } from "../../../App";
+import { SessionBadge } from "../../auth/SessionBadge";
 import { cashRegisterService } from "../services/cashRegisterService";
 import type { CashRegisterClosure } from "../types/cashRegister";
 import { CashRegisterAlerts } from "./CashRegisterAlerts";
@@ -31,30 +32,6 @@ function todayInputValue() {
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Nao foi possivel concluir a operacao.";
-}
-
-function getErrorResponse(error: unknown) {
-  if (error instanceof ApiError) {
-    return {
-      status: error.status,
-      statusText: error.statusText,
-      body: error.body ?? { message: error.message }
-    };
-  }
-
-  return { error: getErrorMessage(error) };
 }
 
 export function CashRegisterPage({ onNavigate }: CashRegisterPageProps) {
@@ -108,11 +85,11 @@ export function CashRegisterPage({ onNavigate }: CashRegisterPageProps) {
         return;
       }
 
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setClosure(null);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -131,11 +108,11 @@ export function CashRegisterPage({ onNavigate }: CashRegisterPageProps) {
       showResponse(preview);
       setFeedback({ message: "Preview do caixa carregado com sucesso.", type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setClosure(null);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -171,9 +148,9 @@ export function CashRegisterPage({ onNavigate }: CashRegisterPageProps) {
       showResponse(closedClosure);
       setFeedback({ message: "Caixa fechado com sucesso.", type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -197,10 +174,7 @@ export function CashRegisterPage({ onNavigate }: CashRegisterPageProps) {
             Conferencia, fechamento e relatorio diario do caixa consumindo a API Spring Boot.
           </p>
         </div>
-        <div className="api-status">
-          <span>API</span>
-          <strong>{apiStatus}</strong>
-        </div>
+        <SessionBadge apiStatus={apiStatus} />
       </header>
 
       <section className="entity-tabs" aria-label="Navegacao principal">

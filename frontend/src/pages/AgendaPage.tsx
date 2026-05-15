@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
-  ApiError,
   bookingPlayerService,
   bookingService,
   checkInTicketService,
+  getApiErrorMessage,
+  getApiErrorResponse,
   paymentService,
   playerService,
   receiptItemService,
@@ -14,6 +15,9 @@ import {
   teeTimeService
 } from "../api";
 import type { AppPage } from "../App";
+import { useAuth } from "../features/auth/AuthContext";
+import { canCloseCashRegister, canDeleteRecords } from "../features/auth/permissions";
+import { SessionBadge } from "../features/auth/SessionBadge";
 import type { Booking, BookingPlayer, CheckInTicket, Payment, Player, Receipt, ReceiptItem, RentalItem, RentalTransaction, TeeTime } from "../types";
 
 type FeedbackType = "success" | "error" | "";
@@ -34,30 +38,6 @@ type AgendaSlot = {
 };
 
 type BookingDetailTab = "summary" | "players" | "rentals" | "payments";
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Nao foi possivel concluir a operacao.";
-}
-
-function getErrorResponse(error: unknown) {
-  if (error instanceof ApiError) {
-    return {
-      status: error.status,
-      statusText: error.statusText,
-      body: error.body ?? { message: error.message }
-    };
-  }
-
-  return { error: getErrorMessage(error) };
-}
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -159,6 +139,7 @@ function isActiveBooking(booking: Booking) {
 }
 
 export function AgendaPage({ onNavigate }: AgendaPageProps) {
+  const { role } = useAuth();
   const bookingDetailRef = useRef<HTMLElement | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
   const [teeTimes, setTeeTimes] = useState<TeeTime[]>([]);
@@ -207,6 +188,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [requestJson, setRequestJson] = useState("Nenhuma requisicao enviada ainda.");
   const [responseJson, setResponseJson] = useState("Nenhuma resposta recebida ainda.");
   const [isLoading, setIsLoading] = useState(false);
+  const canDelete = canDeleteRecords(role);
+  const canViewCashRegister = canCloseCashRegister(role);
 
   const slots = useMemo(() => generateTimeSlots(), []);
   const dailyTeeTimes = useMemo(
@@ -605,10 +588,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       setApiStatus("Conectada");
       setFeedback({ message: "Agenda carregada com sucesso.", type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -746,10 +729,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       setApiStatus("Conectada");
       setFeedback({ message: `Booking #${booking.id} pronto para ${slot.time}.`, type: "success" });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -813,10 +796,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         )
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setBookingPlayerFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -858,10 +841,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         )
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -890,10 +873,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         )
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -967,10 +950,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedRentalItems: refreshedData.rentalItems
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1054,10 +1037,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedBooking: refreshedData.bookings.find((booking) => booking.id === savedRentalTransaction.bookingId)
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1089,10 +1072,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedRentalItems: refreshedData.rentalItems
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1159,10 +1142,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedReceiptItems: refreshedData.receiptItems
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1219,10 +1202,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedReceiptItems: refreshedData.receiptItems
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1253,10 +1236,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedReceiptItems: refreshedData.receiptItems
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1303,10 +1286,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         receiptItems: refreshedData.receiptItems.filter((item) => item.receiptId === refreshedReceipt.id)
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setReceiptFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1344,10 +1327,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedReceipts: refreshedData.receipts.filter((item) => item.bookingId === refreshedReceipt.bookingId)
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setReceiptFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1378,10 +1361,10 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         refreshedCheckInTickets: refreshedData.checkInTickets.filter((item) => item.bookingPlayerId === bookingPlayer.id)
       });
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
       setBookingPlayerFeedback({ message, type: "error" });
-      showResponse(getErrorResponse(error));
+      showResponse(getApiErrorResponse(error));
     } finally {
       setIsLoading(false);
     }
@@ -1593,10 +1576,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
             Operacao diaria por horario, booking, jogadores, materiais e pagamentos.
           </p>
         </div>
-        <div className="api-status">
-          <span>API</span>
-          <strong>{apiStatus}</strong>
-        </div>
+        <SessionBadge apiStatus={apiStatus} />
       </header>
 
       <section className="entity-tabs" aria-label="Navegacao principal">
@@ -1609,9 +1589,11 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         <button className="tab-button" type="button" onClick={() => onNavigate("materials")}>
           Materiais
         </button>
-        <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
-          Caixa
-        </button>
+        {canViewCashRegister ? (
+          <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
+            Caixa
+          </button>
+        ) : null}
       </section>
 
       <section className="panel agenda-panel">
@@ -1950,16 +1932,18 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                             >
                               {checkInTicket && !checkInTicket.cancelled ? "Ticket" : "Gerar ticket"}
                             </button>
-                            <button
-                              className="action-button delete"
-                              disabled={isLoading}
-                              type="button"
-                              onClick={() => {
-                                void handleRemoveBookingPlayer(bookingPlayer);
-                              }}
-                            >
-                              Remover
-                            </button>
+                            {canDelete ? (
+                              <button
+                                className="action-button delete"
+                                disabled={isLoading}
+                                type="button"
+                                onClick={() => {
+                                  void handleRemoveBookingPlayer(bookingPlayer);
+                                }}
+                              >
+                                Remover
+                              </button>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -2131,7 +2115,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                     selectedRentalTransactions.map((rentalTransaction) => {
                       const status = String(rentalTransaction.status || "RENTED").toUpperCase();
                       const canReturn = status === "RENTED";
-                      const canDelete = !isRentalStockReserved(status);
+                      const canDeleteRentalTransaction = !isRentalStockReserved(status);
 
                       return (
                         <div className="rental-transaction-card" key={rentalTransaction.id}>
@@ -2164,16 +2148,18 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                               >
                                 Devolver
                               </button>
-                              <button
-                                className="action-button delete"
-                                disabled={isLoading || !canDelete}
-                                type="button"
-                                onClick={() => {
-                                  void handleDeleteRentalTransaction(rentalTransaction);
-                                }}
-                              >
-                                Excluir
-                              </button>
+                              {canDelete ? (
+                                <button
+                                  className="action-button delete"
+                                  disabled={isLoading || !canDeleteRentalTransaction}
+                                  type="button"
+                                  onClick={() => {
+                                    void handleDeleteRentalTransaction(rentalTransaction);
+                                  }}
+                                >
+                                  Excluir
+                                </button>
+                              ) : null}
                             </div>
                           </div>
 
@@ -2364,16 +2350,18 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                             >
                               {receipt ? "Recibo" : "Emitir recibo"}
                             </button>
-                            <button
-                              className="action-button delete"
-                              disabled={isLoading}
-                              type="button"
-                              onClick={() => {
-                                void handleDeletePayment(payment);
-                              }}
-                            >
-                              Excluir
-                            </button>
+                            {canDelete ? (
+                              <button
+                                className="action-button delete"
+                                disabled={isLoading}
+                                type="button"
+                                onClick={() => {
+                                  void handleDeletePayment(payment);
+                                }}
+                              >
+                                Excluir
+                              </button>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -2509,3 +2497,4 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     </main>
   );
 }
+

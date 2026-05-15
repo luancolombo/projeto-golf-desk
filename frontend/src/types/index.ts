@@ -1,4 +1,5 @@
 export type * from "./common";
+export type * from "./auth";
 export type * from "./player";
 export type * from "./teeTime";
 export type * from "./booking";
