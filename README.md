@@ -465,6 +465,72 @@ On Windows:
 .\mvnw.cmd test
 ```
 
+## Running With Docker
+
+The project can also run with Docker Compose using:
+
+- Spring Boot API container
+- MySQL container
+- Flyway migrations on application startup
+- Persistent MySQL volume
+
+Requirements:
+
+- Docker
+- Docker Compose
+
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+On Windows PowerShell:
+
+```powershell
+docker compose up --build
+```
+
+Docker services:
+
+```text
+API:   http://localhost:8080
+MySQL: localhost:3307
+```
+
+Inside Docker, the API connects to MySQL using the service name:
+
+```text
+mysql:3306
+```
+
+Useful commands:
+
+```bash
+docker compose ps
+docker compose logs -f api
+docker compose logs -f mysql
+docker compose down
+```
+
+To stop containers and remove the MySQL volume, deleting the Docker database data:
+
+```bash
+docker compose down -v
+```
+
+The Docker setup uses environment variables in `application.yaml`:
+
+```yaml
+DB_URL
+DB_USERNAME
+DB_PASSWORD
+JPA_DDL_AUTO
+JPA_SHOW_SQL
+```
+
+This keeps local IDE execution and Docker execution compatible.
+
 ## Running the React Frontend
 
 In another terminal:

@@ -1,0 +1,16 @@
+.git
+.idea
+target
+frontend
+frontend/node_modules
+frontend/dist
+archive
+docs
+*.log
+*.class
+*.jar
+*.war
+*.zip
+*.tar.gz
+hs_err_pid*
+replay_pid*

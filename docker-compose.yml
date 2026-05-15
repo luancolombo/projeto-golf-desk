@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.3
+    container_name: golf-office-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: golf_api
+      MYSQL_ROOT_PASSWORD: 123456
+      TZ: UTC
+    ports:
+      - "3307:3306"
+    volumes:
+      - golf-office-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: golf-office-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/golf_api?useTimezone=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      JPA_DDL_AUTO: validate
+      JPA_SHOW_SQL: "false"
+    ports:
+      - "8080:8080"
+
+volumes:
+  golf-office-mysql-data:
