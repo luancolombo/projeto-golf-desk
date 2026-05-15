@@ -2,6 +2,8 @@ package com.project.golfofficeapi.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.media.Content;
@@ -15,9 +17,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
+    private static final String BEARER_AUTH = "bearerAuth";
+
     @Bean
     OpenAPI customOpenAPI() {
         return new OpenAPI()
+                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
                 .info(new Info()
                         .title("Golf Office API")
                         .version("v1")
@@ -34,9 +39,18 @@ public class OpenApiConfig {
                         .addResponses("NoContent", new ApiResponse()
                                 .description("No Content"))
                         .addResponses("BadRequest", errorResponse("Bad Request"))
+                        .addResponses("Unauthorized", errorResponse("Unauthorized"))
+                        .addResponses("Forbidden", errorResponse("Forbidden"))
                         .addResponses("NotFound", errorResponse("Not Found"))
                         .addResponses("Conflict", errorResponse("Conflict"))
                         .addResponses("InternalServerError", errorResponse("Internal Server Error"))
+                        .addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
+                                .name(BEARER_AUTH)
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description("Paste the JWT access token returned by /auth/login or /auth/refresh.")
+                        )
                 );
     }
 

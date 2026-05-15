@@ -21,11 +21,15 @@ Main features already implemented:
 - Full CRUD and automatic issuing for Check-in Tickets.
 - Full CRUD for Cash Register Closures.
 - Full CRUD for Rental Damage Reports.
+- User entity, encrypted passwords, and role-based access control.
+- JWT authentication with access token, refresh token, refresh rotation, and logout/session revocation.
 - REST API with endpoints separated by resource.
+- OpenAPI/Swagger documentation with JWT Bearer authorization support.
 - DTOs for input and output data.
 - HATEOAS links in API responses.
 - Bean Validation.
 - Centralized exception handling.
+- JSON responses for security errors such as `401 Unauthorized` and `403 Forbidden`.
 - Business rules in the service layer.
 - Tee time capacity control.
 - Automatic update of `teeTime.bookedPlayers` and tee time status.
@@ -42,8 +46,11 @@ Main features already implemented:
 - MySQL integration with Spring Data JPA.
 - Relational database model with JPA relationships and foreign keys for the main domain flows.
 - Flyway migrations, schema validation, constraints, indexes, and initial seed data.
+- Development seed user for testing authenticated endpoints.
 - React + TypeScript frontend migration to consume the API.
 - Legacy static frontend archived after the React migration covered the current flows.
+- Docker Compose setup for Spring Boot API and MySQL.
+- Integration tests for business flows and security tests with MockMvc.
 
 ## Tech Stack
 
@@ -54,9 +61,14 @@ Main features already implemented:
 - Spring HATEOAS
 - Spring Validation
 - Spring Scheduling
+- Spring Security
 - MySQL
 - Flyway
 - Dozer Mapper
+- JWT
+- Springdoc OpenAPI / Swagger UI
+- JUnit
+- MockMvc
 - Maven
 - React
 - TypeScript
@@ -77,6 +89,7 @@ src/main/java/com/project/golfofficeapi
 |-- mapper
 |-- model
 |-- repository
+|-- security
 `-- services
 ```
 
@@ -85,6 +98,7 @@ Main responsibilities:
 - `controllers`: expose REST endpoints.
 - `services`: centralize business rules and orchestration.
 - `repository`: database access through Spring Data JPA.
+- `security`: Spring Security configuration, JWT handling, authentication filters, and JSON security error handlers.
 - `model`: persisted entities.
 - `dto`: objects exposed by the API.
 - `exceptions`: custom exceptions and global exception handling.
@@ -94,7 +108,138 @@ The API keeps DTOs simple by exposing IDs such as `bookingId`, `playerId`, `teeT
 
 Operational statuses are represented with Java enums instead of loose strings. This reduces typo-related bugs, keeps valid states centralized in the backend, and makes business rules easier to evolve. The database stores these enum values as readable strings, preserving clarity in SQL and avoiding fragile numeric ordinal values.
 
+## Security Architecture
+
+The API is protected with Spring Security using stateless JWT authentication.
+
+Main security flow:
+
+```text
+User credentials
+-> POST /auth/login
+-> backend validates email and encrypted password
+-> backend returns short-lived access token and refresh token
+-> client sends Authorization: Bearer <accessToken>
+-> JwtAuthenticationFilter validates token on protected requests
+-> Spring Security applies role rules
+-> backend returns data, 401, or 403
+```
+
+Access tokens are short-lived and are not stored in the database. They are signed JWTs used to authenticate API requests.
+
+Refresh tokens are stored in the database only as SHA-256 hashes. The raw refresh token is returned to the client once, while the database keeps only the hash. This prevents direct token reuse if the database is exposed.
+
+Refresh token rotation is enabled:
+
+- `POST /auth/refresh` validates the current refresh token.
+- The current refresh token is revoked.
+- A new access token is issued.
+- A new refresh token is issued.
+
+Logout revokes the refresh token:
+
+```http
+POST /auth/logout
+```
+
+After logout, that refresh token can no longer be used to renew the session.
+
+### Roles
+
+Current roles:
+
+- `MANAGER`
+- `RECEPTIONIST`
+
+Current authorization rules:
+
+- Public endpoints: `/auth/**`, `/v3/api-docs/**`, `/swagger-ui/**`, and `/swagger-ui.html`.
+- `MANAGER` can access all protected operational endpoints.
+- `RECEPTIONIST` can access the daily operational flow, such as players, agenda, bookings, check-ins, rentals, payments, and receipts.
+- `DELETE` operations are restricted to `MANAGER`.
+- Rental item creation and updates, such as stock and price maintenance, are restricted to `MANAGER`.
+- Cash register closure endpoints are restricted to `MANAGER`.
+
+Security error responses are JSON and follow the same API error format:
+
+```json
+{
+  "timestamp": "2026-05-15T20:52:00.000+00:00",
+  "message": "Unauthorized",
+  "details": "uri=/player"
+}
+```
+
+`401 Unauthorized` means the request is not authenticated or the token is invalid.
+
+`403 Forbidden` means the user is authenticated, but does not have the required role.
+
+### Development Test User
+
+Flyway creates a development/demo manager user to make the API easy to test after cloning the repository and running the migrations.
+
+```text
+Email: manager@golfoffice.dev
+Password: admin123
+Role: MANAGER
+```
+
+This user is intended for local development and portfolio demonstration, not production credentials.
+
+### Swagger Authentication
+
+Swagger UI is available at:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+How to test authenticated endpoints in Swagger:
+
+1. Run the backend.
+2. Open Swagger UI.
+3. Execute `POST /auth/login` with the development user.
+4. Copy the `accessToken` from the response.
+5. Click **Authorize**.
+6. Paste only the token value, without writing `Bearer`.
+7. Confirm.
+8. Call protected endpoints normally.
+
+Swagger automatically sends:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+The JWT button is generated by the OpenAPI security scheme configured in `OpenApiConfig`.
+
 ## Implemented Resources
+
+### Authentication
+
+Authentication and session renewal endpoints.
+
+Base endpoint:
+
+```http
+/auth
+```
+
+Operations:
+
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+
+Highlights:
+
+- Login with email and password.
+- Passwords stored encrypted with Spring Security password encoding.
+- JWT access token returned after successful login.
+- Refresh token returned after successful login.
+- Refresh token stored in the database as a hash.
+- Refresh token rotation on `/auth/refresh`.
+- Logout revokes the current refresh token.
 
 ### Players
 
@@ -527,6 +672,9 @@ DB_USERNAME
 DB_PASSWORD
 JPA_DDL_AUTO
 JPA_SHOW_SQL
+JWT_SECRET
+JWT_ACCESS_TOKEN_EXPIRATION_MINUTES
+JWT_REFRESH_TOKEN_EXPIRATION_HOURS
 ```
 
 This keeps local IDE execution and Docker execution compatible.
@@ -590,6 +738,10 @@ Current migration highlights:
 - Booking player count and booking player status migrations.
 - Cash register closure and cash register closure item tables.
 - Rental damage report table with foreign keys to rental transaction and rental item.
+- User table with role, encrypted password, active flag, and timestamps.
+- Refresh token table storing token hashes, expiration, and revocation timestamp.
+- Development manager seed user for local/demo authentication.
+- Migration from legacy `RECEPTION` role name to `RECEPTIONIST`.
 
 ## Roadmap
 
@@ -621,21 +773,28 @@ Recently implemented roadmap items:
 - Rental damage report backend module and React integration.
 - Individual rental return inspection in the Agenda.
 - End-of-day return-all workflow in Materials with persisted damage notes.
+- OpenAPI/Swagger documentation with JWT Bearer authorization button.
+- Spring Security authentication and authorization.
+- User entity with encrypted passwords and roles.
+- JWT access token flow.
+- Refresh token persistence, rotation, and logout revocation.
+- JSON security error handlers for `401 Unauthorized` and `403 Forbidden`.
+- Role rules for `MANAGER` and `RECEPTIONIST`.
+- Development manager seed user for local testing.
+- MockMvc security integration tests.
+- Docker Compose for API and MySQL.
 
 Planned future implementations:
 
-- User entity.
-- Authentication and authorization with Spring Security.
 - Real usage of `createdBy` and `closedBy` with authenticated users.
+- React login/session handling using the JWT endpoints.
+- Frontend role-aware screens and actions.
 - Admin/maintenance view for resolving rental damage reports.
 - Optional billing flow for damaged or lost rental items.
-- Access profiles, such as admin and operator.
 - Pricing rule evolution with professional price, season, and twilight configuration.
 - Additional custom mappers as the domain grows.
 - Unit tests with JUnit and Mockito.
 - More integration tests for main business flows.
-- OpenAPI/Swagger documentation.
-- Docker Compose for API and MySQL.
 - Final React frontend build served by Spring Boot.
 
 ## Validation
@@ -649,6 +808,8 @@ npm run build
 ```powershell
 .\mvnw.cmd test
 ```
+
+Current backend validation includes application context tests, service integration tests, cash register and payment/receipt flows, and MockMvc security tests for login, public endpoint access, protected endpoint without token, protected endpoint with valid token, and forbidden access by role.
 
 The project does not have a `lint` script in `frontend/package.json` yet.
 

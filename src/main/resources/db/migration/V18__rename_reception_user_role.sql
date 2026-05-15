@@ -1,0 +1,3 @@
+UPDATE app_user
+SET role = 'RECEPTIONIST'
+WHERE role = 'RECEPTION';
