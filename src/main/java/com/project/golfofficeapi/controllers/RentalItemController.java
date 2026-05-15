@@ -1,7 +1,9 @@
 package com.project.golfofficeapi.controllers;
 
+import com.project.golfofficeapi.controllers.docs.RentalItemControllerDocs;
 import com.project.golfofficeapi.dto.RentalItemDTO;
 import com.project.golfofficeapi.services.RentalItemService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +13,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/rental-item")
-public class RentalItemController {
+@Tag(name = "Rental Items", description = "Endpoints for managing rentable inventory items")
+public class RentalItemController implements RentalItemControllerDocs {
 
     private final RentalItemService service;
 
@@ -22,6 +25,7 @@ public class RentalItemController {
     @GetMapping(
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @Override
     public List<RentalItemDTO> findAll() {
         return service.findAll();
     }
@@ -29,6 +33,7 @@ public class RentalItemController {
     @GetMapping(value = "/{id}",
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @Override
     public RentalItemDTO findById(@PathVariable("id") Long id) {
         return service.findById(id);
     }
@@ -37,6 +42,7 @@ public class RentalItemController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @Override
     public RentalItemDTO create(@Valid @RequestBody RentalItemDTO rentalItem) {
         return service.create(rentalItem);
     }
@@ -45,11 +51,13 @@ public class RentalItemController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @Override
     public RentalItemDTO update(@Valid @RequestBody RentalItemDTO rentalItem) {
         return service.update(rentalItem);
     }
 
     @DeleteMapping(value = "/{id}")
+    @Override
     public ResponseEntity<?> delete(@PathVariable("id") Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

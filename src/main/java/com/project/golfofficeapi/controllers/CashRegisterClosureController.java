@@ -1,7 +1,9 @@
 package com.project.golfofficeapi.controllers;
 
+import com.project.golfofficeapi.controllers.docs.CashRegisterClosureControllerDocs;
 import com.project.golfofficeapi.dto.CashRegisterClosureDTO;
 import com.project.golfofficeapi.services.CashRegisterClosureService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
@@ -13,7 +15,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/cash-register-closure")
-public class CashRegisterClosureController {
+@Tag(name = "Cash Register Closures", description = "Endpoints for daily cash register preview and closing")
+public class CashRegisterClosureController implements CashRegisterClosureControllerDocs {
 
     private final CashRegisterClosureService service;
 
@@ -22,16 +25,19 @@ public class CashRegisterClosureController {
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    @Override
     public List<CashRegisterClosureDTO> findAll() {
         return service.findAll();
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Override
     public CashRegisterClosureDTO findById(@PathVariable("id") Long id) {
         return service.findById(id);
     }
 
     @GetMapping(value = "/date/{businessDate}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Override
     public CashRegisterClosureDTO findByBusinessDate(
             @PathVariable("businessDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDate
     ) {
@@ -39,6 +45,7 @@ public class CashRegisterClosureController {
     }
 
     @GetMapping(value = "/preview", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Override
     public CashRegisterClosureDTO preview(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDate
     ) {
@@ -49,6 +56,7 @@ public class CashRegisterClosureController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @Override
     public CashRegisterClosureDTO create(@Valid @RequestBody CashRegisterClosureDTO closure) {
         return service.create(closure);
     }
@@ -58,6 +66,7 @@ public class CashRegisterClosureController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @Override
     public CashRegisterClosureDTO close(@Valid @RequestBody CashRegisterClosureDTO closure) {
         return service.close(closure);
     }
@@ -66,11 +75,13 @@ public class CashRegisterClosureController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @Override
     public CashRegisterClosureDTO update(@Valid @RequestBody CashRegisterClosureDTO closure) {
         return service.update(closure);
     }
 
     @DeleteMapping(value = "/{id}")
+    @Override
     public ResponseEntity<?> delete(@PathVariable("id") Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
