@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
+  agendaService,
   bookingPlayerService,
   bookingService,
   checkInTicketService,
   getApiErrorMessage,
   getApiErrorResponse,
   paymentService,
-  playerService,
-  receiptItemService,
   receiptService,
   rentalDamageReportService,
-  rentalItemService,
   rentalTransactionService,
   teeTimeService
 } from "../api";
@@ -18,7 +16,7 @@ import type { AppPage } from "../App";
 import { useAuth } from "../features/auth/AuthContext";
 import { canCloseCashRegister, canDeleteRecords } from "../features/auth/permissions";
 import { SessionBadge } from "../features/auth/SessionBadge";
-import type { Booking, BookingPlayer, CheckInTicket, Payment, Player, Receipt, ReceiptItem, RentalItem, RentalTransaction, TeeTime } from "../types";
+import type { AgendaDay, Booking, BookingPlayer, CheckInTicket, Payment, Player, Receipt, ReceiptItem, RentalItem, RentalTransaction, TeeTime } from "../types";
 
 type FeedbackType = "success" | "error" | "";
 
@@ -362,6 +360,19 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     setResponseJson(formatJson(data));
   }
 
+  function applyAgendaDayData(data: AgendaDay) {
+    setPlayers(data.players);
+    setRentalItems(data.rentalItems);
+    setTeeTimes(data.teeTimes);
+    setBookings(data.bookings);
+    setBookingPlayers(data.bookingPlayers);
+    setRentalTransactions(data.rentalTransactions);
+    setPayments(data.payments);
+    setReceipts(data.receipts);
+    setReceiptItems(data.receiptItems);
+    setCheckInTickets(data.checkInTickets);
+  }
+
   function getPlayerName(playerId: number) {
     return players.find((player) => player.id === playerId)?.fullName || `Player #${playerId}`;
   }
@@ -535,56 +546,14 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
 
   async function loadAgenda() {
     setIsLoading(true);
-    setFeedback({ message: "Carregando tee times e bookings...", type: "success" });
-    showRequest("GET", "/player + /rental-item + /tee-time + /booking + /booking-player + /rental-transaction + /payment + /receipt + /receipt-item + /check-in-ticket");
+    setFeedback({ message: "Carregando agenda do dia...", type: "success" });
+    showRequest("GET", `/agenda/day?date=${selectedDate}`);
 
     try {
-      const [
-        playerData,
-        rentalItemData,
-        teeTimeData,
-        bookingData,
-        bookingPlayerData,
-        rentalTransactionData,
-        paymentData,
-        receiptData,
-        receiptItemData,
-        checkInTicketData
-      ] = await Promise.all([
-        playerService.findAll(),
-        rentalItemService.findAll(),
-        teeTimeService.findAll(),
-        bookingService.findAll(),
-        bookingPlayerService.findAll(),
-        rentalTransactionService.findAll(),
-        paymentService.findAll(),
-        receiptService.findAll(),
-        receiptItemService.findAll(),
-        checkInTicketService.findAll()
-      ]);
+      const data = await agendaService.findDay(selectedDate);
 
-      setPlayers(playerData);
-      setRentalItems(rentalItemData);
-      setTeeTimes(teeTimeData);
-      setBookings(bookingData);
-      setBookingPlayers(bookingPlayerData);
-      setRentalTransactions(rentalTransactionData);
-      setPayments(paymentData);
-      setReceipts(receiptData);
-      setReceiptItems(receiptItemData);
-      setCheckInTickets(checkInTicketData);
-      showResponse({
-        players: playerData,
-        rentalItems: rentalItemData,
-        teeTimes: teeTimeData,
-        bookings: bookingData,
-        bookingPlayers: bookingPlayerData,
-        rentalTransactions: rentalTransactionData,
-        payments: paymentData,
-        receipts: receiptData,
-        receiptItems: receiptItemData,
-        checkInTickets: checkInTicketData
-      });
+      applyAgendaDayData(data);
+      showResponse(data);
       setApiStatus("Conectada");
       setFeedback({ message: "Agenda carregada com sucesso.", type: "success" });
     } catch (error) {
@@ -598,53 +567,9 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   }
 
   async function refreshAgendaData() {
-    const [
-      playerData,
-      rentalItemData,
-      teeTimeData,
-      bookingData,
-      bookingPlayerData,
-      rentalTransactionData,
-      paymentData,
-      receiptData,
-      receiptItemData,
-      checkInTicketData
-    ] = await Promise.all([
-      playerService.findAll(),
-      rentalItemService.findAll(),
-      teeTimeService.findAll(),
-      bookingService.findAll(),
-      bookingPlayerService.findAll(),
-      rentalTransactionService.findAll(),
-      paymentService.findAll(),
-      receiptService.findAll(),
-      receiptItemService.findAll(),
-      checkInTicketService.findAll()
-    ]);
-
-    setPlayers(playerData);
-    setRentalItems(rentalItemData);
-    setTeeTimes(teeTimeData);
-    setBookings(bookingData);
-    setBookingPlayers(bookingPlayerData);
-    setRentalTransactions(rentalTransactionData);
-    setPayments(paymentData);
-    setReceipts(receiptData);
-    setReceiptItems(receiptItemData);
-    setCheckInTickets(checkInTicketData);
-
-    return {
-      players: playerData,
-      rentalItems: rentalItemData,
-      teeTimes: teeTimeData,
-      bookings: bookingData,
-      bookingPlayers: bookingPlayerData,
-      rentalTransactions: rentalTransactionData,
-      payments: paymentData,
-      receipts: receiptData,
-      receiptItems: receiptItemData,
-      checkInTickets: checkInTicketData
-    };
+    const data = await agendaService.findDay(selectedDate);
+    applyAgendaDayData(data);
+    return data;
   }
 
   async function createTeeTimeForSlot(time: string) {
@@ -683,8 +608,6 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
         setSelectedBookingId(existingBooking.id);
         setActiveDetailTab("players");
         scrollToBookingDetail();
-        showRequest("GET", `/booking/${existingBooking.id}`);
-        showResponse(existingBooking);
         setFeedback({ message: `Booking #${existingBooking.id} selecionado.`, type: "success" });
         return;
       }

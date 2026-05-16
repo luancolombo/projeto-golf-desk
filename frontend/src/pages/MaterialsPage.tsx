@@ -85,6 +85,10 @@ function formatMoney(value: number | null | undefined) {
   }).format(Number(value || 0));
 }
 
+function isActiveRentalItem(rentalItem: RentalItem) {
+  return rentalItem.active !== false;
+}
+
 export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
   const { role } = useAuth();
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
@@ -138,11 +142,13 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
 
     try {
       const data = await rentalItemService.findAll();
+      const activeData = data.filter(isActiveRentalItem);
+
       setRentalItems(data);
-      setVisibleRentalItems(data);
+      setVisibleRentalItems(activeData);
       showResponse(data);
       setApiStatus("Conectada");
-      setFeedback({ message: "Materiais carregados com sucesso.", type: "success" });
+      setFeedback({ message: "Materiais ativos carregados com sucesso.", type: "success" });
     } catch (error) {
       const message = getApiErrorMessage(error);
       setVisibleRentalItems([]);
@@ -201,7 +207,12 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
       setVisibleRentalItems([rentalItem]);
       showResponse(rentalItem);
       setApiStatus("Conectada");
-      setFeedback({ message: `Material #${id} encontrado com sucesso.`, type: "success" });
+      setFeedback({
+        message: rentalItem.active === false
+          ? `Material #${id} encontrado, mas esta desativado.`
+          : `Material #${id} encontrado com sucesso.`,
+        type: rentalItem.active === false ? "error" : "success"
+      });
     } catch (error) {
       const message = getApiErrorMessage(error);
       setVisibleRentalItems([]);
@@ -224,10 +235,15 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
 
     try {
       await rentalItemService.remove(id);
-      showResponse({ message: `Material ${id} excluido com sucesso.` });
+      showResponse({
+        message: "Material removido da operacao. Se tinha historico de rentals, foi desativado para preservar registros."
+      });
       resetForm();
       await loadRentalItems();
-      setFeedback({ message: "Material excluido com sucesso.", type: "success" });
+      setFeedback({
+        message: "Material removido da lista operacional. Se tinha historico, foi desativado em vez de apagado fisicamente.",
+        type: "success"
+      });
     } catch (error) {
       const message = getApiErrorMessage(error);
       setFeedback({ message, type: "error" });
@@ -473,7 +489,7 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
               Buscar ID
             </button>
             <button className="ghost-button" disabled={isLoading} type="button" onClick={loadRentalItems}>
-              Listar materiais
+              Listar ativos
             </button>
           </div>
 

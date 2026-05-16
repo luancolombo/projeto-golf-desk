@@ -10,6 +10,7 @@ import org.junit.platform.suite.api.Suite;
 @Suite
 @SelectClasses({
         GolfOfficeApiApplicationTests.class,
+        AgendaControllerIntegrationTests.class,
         SecurityMockMvcIntegrationTests.class,
         BookingServiceIntegrationTests.class,
         BookingPlayerServiceIntegrationTests.class,

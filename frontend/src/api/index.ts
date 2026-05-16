@@ -10,6 +10,7 @@ export {
 } from "./apiClient";
 export { getApiErrorMessage, getApiErrorResponse } from "./apiErrorHelpers";
 export { authService } from "./authService";
+export { agendaService } from "./agendaService";
 export { playerService } from "./playerService";
 export { teeTimeService } from "./teeTimeService";
 export { bookingService } from "./bookingService";

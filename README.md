@@ -24,6 +24,7 @@ Main features already implemented:
 - User entity, encrypted passwords, and role-based access control.
 - JWT authentication with access token, refresh token, refresh rotation, and logout/session revocation.
 - REST API with endpoints separated by resource.
+- Optimized aggregated Agenda endpoint for daily operational reads.
 - OpenAPI/Swagger documentation with JWT Bearer authorization support.
 - DTOs for input and output data.
 - HATEOAS links in API responses.
@@ -327,6 +328,30 @@ Highlights:
 - Refunded booking players are removed from operational capacity and totals, but kept in the database for payment, receipt, rental, and ticket history.
 - Uses `@Transactional` to keep booking, booking player, and tee time data consistent.
 
+### Agenda
+
+Optimized read endpoint for the daily operational agenda.
+
+Base endpoint:
+
+```http
+/agenda
+```
+
+Operations:
+
+- `GET /agenda/day?date=YYYY-MM-DD`
+
+Highlights:
+
+- Returns a daily `AgendaDayDTO` payload with tee times, bookings, booking players, players, rental items, rental transactions, payments, receipts, receipt items, and check-in tickets needed by the React Agenda.
+- Uses date-filtered repository queries for the daily operational data instead of loading every record from every resource.
+- Keeps the regular CRUD endpoints available for write operations such as creating tee times, creating bookings, adding players, checking in, renting materials, returning materials, registering payments, refunding, issuing receipts, and issuing check-in tickets.
+- Follows a lightweight read-model approach: the Agenda screen has one optimized endpoint for reading the day, while the domain resources keep their own endpoints for commands and resource-level maintenance.
+- Reduces frontend request volume when opening or refreshing the Agenda from several `findAll` calls to one daily payload request.
+- Reduces noisy backend logs because refreshing the Agenda no longer triggers repeated `Find All` logs across many services.
+- Improves perceived frontend performance because the UI waits for one coordinated daily response instead of many independent resource requests.
+
 ### Check-in Tickets
 
 Printable ticket generated for the player after check-in.
@@ -570,6 +595,7 @@ Current React migration status:
 - Materials page migrated to React.
 - Agenda page migrated to React.
 - Daily agenda with slots from 07:00 to 19:00 every 10 minutes.
+- Agenda page consumes the aggregated `GET /agenda/day?date=YYYY-MM-DD` endpoint for initial load and refresh after important actions.
 - Tee time and booking creation/selection when clicking a time slot.
 - Booking panel with internal tabs: Summary, Players, Materials, and Payments.
 - Players tab with add/remove player, check-in, and player totals.
@@ -847,12 +873,12 @@ Recently implemented roadmap items:
 - Frontend logout with backend refresh token revocation.
 - Frontend role-aware screens and actions.
 - Docker Compose for API and MySQL.
+- Aggregated Agenda endpoint, `GET /agenda/day?date=YYYY-MM-DD`, to reduce multiple frontend requests into one optimized daily payload.
+- React Agenda consuming the aggregated daily endpoint for initial load and post-action refreshes.
 
 Planned future implementations:
 
 - Real usage of `createdBy` and `closedBy` with authenticated users.
-- Aggregated Agenda endpoint, such as `GET /agenda/day?date=YYYY-MM-DD`, to reduce multiple frontend requests into one optimized daily payload.
-- Agenda performance optimization to avoid unnecessary `findAll` calls and refresh only the data affected by each operation.
 - Review high-volume service logs, moving repetitive operational logs such as authenticated user lookup from `INFO` to `DEBUG`.
 - Evaluate JWT authentication lookup optimization, reducing repeated user database reads when the token already carries safe claims.
 - Add database indexes for the most used Agenda queries, especially by play date, booking, booking player, payment, rental, receipt, and ticket relationships.

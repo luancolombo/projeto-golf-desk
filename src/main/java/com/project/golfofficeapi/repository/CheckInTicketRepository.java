@@ -4,11 +4,14 @@ import com.project.golfofficeapi.model.CheckInTicket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface CheckInTicketRepository extends JpaRepository<CheckInTicket, Long> {
+
+    List<CheckInTicket> findByPlayDate(LocalDate playDate);
 
     List<CheckInTicket> findByBookingPlayer_Id(Long bookingPlayerId);
 

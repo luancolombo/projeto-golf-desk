@@ -7,10 +7,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+    List<Payment> findByBooking_TeeTime_PlayDate(LocalDate playDate);
 
     List<Payment> findByBooking_Id(Long bookingId);
 
