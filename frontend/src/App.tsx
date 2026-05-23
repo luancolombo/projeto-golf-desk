@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AppShell } from "./components/layout/AppShell";
 import { CashRegisterPage } from "./features/cash-register/components/CashRegisterPage";
 import { AuthGate } from "./features/auth/AuthGate";
 import { useAuth } from "./features/auth/AuthContext";
@@ -12,6 +13,7 @@ export type AppPage = "players" | "agenda" | "materials" | "cash-register";
 function App() {
   const { role } = useAuth();
   const [activePage, setActivePage] = useState<AppPage>("players");
+  const [apiStatus, setApiStatus] = useState("Aguardando consulta");
   const canAccessCashRegister = canCloseCashRegister(role);
 
   useEffect(() => {
@@ -20,33 +22,32 @@ function App() {
     }
   }, [activePage, canAccessCashRegister]);
 
-  if (activePage === "materials") {
-    return (
-      <AuthGate>
-        <MaterialsPage onNavigate={setActivePage} />
-      </AuthGate>
-    );
-  }
+  function renderPage() {
+    if (activePage === "materials") {
+      return <MaterialsPage onApiStatusChange={setApiStatus} />;
+    }
 
-  if (activePage === "agenda") {
-    return (
-      <AuthGate>
-        <AgendaPage onNavigate={setActivePage} />
-      </AuthGate>
-    );
-  }
+    if (activePage === "agenda") {
+      return <AgendaPage onApiStatusChange={setApiStatus} />;
+    }
 
-  if (activePage === "cash-register" && canAccessCashRegister) {
-    return (
-      <AuthGate>
-        <CashRegisterPage onNavigate={setActivePage} />
-      </AuthGate>
-    );
+    if (activePage === "cash-register" && canAccessCashRegister) {
+      return <CashRegisterPage onApiStatusChange={setApiStatus} />;
+    }
+
+    return <PlayersPage onApiStatusChange={setApiStatus} />;
   }
 
   return (
     <AuthGate>
-      <PlayersPage onNavigate={setActivePage} />
+      <AppShell
+        activePage={activePage}
+        apiStatus={apiStatus}
+        canAccessCashRegister={canAccessCashRegister}
+        onNavigate={setActivePage}
+      >
+        {renderPage()}
+      </AppShell>
     </AuthGate>
   );
 }

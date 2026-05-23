@@ -29,11 +29,19 @@ export function CashRegisterAlerts({ closure }: CashRegisterAlertsProps) {
   ];
 
   return (
-    <section className="cash-alert-grid" aria-label="Alertas do caixa">
+    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" aria-label="Alertas do caixa">
       {alerts.map((alert) => (
-        <article className={`cash-alert ${alert.tone}`} key={alert.label}>
-          <span>{alert.label}</span>
-          <strong>{alert.value}</strong>
+        <article
+          className={[
+            "rounded-lg border p-4",
+            alert.tone === "ok" ? "border-emerald-200 bg-emerald-50" : "",
+            alert.tone === "warning" ? "border-amber-200 bg-amber-50" : "",
+            alert.tone === "danger" ? "border-red-200 bg-red-50" : "",
+          ].join(" ")}
+          key={alert.label}
+        >
+          <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{alert.label}</span>
+          <strong className="mt-2 block text-xl text-slate-950">{alert.value}</strong>
         </article>
       ))}
     </section>

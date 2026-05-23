@@ -1,4 +1,5 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { Boxes, Edit, List, PackageCheck, RotateCcw, Search, Trash2 } from "lucide-react";
 import {
   getApiErrorMessage,
   getApiErrorResponse,
@@ -6,10 +7,19 @@ import {
   rentalItemService,
   rentalTransactionService
 } from "../api";
-import type { AppPage } from "../App";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
 import { useAuth } from "../features/auth/AuthContext";
-import { canCloseCashRegister, canDeleteRecords, canManageRentalItems } from "../features/auth/permissions";
-import { SessionBadge } from "../features/auth/SessionBadge";
+import { canDeleteRecords, canManageRentalItems } from "../features/auth/permissions";
 import type { RentalItem, RentalItemPayload } from "../types";
 
 type FeedbackType = "success" | "error" | "";
@@ -30,7 +40,7 @@ type RentalItemFormState = {
 };
 
 type MaterialsPageProps = {
-  onNavigate: (page: AppPage) => void;
+  onApiStatusChange: (status: string) => void;
 };
 
 type ReturnNote = {
@@ -89,12 +99,14 @@ function isActiveRentalItem(rentalItem: RentalItem) {
   return rentalItem.active !== false;
 }
 
-export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
+export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
   const { role } = useAuth();
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
   const [visibleRentalItems, setVisibleRentalItems] = useState<RentalItem[]>([]);
   const [form, setForm] = useState<RentalItemFormState>(emptyForm);
   const [searchId, setSearchId] = useState("");
+  const [rentalItemPendingDelete, setRentalItemPendingDelete] = useState<RentalItem | null>(null);
+  const [isReturnAllDialogOpen, setIsReturnAllDialogOpen] = useState(false);
   const [returnNotes, setReturnNotes] = useState("");
   const [lastReturnNote, setLastReturnNote] = useState<ReturnNote | null>(() => {
     const storedNote = window.localStorage.getItem("golf-office-last-material-return-note");
@@ -116,7 +128,10 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
   );
   const canManageInventory = canManageRentalItems(role);
   const canDelete = canDeleteRecords(role);
-  const canViewCashRegister = canCloseCashRegister(role);
+
+  useEffect(() => {
+    onApiStatusChange(apiStatus);
+  }, [apiStatus, onApiStatusChange]);
 
   function showRequest(method: string, url: string, body?: unknown) {
     setRequestJson(formatJson({ method, url, body: body ?? null }));
@@ -224,12 +239,6 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
   }
 
   async function deleteRentalItem(id: number) {
-    const confirmed = window.confirm("Deseja realmente excluir este material?");
-
-    if (!confirmed) {
-      return;
-    }
-
     setIsLoading(true);
     showRequest("DELETE", `/rental-item/${id}`);
 
@@ -253,18 +262,24 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
     }
   }
 
+  async function confirmDeleteRentalItem() {
+    if (!rentalItemPendingDelete?.id) {
+      setRentalItemPendingDelete(null);
+      return;
+    }
+
+    const rentalItemId = rentalItemPendingDelete.id;
+    setRentalItemPendingDelete(null);
+    await deleteRentalItem(rentalItemId);
+  }
+
   function editRentalItem(rentalItem: RentalItem) {
     setForm(toForm(rentalItem));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function returnAllMaterials() {
-    const confirmed = window.confirm("Confirmar devolucao de todos os materiais alugados ao estoque?");
-
-    if (!confirmed) {
-      return;
-    }
-
+    setIsReturnAllDialogOpen(false);
     setIsLoading(true);
     showRequest("PUT", "/rental-transaction/return-all");
 
@@ -309,49 +324,31 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
   }
 
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Golf Office</p>
-          <h1>Materiais</h1>
-          <p className="page-description">
-            Controle de estoque, preco e disponibilidade dos materiais alugaveis consumindo a API Spring Boot.
-          </p>
-        </div>
-        <SessionBadge apiStatus={apiStatus} />
-      </header>
-
-      <section className="entity-tabs" aria-label="Navegacao principal">
-        <button className="tab-button" type="button" onClick={() => onNavigate("players")}>
-          Players
-        </button>
-        <button className="tab-button" type="button" onClick={() => onNavigate("agenda")}>
-          Agenda
-        </button>
-        <button className="tab-button active" type="button">
-          Materiais
-        </button>
-        {canViewCashRegister ? (
-          <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
-            Caixa
-          </button>
-        ) : null}
-      </section>
-
-      <section className="panel material-return-panel">
-        <div className="panel-header">
+    <div className="materials-page grid gap-6">
+      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="section-tag">Fim do dia</p>
-            <h2>Devolucao de materiais</h2>
+            <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Fim do dia</p>
+            <h2 className="text-2xl font-black text-slate-950">Devolucao de materiais</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Devolve todos os materiais alugados ao estoque e registra uma anotacao de avaria quando necessario.
+            </p>
           </div>
-          <button className="primary-button" disabled={isLoading} type="button" onClick={() => void returnAllMaterials()}>
-            {isLoading ? "Devolvendo..." : "Devolver todos ao estoque"}
-          </button>
+          <Button
+            className="h-11 bg-[#2f7d5b] text-white hover:bg-[#236445]"
+            disabled={isLoading}
+            type="button"
+            onClick={() => setIsReturnAllDialogOpen(true)}
+          >
+            <PackageCheck className="h-4 w-4" />
+            {isLoading ? "Devolvendo..." : "Devolver todos"}
+          </Button>
         </div>
 
-        <label className="material-return-notes">
-          <span>Avarias observadas</span>
+        <label className="grid gap-2">
+          <span className="text-sm font-semibold text-slate-600">Avarias observadas</span>
           <textarea
+            className="min-h-24 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-[#2f7d5b] focus:ring-2 focus:ring-[#2f7d5b]/15"
             maxLength={300}
             placeholder="Ex.: Buggy #4 voltou com pneu danificado."
             rows={3}
@@ -361,34 +358,36 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
         </label>
 
         {lastReturnNote ? (
-          <div className="return-note-preview">
-            <span>Ultima anotacao</span>
-            <strong>
+          <div className="mt-4 grid gap-1 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Ultima anotacao</span>
+            <strong className="text-slate-950">
               {new Date(lastReturnNote.createdAt).toLocaleString("pt-PT")}
               {lastReturnNote.reportId ? ` - Report #${lastReturnNote.reportId}` : ""}
             </strong>
-            <p>{lastReturnNote.notes}</p>
+            <p className="m-0 text-sm text-slate-700">{lastReturnNote.notes}</p>
           </div>
         ) : null}
       </section>
 
-      <section className={`content-grid ${canManageInventory ? "" : "single-column"}`.trim()}>
+      <section className={`grid gap-6 ${canManageInventory ? "xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]" : ""}`.trim()}>
         {canManageInventory ? (
-          <article className="panel form-panel">
-            <div className="panel-header">
+          <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="section-tag">Inventario</p>
-                <h2>{formTitle}</h2>
+                <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Inventario</p>
+                <h2 className="text-2xl font-black text-slate-950">{formTitle}</h2>
               </div>
-              <button className="ghost-button" type="button" onClick={resetForm}>
+              <Button className="bg-white text-slate-700 hover:bg-slate-100" type="button" variant="outline" onClick={resetForm}>
+                <RotateCcw className="h-4 w-4" />
                 Limpar
-              </button>
+              </Button>
             </div>
 
-            <form className="player-form" onSubmit={handleSubmit}>
-              <label>
-                <span>Nome</span>
-                <input
+            <form className="grid gap-4" onSubmit={handleSubmit}>
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-slate-600">Nome</span>
+                <Input
+                  className="border-slate-300 bg-white text-slate-950"
                   maxLength={50}
                   required
                   type="text"
@@ -397,9 +396,10 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                 />
               </label>
 
-              <label>
-                <span>Tipo</span>
-                <input
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-slate-600">Tipo</span>
+                <Input
+                  className="border-slate-300 bg-white text-slate-950"
                   maxLength={50}
                   placeholder="Ex.: BUGGY, TROLLEY, CLUBS"
                   required
@@ -409,9 +409,10 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                 />
               </label>
 
-              <label>
-                <span>Estoque total</span>
-                <input
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-slate-600">Estoque total</span>
+                <Input
+                  className="border-slate-300 bg-white text-slate-950"
                   min={0}
                   required
                   step={1}
@@ -421,9 +422,10 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                 />
               </label>
 
-              <label>
-                <span>Estoque disponivel</span>
-                <input
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-slate-600">Estoque disponivel</span>
+                <Input
+                  className="border-slate-300 bg-white text-slate-950"
                   min={0}
                   placeholder="Automatico se vazio"
                   step={1}
@@ -433,9 +435,10 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                 />
               </label>
 
-              <label>
-                <span>Preco de aluguer</span>
-                <input
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-slate-600">Preco de aluguer</span>
+                <Input
+                  className="border-slate-300 bg-white text-slate-950"
                   min={0}
                   required
                   step={0.01}
@@ -445,35 +448,39 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                 />
               </label>
 
-              <label className="checkbox-field">
+              <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
                 <input
                   checked={form.active}
+                  className="h-4 w-4"
                   type="checkbox"
                   onChange={(event) => setForm({ ...form, active: event.target.checked })}
                 />
-                <span>Material ativo</span>
+                <span className="text-sm font-semibold text-slate-700">Material ativo</span>
               </label>
 
-              <div className="form-actions">
-                <button className="primary-button" disabled={isLoading} type="submit">
-                  {isLoading ? "Salvando..." : "Salvar material"}
-                </button>
-              </div>
+              <Button className="h-11 bg-[#2f7d5b] text-white hover:bg-[#236445]" disabled={isLoading} type="submit">
+                <Boxes className="h-4 w-4" />
+                {isLoading ? "Salvando..." : "Salvar material"}
+              </Button>
             </form>
           </article>
         ) : null}
 
-        <article className="panel list-panel">
-          <div className="panel-header">
+        <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="section-tag">Estoque</p>
-              <h2>Materiais cadastrados</h2>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Estoque</p>
+              <h2 className="text-2xl font-black text-slate-950">Materiais cadastrados</h2>
             </div>
-            <span className="count-badge">{rentalItemCountLabel}</span>
+            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+              <Boxes className="mr-1 h-3.5 w-3.5" />
+              {rentalItemCountLabel}
+            </Badge>
           </div>
 
-          <div className="toolbar">
-            <input
+          <div className="mb-4 grid gap-3 md:grid-cols-[minmax(160px,260px)_auto_auto]">
+            <Input
+              className="border-slate-300 bg-white text-slate-950"
               min={1}
               placeholder="Buscar por id"
               type="number"
@@ -485,19 +492,21 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                 }
               }}
             />
-            <button className="ghost-button" disabled={isLoading} type="button" onClick={handleSearchById}>
+            <Button className="bg-white text-slate-700 hover:bg-slate-100" disabled={isLoading} type="button" variant="outline" onClick={handleSearchById}>
+              <Search className="h-4 w-4" />
               Buscar ID
-            </button>
-            <button className="ghost-button" disabled={isLoading} type="button" onClick={loadRentalItems}>
+            </Button>
+            <Button className="bg-[#052d5f] text-white hover:bg-[#073a73]" disabled={isLoading} type="button" onClick={loadRentalItems}>
+              <List className="h-4 w-4" />
               Listar ativos
-            </button>
+            </Button>
           </div>
 
           <p className={`feedback ${feedback.type}`.trim()}>{feedback.message}</p>
 
-          <div className="table-wrap">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table>
-              <thead>
+              <thead className="bg-slate-50">
                 <tr>
                   <th>Material</th>
                   <th>Tipo</th>
@@ -530,24 +539,29 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
                       </td>
                       <td>{formatMoney(rentalItem.rentalPrice)}</td>
                       <td>
-                        <span className="status-pill">{rentalItem.active ? "ACTIVE" : "INACTIVE"}</span>
+                        <Badge className={rentalItem.active ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
+                          {rentalItem.active ? "ACTIVE" : "INACTIVE"}
+                        </Badge>
                       </td>
                       {canManageInventory || canDelete ? (
                         <td>
-                          <div className="table-actions">
+                          <div className="flex flex-wrap gap-2">
                             {canManageInventory ? (
-                              <button className="action-button edit" type="button" onClick={() => editRentalItem(rentalItem)}>
+                              <Button className="bg-blue-100 text-blue-800 hover:bg-blue-200" size="sm" type="button" onClick={() => editRentalItem(rentalItem)}>
+                                <Edit className="h-4 w-4" />
                                 Editar
-                              </button>
+                              </Button>
                             ) : null}
                             {canDelete ? (
-                              <button
-                                className="action-button delete"
+                              <Button
+                                className="bg-red-100 text-red-800 hover:bg-red-200"
+                                size="sm"
                                 type="button"
-                                onClick={() => rentalItem.id && void deleteRentalItem(rentalItem.id)}
+                                onClick={() => setRentalItemPendingDelete(rentalItem)}
                               >
+                                <Trash2 className="h-4 w-4" />
                                 Excluir
-                              </button>
+                              </Button>
                             ) : null}
                           </div>
                         </td>
@@ -571,6 +585,60 @@ export function MaterialsPage({ onNavigate }: MaterialsPageProps) {
           <pre>{responseJson}</pre>
         </article>
       </section>
-    </main>
+
+      <Dialog open={isReturnAllDialogOpen} onOpenChange={setIsReturnAllDialogOpen}>
+        <DialogContent className="border-slate-200 bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>Devolver todos os materiais?</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Todos os materiais alugados serao processados para retorno ao estoque. Se houver texto em avarias, um relatorio sera registrado.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button className="bg-white text-slate-700 hover:bg-slate-100" disabled={isLoading} type="button" variant="outline" onClick={() => setIsReturnAllDialogOpen(false)}>
+              Voltar
+            </Button>
+            <Button
+              className="bg-[#2f7d5b] text-white hover:bg-[#236445]"
+              disabled={isLoading}
+              type="button"
+              onClick={() => {
+                void returnAllMaterials();
+              }}
+            >
+              Devolver todos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(rentalItemPendingDelete)} onOpenChange={(open) => !open && setRentalItemPendingDelete(null)}>
+        <DialogContent className="border-slate-200 bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>Excluir material?</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              {rentalItemPendingDelete
+                ? `${rentalItemPendingDelete.name} sera removido da operacao. Se tiver historico, o backend deve desativar para preservar registros.`
+                : "Confirme para continuar."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button className="bg-white text-slate-700 hover:bg-slate-100" disabled={isLoading} type="button" variant="outline" onClick={() => setRentalItemPendingDelete(null)}>
+              Voltar
+            </Button>
+            <Button
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={isLoading}
+              type="button"
+              onClick={() => {
+                void confirmDeleteRentalItem();
+              }}
+            >
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

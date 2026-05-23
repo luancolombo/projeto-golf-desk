@@ -15,3 +15,11 @@ export function canManageRentalItems(role: UserRole | null | undefined) {
 export function canCloseCashRegister(role: UserRole | null | undefined) {
   return isManager(role);
 }
+
+export function canManageFinancialAdjustments(role: UserRole | null | undefined) {
+  return isManager(role);
+}
+
+export function canCancelReceipts(role: UserRole | null | undefined) {
+  return isManager(role);
+}

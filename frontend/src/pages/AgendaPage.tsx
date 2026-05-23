@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { CalendarDays, RefreshCw } from "lucide-react";
 import {
   agendaService,
   bookingPlayerService,
@@ -12,10 +13,26 @@ import {
   rentalTransactionService,
   teeTimeService
 } from "../api";
-import type { AppPage } from "../App";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from "../components/ui/sheet";
 import { useAuth } from "../features/auth/AuthContext";
-import { canCloseCashRegister, canDeleteRecords } from "../features/auth/permissions";
-import { SessionBadge } from "../features/auth/SessionBadge";
+import { canCancelReceipts, canDeleteRecords, canManageFinancialAdjustments } from "../features/auth/permissions";
 import type { AgendaDay, Booking, BookingPlayer, CheckInTicket, Payment, Player, Receipt, ReceiptItem, RentalItem, RentalTransaction, TeeTime } from "../types";
 
 type FeedbackType = "success" | "error" | "";
@@ -26,7 +43,7 @@ type Feedback = {
 };
 
 type AgendaPageProps = {
-  onNavigate: (page: AppPage) => void;
+  onApiStatusChange: (status: string) => void;
 };
 
 type AgendaSlot = {
@@ -35,7 +52,24 @@ type AgendaSlot = {
   bookings: Booking[];
 };
 
-type BookingDetailTab = "summary" | "players" | "rentals" | "payments";
+type BookingDetailTab = "summary" | "players" | "rentals" | "payments" | "receipts";
+
+type TeeSheetBookingCell = {
+  booking: Booking;
+  bookingPlayer: BookingPlayer;
+  count: number;
+  label: string;
+  meta: string;
+  state: "partial" | "checked-in" | "paid";
+};
+
+type ConfirmationState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  variant?: "default" | "destructive";
+  action: () => Promise<void> | void;
+};
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -136,9 +170,8 @@ function isActiveBooking(booking: Booking) {
   return String(booking.status || "CREATED").toUpperCase() !== "CANCELLED";
 }
 
-export function AgendaPage({ onNavigate }: AgendaPageProps) {
+export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
   const { role } = useAuth();
-  const bookingDetailRef = useRef<HTMLElement | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
   const [teeTimes, setTeeTimes] = useState<TeeTime[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -151,6 +184,8 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  const [isBookingSheetOpen, setIsBookingSheetOpen] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
   const [selectedCheckInTicketId, setSelectedCheckInTicketId] = useState<number | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<BookingDetailTab>("summary");
@@ -187,7 +222,26 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   const [responseJson, setResponseJson] = useState("Nenhuma resposta recebida ainda.");
   const [isLoading, setIsLoading] = useState(false);
   const canDelete = canDeleteRecords(role);
-  const canViewCashRegister = canCloseCashRegister(role);
+  const canManageFinancial = canManageFinancialAdjustments(role);
+  const canCancelReceipt = canCancelReceipts(role);
+
+  useEffect(() => {
+    onApiStatusChange(apiStatus);
+  }, [apiStatus, onApiStatusChange]);
+
+  function requestConfirmation(nextConfirmation: ConfirmationState) {
+    setConfirmation(nextConfirmation);
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmation) {
+      return;
+    }
+
+    const action = confirmation.action;
+    setConfirmation(null);
+    await action();
+  }
 
   const slots = useMemo(() => generateTimeSlots(), []);
   const dailyTeeTimes = useMemo(
@@ -427,6 +481,129 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     return bookingPlayer ? getPlayerName(bookingPlayer.playerId) : `Booking player #${bookingPlayerId}`;
   }
 
+  function getBookingPlayersForBooking(bookingId: number | undefined) {
+    if (!bookingId) {
+      return [];
+    }
+
+    return bookingPlayers.filter((bookingPlayer) => bookingPlayer.bookingId === bookingId);
+  }
+
+  function getTeeSheetBookingCells(slot: AgendaSlot): TeeSheetBookingCell[] {
+    return slot.bookings.flatMap((booking) =>
+      getBookingPlayersForBooking(booking.id).map((bookingPlayer) => {
+        const count = Math.min(getBookingPlayerCount(bookingPlayer), slot.teeTime?.maxPlayers || 4);
+        const pendingAmount = getBookingPlayerPendingAmount(bookingPlayer.id);
+        const isPaid = pendingAmount <= 0 && getBookingPlayerTotal(bookingPlayer) > 0;
+        const state = isPaid ? "paid" : bookingPlayer.checkedIn ? "checked-in" : "partial";
+
+        return {
+          booking,
+          bookingPlayer,
+          count,
+          label: getPlayerName(bookingPlayer.playerId),
+          meta: `${count} player${count === 1 ? "" : "s"} - ${booking.code || `Booking #${booking.id}`}`,
+          state
+        };
+      })
+    );
+  }
+
+  function getTeeSheetRowState(slot: AgendaSlot) {
+    if (!slot.teeTime) {
+      return "free";
+    }
+
+    const teeTimeStatus = String(slot.teeTime.status || "").toUpperCase();
+    if (teeTimeStatus === "CANCELLED" || teeTimeStatus === "BLOCKED") {
+      return "blocked";
+    }
+
+    const cells = getTeeSheetBookingCells(slot);
+    const maxPlayers = Number(slot.teeTime.maxPlayers || 4);
+    const bookedPlayers = Number(slot.teeTime.bookedPlayers || 0);
+
+    if (bookedPlayers <= 0 || cells.length === 0) {
+      return "free";
+    }
+
+    if (bookedPlayers >= maxPlayers && cells.every((cell) => cell.state === "paid")) {
+      return "paid";
+    }
+
+    if (cells.every((cell) => cell.state === "checked-in" || cell.state === "paid")) {
+      return "checked-in";
+    }
+
+    if (bookedPlayers >= maxPlayers) {
+      return "full";
+    }
+
+    return "partial";
+  }
+
+  function getTeeSheetRowLabel(slot: AgendaSlot) {
+    const state = getTeeSheetRowState(slot);
+
+    if (state === "blocked") {
+      return "Bloqueado";
+    }
+
+    if (state === "paid") {
+      return "Pago/check-in";
+    }
+
+    if (state === "checked-in") {
+      return "Check-in";
+    }
+
+    if (state === "full") {
+      return "Cheio";
+    }
+
+    if (state === "partial") {
+      return "Parcial";
+    }
+
+    return "Livre";
+  }
+
+  function getEmptyTeeSheetCellCount(slot: AgendaSlot, cells: TeeSheetBookingCell[]) {
+    const maxPlayers = Number(slot.teeTime?.maxPlayers || 4);
+    const occupiedCells = cells.reduce((total, cell) => total + cell.count, 0);
+    return Math.max(maxPlayers - occupiedCells, 0);
+  }
+
+  function getStatusBadgeClass(status: string | null | undefined) {
+    const normalizedStatus = String(status || "").toUpperCase();
+
+    if (["PAID", "CONFIRMED", "CHECK-IN", "CHECKED_IN", "RETURNED", "EMITIDO"].includes(normalizedStatus)) {
+      return "bg-emerald-100 text-emerald-800 hover:bg-emerald-100";
+    }
+
+    if (["PENDING", "CREATED", "PARTIAL", "RENTED", "PENDENTE"].includes(normalizedStatus)) {
+      return "bg-blue-100 text-blue-800 hover:bg-blue-100";
+    }
+
+    if (["FULL", "DAMAGED", "LOST"].includes(normalizedStatus)) {
+      return "bg-amber-100 text-amber-800 hover:bg-amber-100";
+    }
+
+    if (["CANCELLED", "CANCELADO", "REFUNDED"].includes(normalizedStatus)) {
+      return "bg-red-100 text-red-800 hover:bg-red-100";
+    }
+
+    return "bg-slate-100 text-slate-700 hover:bg-slate-100";
+  }
+
+  function renderStatusBadge(status: string | null | undefined) {
+    return (
+      <Badge className={getStatusBadgeClass(status)}>
+        {status || "STATUS"}
+      </Badge>
+    );
+  }
+
   function getReceiptForPayment(paymentId: number | undefined) {
     if (!paymentId) {
       return undefined;
@@ -607,7 +784,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       if (slot.teeTime && existingBooking?.id) {
         setSelectedBookingId(existingBooking.id);
         setActiveDetailTab("players");
-        scrollToBookingDetail();
+        setIsBookingSheetOpen(true);
         setFeedback({ message: `Booking #${existingBooking.id} selecionado.`, type: "success" });
         return;
       }
@@ -622,7 +799,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
       const refreshedData = await refreshAgendaData();
       setSelectedBookingId(booking.id);
       setActiveDetailTab("players");
-      scrollToBookingDetail();
+      setIsBookingSheetOpen(true);
       showRequest(slot.teeTime ? "POST" : "POST", slot.teeTime ? "/booking" : "/tee-time + /booking", {
         teeTime: slot.teeTime ? undefined : {
           playDate: selectedDate,
@@ -1218,15 +1395,6 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
     }
   }
 
-  function scrollToBookingDetail() {
-    window.setTimeout(() => {
-      bookingDetailRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    }, 0);
-  }
-
   async function handleCancelReceipt(receipt: Receipt) {
     if (!receipt.id) {
       return;
@@ -1490,107 +1658,195 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
   }, [selectedBookingId]);
 
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Golf Office</p>
-          <h1>Agenda</h1>
-          <p className="page-description">
-            Operacao diaria por horario, booking, jogadores, materiais e pagamentos.
-          </p>
-        </div>
-        <SessionBadge apiStatus={apiStatus} />
-      </header>
-
-      <section className="entity-tabs" aria-label="Navegacao principal">
-        <button className="tab-button" type="button" onClick={() => onNavigate("players")}>
-          Players
-        </button>
-        <button className="tab-button active" type="button">
-          Agenda
-        </button>
-        <button className="tab-button" type="button" onClick={() => onNavigate("materials")}>
-          Materiais
-        </button>
-        {canViewCashRegister ? (
-          <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
-            Caixa
-          </button>
-        ) : null}
-      </section>
-
-      <section className="panel agenda-panel">
-        <div className="panel-header">
+    <div className="legacy-page agenda-page">
+      <section className="agenda-day-card">
+        <div className="agenda-day-header">
           <div>
             <p className="section-tag">Dia de jogo</p>
             <h2>Agenda de {formatDate(selectedDate)}</h2>
+            <p className="agenda-day-subtitle">
+              Horarios operacionais das 07:00 as 19:00, carregados pelo endpoint agregado do dia.
+            </p>
           </div>
-          <div className="toolbar agenda-toolbar">
-            <input
-              aria-label="Data da agenda"
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
-            />
-            <button className="ghost-button" type="button" onClick={() => setSelectedDate(todayIsoDate())}>
+          <div className="agenda-date-controls">
+            <div className="agenda-date-field">
+              <CalendarDays className="h-4 w-4 text-slate-500" />
+              <Input
+                aria-label="Data da agenda"
+                className="h-11 border-0 bg-transparent p-0 text-slate-900 shadow-none focus-visible:ring-0"
+                type="date"
+                value={selectedDate}
+                onChange={(event) => setSelectedDate(event.target.value)}
+              />
+            </div>
+            <Button
+              className="h-11 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
+              type="button"
+              variant="outline"
+              onClick={() => setSelectedDate(todayIsoDate())}
+            >
               Hoje
-            </button>
-            <button className="ghost-button" disabled={isLoading} type="button" onClick={loadAgenda}>
-              {isLoading ? "Atualizando..." : "Atualizar agenda"}
-            </button>
+            </Button>
+            <Button
+              className="h-11 bg-[#052d5f] text-white hover:bg-[#073a73]"
+              disabled={isLoading}
+              type="button"
+              onClick={loadAgenda}
+            >
+              <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+              {isLoading ? "Atualizando..." : "Atualizar"}
+            </Button>
           </div>
         </div>
 
-        <p className={`feedback ${feedback.type}`.trim()}>{feedback.message}</p>
+        <p className={`feedback agenda-feedback ${feedback.type}`.trim()}>{feedback.message}</p>
 
-        <div className="agenda-summary">
-          <span>{dailyTeeTimes.length} tee times no dia</span>
-          <span>{dailyBookings.length} bookings no dia</span>
-          <span>{slots.length} horarios possiveis</span>
+        <div className="agenda-kpi-grid">
+          <article>
+            <span>Tee times</span>
+            <strong>{dailyTeeTimes.length}</strong>
+            <small>criados no dia</small>
+          </article>
+          <article>
+            <span>Bookings</span>
+            <strong>{dailyBookings.length}</strong>
+            <small>ativos no dia</small>
+          </article>
+          <article>
+            <span>Horarios</span>
+            <strong>{slots.length}</strong>
+            <small>slots possiveis</small>
+          </article>
+          <article>
+            <span>Jogadores</span>
+            <strong>{dailyTeeTimes.reduce((total, teeTime) => total + Number(teeTime.bookedPlayers || 0), 0)}</strong>
+            <small>reservados</small>
+          </article>
         </div>
 
-        <div className="agenda-slots-grid">
-          {agendaSlots.map((slot) => {
-            const slotClass = getSlotClass(slot);
-            return (
-              <button
-                className={`agenda-slot ${slotClass} ${slot.bookings.some((booking) => booking.id === selectedBookingId) ? "selected" : ""}`.trim()}
-                disabled={isLoading}
-                key={slot.time}
-                type="button"
-                onClick={() => {
-                  void handleSlotClick(slot);
-                }}
-              >
-                <span className="slot-time">{slot.time}</span>
-                <span className="slot-status">{getSlotLabel(slot)}</span>
-                {slot.teeTime ? (
-                  <>
-                    <span className="slot-detail">
-                      {slot.teeTime.bookedPlayers}/{slot.teeTime.maxPlayers} jogadores
-                    </span>
-                    <span className="slot-detail">{formatMoney(slot.teeTime.baseGreenFee)}</span>
-                    <span className="slot-detail">
-                      {slot.bookings.length} booking{slot.bookings.length === 1 ? "" : "s"}
-                    </span>
-                  </>
-                ) : (
-                  <span className="slot-detail">Sem tee time criado</span>
-                )}
-              </button>
-            );
-          })}
+        <div className="agenda-slots-surface">
+          <div className="agenda-slots-heading">
+            <div>
+              <span>Timeline</span>
+              <strong>{formatDate(selectedDate)}</strong>
+            </div>
+            <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
+              {slots.length} slots
+            </Badge>
+          </div>
+
+          <div className="agenda-tee-sheet" role="table" aria-label="Tee sheet do dia">
+            <div className="agenda-tee-sheet-header" role="row">
+              <span role="columnheader">Hora</span>
+              <span role="columnheader">Slot 1</span>
+              <span role="columnheader">Slot 2</span>
+              <span role="columnheader">Slot 3</span>
+              <span role="columnheader">Slot 4</span>
+            </div>
+
+            {agendaSlots.map((slot) => {
+              const rowState = getTeeSheetRowState(slot);
+              const rowLabel = getTeeSheetRowLabel(slot);
+              const cells = getTeeSheetBookingCells(slot);
+              const emptyCellCount = getEmptyTeeSheetCellCount(slot, cells);
+              const isSelectedSlot = slot.bookings.some((booking) => booking.id === selectedBookingId);
+
+              return (
+                <div className={`agenda-tee-row ${rowState} ${isSelectedSlot ? "selected" : ""}`.trim()} key={slot.time} role="row">
+                  <button
+                    className="agenda-tee-time"
+                    disabled={isLoading}
+                    type="button"
+                    onClick={() => {
+                      void handleSlotClick(slot);
+                    }}
+                  >
+                    <strong>{slot.time}</strong>
+                    <span>{rowLabel}</span>
+                    {slot.teeTime ? (
+                      <small>
+                        {slot.teeTime.bookedPlayers}/{slot.teeTime.maxPlayers}
+                      </small>
+                    ) : (
+                      <small>Novo</small>
+                    )}
+                  </button>
+
+                  <div className="agenda-tee-cells" role="cell">
+                    {rowState === "blocked" ? (
+                      <button
+                        className="agenda-tee-cell blocked span-4"
+                        disabled={isLoading}
+                        type="button"
+                        onClick={() => {
+                          void handleSlotClick(slot);
+                        }}
+                      >
+                        <strong>Horario bloqueado</strong>
+                        <span>{slot.teeTime?.status || "BLOCKED"}</span>
+                      </button>
+                    ) : (
+                      <>
+                        {cells.map((cell) => (
+                          <button
+                            className={`agenda-tee-cell ${cell.state}`.trim()}
+                            disabled={isLoading}
+                            key={`${cell.booking.id}-${cell.bookingPlayer.id}`}
+                            style={{ gridColumn: `span ${cell.count}` }}
+                            type="button"
+                            onClick={() => {
+                              void handleSlotClick(slot);
+                            }}
+                          >
+                            <strong>{cell.label}</strong>
+                            <span>{cell.meta}</span>
+                          </button>
+                        ))}
+
+                        {Array.from({ length: emptyCellCount }).map((_, index) => (
+                          <button
+                            className="agenda-tee-cell free"
+                            disabled={isLoading}
+                            key={`${slot.time}-free-${index}`}
+                            type="button"
+                            onClick={() => {
+                              void handleSlotClick(slot);
+                            }}
+                          >
+                            <strong>Livre</strong>
+                            <span>{formatMoney(slot.teeTime?.baseGreenFee)}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      <section className="panel selected-booking-panel" ref={bookingDetailRef}>
-        <div className="panel-header">
-          <div>
-            <p className="section-tag">Booking selecionado</p>
-            <h2>{selectedBooking ? selectedBooking.code || `Booking #${selectedBooking.id}` : "Nenhum booking selecionado"}</h2>
-          </div>
-          {selectedBooking ? <span className="status-pill">{selectedBooking.status}</span> : null}
-        </div>
+      <Sheet open={isBookingSheetOpen} onOpenChange={setIsBookingSheetOpen}>
+        <SheetContent className="booking-operation-sheet w-[min(96vw,1080px)] overflow-y-auto sm:max-w-none" side="right">
+          <SheetHeader className="booking-operation-sheet-header">
+            <div>
+              <p className="section-tag">Booking selecionado</p>
+              <SheetTitle>
+                {selectedBooking ? selectedBooking.code || `Booking #${selectedBooking.id}` : "Nenhum booking selecionado"}
+              </SheetTitle>
+              <SheetDescription>
+                {selectedBooking && selectedTeeTime
+                  ? `${formatDate(selectedTeeTime.playDate)} as ${formatTime(selectedTeeTime.startTime)}`
+                  : "Clique em um horario da tee sheet para criar ou selecionar um booking."}
+              </SheetDescription>
+            </div>
+            {selectedBooking ? (
+              renderStatusBadge(selectedBooking.status)
+            ) : null}
+          </SheetHeader>
+
+          <div className="booking-operation-sheet-body">
 
         {selectedBooking && selectedTeeTime ? (
           <>
@@ -1622,6 +1878,13 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                 onClick={() => setActiveDetailTab("payments")}
               >
                 Pagamentos
+              </button>
+              <button
+                className={activeDetailTab === "receipts" ? "active" : ""}
+                type="button"
+                onClick={() => setActiveDetailTab("receipts")}
+              >
+                Recibos
               </button>
             </div>
 
@@ -1831,9 +2094,7 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                             <span>Pago {formatMoney(paidAmount)}</span>
                             <span>Pendente {formatMoney(pendingAmount)}</span>
                           </div>
-                          <span className="status-pill">
-                            {bookingPlayer.checkedIn ? "CHECK-IN" : "PENDENTE"}
-                          </span>
+                          {renderStatusBadge(bookingPlayer.checkedIn ? "CHECK-IN" : "PENDENTE")}
                           <div className="table-actions">
                             <button
                               className="action-button edit"
@@ -1860,9 +2121,13 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                                 className="action-button delete"
                                 disabled={isLoading}
                                 type="button"
-                                onClick={() => {
-                                  void handleRemoveBookingPlayer(bookingPlayer);
-                                }}
+                                onClick={() => requestConfirmation({
+                                  title: "Remover jogador do booking?",
+                                  description: `${getPlayerName(bookingPlayer.playerId)} sera removido deste horario.`,
+                                  confirmLabel: "Remover",
+                                  variant: "destructive",
+                                  action: () => handleRemoveBookingPlayer(bookingPlayer)
+                                })}
                               >
                                 Remover
                               </button>
@@ -2053,16 +2318,18 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                               <span>Unitario {formatMoney(rentalTransaction.unitPrice)}</span>
                               <span>Total {formatMoney(rentalTransaction.totalPrice)}</span>
                             </div>
-                            <span className="status-pill">{status}</span>
+                            {renderStatusBadge(status)}
                             <div className="table-actions">
-                              <button
-                                className="action-button edit"
-                                disabled={isLoading}
-                                type="button"
-                                onClick={() => handleEditRentalTransaction(rentalTransaction)}
-                              >
-                                Editar
-                              </button>
+                              {canManageFinancial ? (
+                                <button
+                                  className="action-button edit"
+                                  disabled={isLoading}
+                                  type="button"
+                                  onClick={() => handleEditRentalTransaction(rentalTransaction)}
+                                >
+                                  Editar
+                                </button>
+                              ) : null}
                               <button
                                 className="action-button select"
                                 disabled={isLoading || !canReturn}
@@ -2076,9 +2343,13 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                                   className="action-button delete"
                                   disabled={isLoading || !canDeleteRentalTransaction}
                                   type="button"
-                                  onClick={() => {
-                                    void handleDeleteRentalTransaction(rentalTransaction);
-                                  }}
+                                  onClick={() => requestConfirmation({
+                                    title: "Excluir rental?",
+                                    description: `${getRentalItemName(rentalTransaction.rentalItemId)} sera removido deste booking.`,
+                                    confirmLabel: "Excluir",
+                                    variant: "destructive",
+                                    action: () => handleDeleteRentalTransaction(rentalTransaction)
+                                  })}
                                 >
                                   Excluir
                                 </button>
@@ -2243,26 +2514,34 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                             <span>Pendente atual {formatMoney(getBookingPlayerPendingAmount(payment.bookingPlayerId))}</span>
                             <span>Recibo {getReceiptStatus(receipt)}</span>
                           </div>
-                          <span className="status-pill">{status}</span>
+                          {renderStatusBadge(status)}
                           <div className="table-actions">
-                            <button
-                              className="action-button edit"
-                              disabled={isLoading}
-                              type="button"
-                              onClick={() => handleEditPayment(payment)}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="action-button select"
-                              disabled={isLoading || !canRefund}
-                              type="button"
-                              onClick={() => {
-                                void handleRefundPayment(payment);
-                              }}
-                            >
-                              Reembolsar
-                            </button>
+                            {canManageFinancial ? (
+                              <button
+                                className="action-button edit"
+                                disabled={isLoading}
+                                type="button"
+                                onClick={() => handleEditPayment(payment)}
+                              >
+                                Editar
+                              </button>
+                            ) : null}
+                            {canManageFinancial ? (
+                              <button
+                                className="action-button select"
+                                disabled={isLoading || !canRefund}
+                                type="button"
+                                onClick={() => requestConfirmation({
+                                  title: "Reembolsar pagamento?",
+                                  description: `O pagamento de ${formatMoney(payment.amount)} sera marcado como reembolsado.`,
+                                  confirmLabel: "Reembolsar",
+                                  variant: "destructive",
+                                  action: () => handleRefundPayment(payment)
+                                })}
+                              >
+                                Reembolsar
+                              </button>
+                            ) : null}
                             <button
                               className="action-button select"
                               disabled={isLoading || !canOpenReceipt}
@@ -2278,9 +2557,13 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                                 className="action-button delete"
                                 disabled={isLoading}
                                 type="button"
-                                onClick={() => {
-                                  void handleDeletePayment(payment);
-                                }}
+                                onClick={() => requestConfirmation({
+                                  title: "Excluir pagamento?",
+                                  description: `O pagamento de ${formatMoney(payment.amount)} sera removido do booking.`,
+                                  confirmLabel: "Excluir",
+                                  variant: "destructive",
+                                  action: () => handleDeletePayment(payment)
+                                })}
                               >
                                 Excluir
                               </button>
@@ -2303,14 +2586,18 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                         <button className="action-button select" type="button" onClick={handlePrintReceipt}>
                           Imprimir
                         </button>
-                        {!selectedReceipt.cancelled ? (
+                        {!selectedReceipt.cancelled && canCancelReceipt ? (
                           <button
                             className="action-button delete"
                             disabled={isLoading}
                             type="button"
-                            onClick={() => {
-                              void handleCancelReceipt(selectedReceipt);
-                            }}
+                            onClick={() => requestConfirmation({
+                              title: "Cancelar recibo?",
+                              description: `${selectedReceipt.receiptNumber || `Recibo #${selectedReceipt.id}`} sera mantido no historico como cancelado.`,
+                              confirmLabel: "Cancelar recibo",
+                              variant: "destructive",
+                              action: () => handleCancelReceipt(selectedReceipt)
+                            })}
                           >
                             Cancelar recibo
                           </button>
@@ -2401,11 +2688,77 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
                 ) : null}
               </>
             ) : null}
+
+            {activeDetailTab === "receipts" ? (
+              <>
+                <div className="booking-player-totals">
+                  <span>{selectedReceipts.length} recibo(s)</span>
+                  <span>
+                    Emitidos {selectedReceipts.filter((receipt) => !receipt.cancelled).length}
+                  </span>
+                  <span>
+                    Cancelados {selectedReceipts.filter((receipt) => receipt.cancelled).length}
+                  </span>
+                </div>
+
+                <div className="detail-list">
+                  {selectedReceipts.length === 0 ? (
+                    <p className="empty-state">Nenhum recibo emitido para este booking.</p>
+                  ) : (
+                    selectedReceipts.map((receipt) => (
+                      <div className="detail-list-row payment-row" key={receipt.id}>
+                        <div>
+                          <strong>{receipt.receiptNumber || `Recibo #${receipt.id}`}</strong>
+                          <span>{receipt.playerNameSnapshot || getBookingPlayerDisplayName(receipt.bookingPlayerId)}</span>
+                          <span>Tax number {receipt.playerTaxNumberSnapshot || "Sem numero fiscal"}</span>
+                        </div>
+                        <div>
+                          <span>Total {formatMoney(receipt.totalAmount)}</span>
+                          <span>{formatDateTime(receipt.issuedAt)}</span>
+                          <span>{receipt.paymentMethod || "Sem metodo"}</span>
+                        </div>
+                        {renderStatusBadge(getReceiptStatus(receipt))}
+                        <div className="table-actions">
+                          <button
+                            className="action-button select"
+                            type="button"
+                            onClick={() => {
+                              setSelectedReceiptId(receipt.id ?? null);
+                              setActiveDetailTab("payments");
+                            }}
+                          >
+                            Abrir
+                          </button>
+                          {!receipt.cancelled && canCancelReceipt ? (
+                            <button
+                              className="action-button delete"
+                              disabled={isLoading}
+                              type="button"
+                              onClick={() => requestConfirmation({
+                                title: "Cancelar recibo?",
+                                description: `${receipt.receiptNumber || `Recibo #${receipt.id}`} sera mantido no historico como cancelado.`,
+                                confirmLabel: "Cancelar recibo",
+                                variant: "destructive",
+                                action: () => handleCancelReceipt(receipt)
+                              })}
+                            >
+                              Cancelar
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : null}
           </>
         ) : (
           <p className="empty-state">Clique em um horario para criar ou selecionar um booking.</p>
         )}
-      </section>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <section className="json-grid">
         <article className="json-card">
@@ -2417,7 +2770,43 @@ export function AgendaPage({ onNavigate }: AgendaPageProps) {
           <pre>{responseJson}</pre>
         </article>
       </section>
-    </main>
+
+      <Dialog open={Boolean(confirmation)} onOpenChange={(open) => !open && setConfirmation(null)}>
+        <DialogContent className="border-slate-200 bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>{confirmation?.title || "Confirmar acao"}</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              {confirmation?.description || "Confirme para continuar."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              className="bg-white text-slate-700 hover:bg-slate-100"
+              disabled={isLoading}
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmation(null)}
+            >
+              Voltar
+            </Button>
+            <Button
+              className={
+                confirmation?.variant === "destructive"
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-[#052d5f] text-white hover:bg-[#073a73]"
+              }
+              disabled={isLoading}
+              type="button"
+              onClick={() => {
+                void handleConfirmAction();
+              }}
+            >
+              {confirmation?.confirmLabel || "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 

@@ -15,11 +15,11 @@ export function CashRegisterMethodTotals({ closure }: CashRegisterMethodTotalsPr
   ] as const;
 
   return (
-    <section className="cash-method-grid" aria-label="Totais por metodo">
+    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Totais por metodo">
       {totals.map(([label, value]) => (
-        <article key={label}>
-          <span>{label}</span>
-          <strong>{formatMoney(value)}</strong>
+        <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" key={label}>
+          <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</span>
+          <strong className="mt-2 block text-lg text-slate-950">{formatMoney(value)}</strong>
         </article>
       ))}
     </section>

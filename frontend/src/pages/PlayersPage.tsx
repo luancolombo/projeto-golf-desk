@@ -1,9 +1,26 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { Edit, List, RotateCcw, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { getApiErrorMessage, getApiErrorResponse, playerService } from "../api";
-import type { AppPage } from "../App";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "../components/ui/select";
 import { useAuth } from "../features/auth/AuthContext";
-import { canCloseCashRegister, canDeleteRecords } from "../features/auth/permissions";
-import { SessionBadge } from "../features/auth/SessionBadge";
+import { canDeleteRecords } from "../features/auth/permissions";
 import type { Player, PlayerPayload } from "../types";
 
 type FeedbackType = "success" | "error" | "";
@@ -68,10 +85,10 @@ function formatJson(value: unknown) {
 }
 
 type PlayersPageProps = {
-  onNavigate: (page: AppPage) => void;
+  onApiStatusChange: (status: string) => void;
 };
 
-export function PlayersPage({ onNavigate }: PlayersPageProps) {
+export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
   const { role } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [visiblePlayers, setVisiblePlayers] = useState<Player[]>([]);
@@ -79,6 +96,7 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
   const [form, setForm] = useState<PlayerFormState>(emptyForm);
   const [searchName, setSearchName] = useState("");
   const [searchId, setSearchId] = useState("");
+  const [playerPendingDelete, setPlayerPendingDelete] = useState<Player | null>(null);
   const [feedback, setFeedback] = useState<Feedback>({
     message: "Aguardando comando para consultar a API.",
     type: "success"
@@ -105,7 +123,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
     [filteredPlayers.length]
   );
   const canDelete = canDeleteRecords(role);
-  const canViewCashRegister = canCloseCashRegister(role);
+
+  useEffect(() => {
+    onApiStatusChange(apiStatus);
+  }, [apiStatus, onApiStatusChange]);
 
   function getEmptyMessage() {
     if (isLoading) {
@@ -251,12 +272,6 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
   }
 
   async function deletePlayer(id: number) {
-    const confirmed = window.confirm("Deseja realmente excluir este player?");
-
-    if (!confirmed) {
-      return;
-    }
-
     setIsLoading(true);
     showRequest("DELETE", `/player/${id}`);
 
@@ -275,57 +290,42 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
     }
   }
 
+  async function confirmDeletePlayer() {
+    if (!playerPendingDelete?.id) {
+      setPlayerPendingDelete(null);
+      return;
+    }
+
+    const playerId = playerPendingDelete.id;
+    setPlayerPendingDelete(null);
+    await deletePlayer(playerId);
+  }
+
   function editPlayer(player: Player) {
     setForm(toForm(player));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Golf Office</p>
-          <h1>Players</h1>
-          <p className="page-description">
-            Cadastro e consulta de jogadores consumindo diretamente a API Spring Boot.
-          </p>
-        </div>
-        <SessionBadge apiStatus={apiStatus} />
-      </header>
-
-      <section className="entity-tabs" aria-label="Navegacao principal">
-        <button className="tab-button active" type="button">
-          Players
-        </button>
-        <button className="tab-button" type="button" onClick={() => onNavigate("agenda")}>
-          Agenda
-        </button>
-        <button className="tab-button" type="button" onClick={() => onNavigate("materials")}>
-          Materiais
-        </button>
-        {canViewCashRegister ? (
-          <button className="tab-button" type="button" onClick={() => onNavigate("cash-register")}>
-            Caixa
-          </button>
-        ) : null}
-      </section>
-
-      <section className="content-grid">
-        <article className="panel form-panel">
-          <div className="panel-header">
+    <div className="players-page grid gap-6">
+      <section className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
+        <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <p className="section-tag">Cadastro</p>
-              <h2>{formTitle}</h2>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Cadastro</p>
+              <h2 className="text-2xl font-black text-slate-950">{formTitle}</h2>
             </div>
-            <button className="ghost-button" type="button" onClick={resetForm}>
+            <Button className="bg-white text-slate-700 hover:bg-slate-100" type="button" variant="outline" onClick={resetForm}>
+              <RotateCcw className="h-4 w-4" />
               Limpar
-            </button>
+            </Button>
           </div>
 
-          <form className="player-form" onSubmit={handleSubmit}>
-            <label>
-              <span>Nome completo</span>
-              <input
+          <form className="grid gap-4" onSubmit={handleSubmit}>
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Nome completo</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
                 maxLength={50}
                 required
                 type="text"
@@ -334,9 +334,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
               />
             </label>
 
-            <label>
-              <span>Codigo fiscal</span>
-              <input
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Codigo fiscal</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
                 maxLength={50}
                 required
                 type="text"
@@ -345,9 +346,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
               />
             </label>
 
-            <label>
-              <span>Email</span>
-              <input
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Email</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
                 maxLength={50}
                 required
                 type="email"
@@ -356,9 +358,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
               />
             </label>
 
-            <label>
-              <span>Telefone</span>
-              <input
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Telefone</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
                 maxLength={50}
                 required
                 type="text"
@@ -367,9 +370,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
               />
             </label>
 
-            <label>
-              <span>Handicap</span>
-              <input
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Handicap</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
                 maxLength={50}
                 required
                 type="text"
@@ -378,9 +382,10 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
               />
             </label>
 
-            <label>
-              <span>Notas</span>
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Notas</span>
               <textarea
+                className="min-h-28 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-[#2f7d5b] focus:ring-2 focus:ring-[#2f7d5b]/15"
                 maxLength={100}
                 required
                 rows={4}
@@ -389,34 +394,38 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
               />
             </label>
 
-            <label className="checkbox-field">
+            <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
               <input
                 checked={form.member}
+                className="h-4 w-4"
                 type="checkbox"
                 onChange={(event) => setForm({ ...form, member: event.target.checked })}
               />
-              <span>Player membro</span>
+              <span className="text-sm font-semibold text-slate-700">Player membro</span>
             </label>
 
-            <div className="form-actions">
-              <button className="primary-button" disabled={isLoading} type="submit">
-                {isLoading ? "Salvando..." : "Salvar player"}
-              </button>
-            </div>
+            <Button className="h-11 bg-[#2f7d5b] text-white hover:bg-[#236445]" disabled={isLoading} type="submit">
+              <UserPlus className="h-4 w-4" />
+              {isLoading ? "Salvando..." : "Salvar player"}
+            </Button>
           </form>
         </article>
 
-        <article className="panel list-panel">
-          <div className="panel-header">
+        <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="section-tag">Listagem</p>
-              <h2>Players cadastrados</h2>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Listagem</p>
+              <h2 className="text-2xl font-black text-slate-950">Players cadastrados</h2>
             </div>
-            <span className="count-badge">{playerCountLabel}</span>
+            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+              <Users className="mr-1 h-3.5 w-3.5" />
+              {playerCountLabel}
+            </Badge>
           </div>
 
-          <div className="toolbar">
-            <input
+          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(180px,1fr)_auto_minmax(150px,0.7fr)_auto_auto_180px]">
+            <Input
+              className="border-slate-300 bg-white text-slate-950"
               placeholder="Buscar por nome"
               type="search"
               value={searchName}
@@ -427,10 +436,12 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
                 }
               }}
             />
-            <button className="ghost-button" disabled={isLoading} type="button" onClick={handleSearchByName}>
-              Buscar nome
-            </button>
-            <input
+            <Button className="bg-white text-slate-700 hover:bg-slate-100" disabled={isLoading} type="button" variant="outline" onClick={handleSearchByName}>
+              <Search className="h-4 w-4" />
+              Nome
+            </Button>
+            <Input
+              className="border-slate-300 bg-white text-slate-950"
               min={1}
               placeholder="Buscar por id"
               type="number"
@@ -442,42 +453,31 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
                 }
               }}
             />
-            <button className="ghost-button" disabled={isLoading} type="button" onClick={handleSearchById}>
-              Buscar ID
-            </button>
-            <button className="ghost-button" disabled={isLoading} type="button" onClick={loadPlayers}>
-              Listar todos
-            </button>
-            <div className="member-filter" role="group" aria-label="Filtro de membros">
-              <button
-                className={memberFilter === "all" ? "active" : ""}
-                type="button"
-                onClick={() => setMemberFilter("all")}
-              >
-                Todos
-              </button>
-              <button
-                className={memberFilter === "members" ? "active" : ""}
-                type="button"
-                onClick={() => setMemberFilter("members")}
-              >
-                Membros
-              </button>
-              <button
-                className={memberFilter === "nonMembers" ? "active" : ""}
-                type="button"
-                onClick={() => setMemberFilter("nonMembers")}
-              >
-                Nao membros
-              </button>
-            </div>
+            <Button className="bg-white text-slate-700 hover:bg-slate-100" disabled={isLoading} type="button" variant="outline" onClick={handleSearchById}>
+              <Search className="h-4 w-4" />
+              ID
+            </Button>
+            <Button className="bg-[#052d5f] text-white hover:bg-[#073a73]" disabled={isLoading} type="button" onClick={loadPlayers}>
+              <List className="h-4 w-4" />
+              Listar
+            </Button>
+            <Select value={memberFilter} onValueChange={(value) => setMemberFilter(value as MemberFilter)}>
+              <SelectTrigger className="border-slate-300 bg-white text-slate-950">
+                <SelectValue placeholder="Filtro" />
+              </SelectTrigger>
+              <SelectContent className="border-slate-200 bg-white text-slate-950">
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="members">Membros</SelectItem>
+                <SelectItem value="nonMembers">Nao membros</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <p className={`feedback ${feedback.type}`.trim()}>{feedback.message}</p>
 
-          <div className="table-wrap">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table>
-              <thead>
+              <thead className="bg-slate-50">
                 <tr>
                   <th>Nome</th>
                   <th>Fiscal</th>
@@ -507,20 +507,27 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
                         <div className="row-sub">{player.phone}</div>
                       </td>
                       <td>{player.handCap || "-"}</td>
-                      <td>{player.member ? "Sim" : "Nao"}</td>
                       <td>
-                        <div className="table-actions">
-                          <button className="action-button edit" type="button" onClick={() => editPlayer(player)}>
+                        <Badge className={player.member ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
+                          {player.member ? "Membro" : "Nao membro"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-2">
+                          <Button className="bg-blue-100 text-blue-800 hover:bg-blue-200" size="sm" type="button" onClick={() => editPlayer(player)}>
+                            <Edit className="h-4 w-4" />
                             Editar
-                          </button>
+                          </Button>
                           {canDelete ? (
-                            <button
-                              className="action-button delete"
+                            <Button
+                              className="bg-red-100 text-red-800 hover:bg-red-200"
+                              size="sm"
                               type="button"
-                              onClick={() => player.id && void deletePlayer(player.id)}
+                              onClick={() => setPlayerPendingDelete(player)}
                             >
+                              <Trash2 className="h-4 w-4" />
                               Excluir
-                            </button>
+                            </Button>
                           ) : null}
                         </div>
                       </td>
@@ -543,6 +550,34 @@ export function PlayersPage({ onNavigate }: PlayersPageProps) {
           <pre>{responseJson}</pre>
         </article>
       </section>
-    </main>
+
+      <Dialog open={Boolean(playerPendingDelete)} onOpenChange={(open) => !open && setPlayerPendingDelete(null)}>
+        <DialogContent className="border-slate-200 bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>Excluir player?</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              {playerPendingDelete
+                ? `${playerPendingDelete.fullName} sera removido se o backend permitir a exclusao.`
+                : "Confirme para continuar."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button className="bg-white text-slate-700 hover:bg-slate-100" disabled={isLoading} type="button" variant="outline" onClick={() => setPlayerPendingDelete(null)}>
+              Voltar
+            </Button>
+            <Button
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={isLoading}
+              type="button"
+              onClick={() => {
+                void confirmDeletePlayer();
+              }}
+            >
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

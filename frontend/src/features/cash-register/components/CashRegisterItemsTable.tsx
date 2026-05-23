@@ -1,5 +1,6 @@
 import type { CashRegisterClosureItem } from "../types/cashRegister";
 import { formatDateTime, formatMoney, itemTypeLabel, signedMoneyClass } from "./cashRegisterFormat";
+import { Badge } from "../../../components/ui/badge";
 
 type CashRegisterItemsTableProps = {
   items: CashRegisterClosureItem[];
@@ -7,9 +8,9 @@ type CashRegisterItemsTableProps = {
 
 export function CashRegisterItemsTable({ items }: CashRegisterItemsTableProps) {
   return (
-    <div className="table-wrap">
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table>
-        <thead>
+        <thead className="bg-slate-50">
           <tr>
             <th>Tipo</th>
             <th>Referencia</th>
@@ -30,7 +31,9 @@ export function CashRegisterItemsTable({ items }: CashRegisterItemsTableProps) {
             items.map((item, index) => (
               <tr key={`${item.type}-${item.referenceId || index}-${item.occurredAt || index}`}>
                 <td>
-                  <span className="status-pill">{itemTypeLabel(item.type)}</span>
+                  <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
+                    {itemTypeLabel(item.type)}
+                  </Badge>
                 </td>
                 <td>
                   <div className="row-main">{item.referenceCode || "-"}</div>

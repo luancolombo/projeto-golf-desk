@@ -50,6 +50,7 @@ Main features already implemented:
 - Development seed user for testing authenticated endpoints.
 - React + TypeScript frontend migration to consume the API.
 - React authenticated frontend flow with login, session storage, automatic token refresh, logout, and role-aware UI.
+- Frontend visual architecture migrated to Tailwind CSS and shadcn/ui.
 - Legacy static frontend archived after the React migration covered the current flows.
 - Docker Compose setup for Spring Boot API and MySQL.
 - Integration tests for business flows and security tests with MockMvc.
@@ -75,6 +76,10 @@ Main features already implemented:
 - React
 - TypeScript
 - Vite
+- Tailwind CSS
+- shadcn/ui
+- Radix UI
+- Lucide React
 - HTML
 - CSS
 - JavaScript
@@ -587,6 +592,8 @@ Current React migration status:
 - Session expiration handling: failed refresh clears the frontend session and returns the user to the login screen.
 - User badge in the header showing who is logged in and the current role.
 - Role-aware UI for `MANAGER` and `RECEPTIONIST`.
+- Tailwind CSS configured as the main styling layer.
+- shadcn/ui components configured in `frontend/src/components/ui`.
 - TypeScript types created for the main entities.
 - Services created for Players, Tee Times, Bookings, Booking Players, Rental Items, Rental Transactions, and Payments.
 - Services created for Receipts, Receipt Items, and Check-in Tickets.
@@ -596,8 +603,10 @@ Current React migration status:
 - Agenda page migrated to React.
 - Daily agenda with slots from 07:00 to 19:00 every 10 minutes.
 - Agenda page consumes the aggregated `GET /agenda/day?date=YYYY-MM-DD` endpoint for initial load and refresh after important actions.
+- Agenda page redesigned as a tee sheet with time rows and visual slot cells.
 - Tee time and booking creation/selection when clicking a time slot.
-- Booking panel with internal tabs: Summary, Players, Materials, and Payments.
+- Booking operation opens in a side panel instead of pushing the user down the page.
+- Booking panel with internal tabs: Summary, Players, Materials, Payments, and Receipts.
 - Players tab with add/remove player, check-in, and player totals.
 - Check-in ticket preview and printing from the Players tab.
 - Materials tab with rental per player, return inspection, damage report creation, edit, delete, and stock handling.
@@ -606,9 +615,39 @@ Current React migration status:
 - Receipt preview and printing from the Payments tab.
 - Cash Register page with daily preview, persisted closing, totals by payment method, alerts, closing items, and printable report.
 - Materials page with end-of-day return-all action and persisted damage report notes.
-- Main navigation with Players, Agenda, Materials, and Cash Register.
+- Main navigation with sidebar layout for Players, Agenda, Materials, and Cash Register.
 - `RECEPTIONIST` does not see restricted actions such as delete buttons, rental item stock/price maintenance, or cash register closing.
 - `MANAGER` keeps full operational access in the frontend.
+
+### Frontend Visual Architecture
+
+The React frontend now uses Tailwind CSS and shadcn/ui as the main visual foundation.
+
+Tailwind CSS is responsible for layout, spacing, colors, responsive behavior, and most screen-level styling. This keeps the UI closer to a component-driven frontend architecture and reduces dependency on large custom CSS blocks.
+
+shadcn/ui provides reusable interface primitives built on top of Radix UI, such as buttons, inputs, selects, dialogs, tabs, badges, dropdown menus, sheets, and separators. These components are stored locally in:
+
+```text
+frontend/src/components/ui
+```
+
+The current frontend layout follows a more operational desktop pattern:
+
+- Fixed sidebar navigation on desktop.
+- Compact top navigation on smaller screens.
+- Header with API status, search area, logged-in user badge, role, and logout.
+- Central content area for the active module.
+- Agenda in tee sheet format, focused on fast daily operation.
+- Booking operation inside a side panel with tabs, keeping the user in the agenda context.
+- shadcn dialogs for confirmations such as delete, close cash register, and return all materials.
+
+The frontend still keeps a small `styles.css` file for global Tailwind imports, CSS variables, print layouts, receipt/check-in ticket/cash report printing, and remaining operational components that have not yet been converted fully into reusable Tailwind components.
+
+Visual permissions follow the same role model as the backend:
+
+- `MANAGER` sees the full interface.
+- `RECEPTIONIST` sees daily operational actions, but management actions are hidden.
+- Backend authorization remains the source of truth even when the frontend hides restricted buttons.
 
 ### Authenticated Frontend Flow
 
@@ -875,10 +914,16 @@ Recently implemented roadmap items:
 - Docker Compose for API and MySQL.
 - Aggregated Agenda endpoint, `GET /agenda/day?date=YYYY-MM-DD`, to reduce multiple frontend requests into one optimized daily payload.
 - React Agenda consuming the aggregated daily endpoint for initial load and post-action refreshes.
+- Tailwind CSS and shadcn/ui frontend visual architecture.
+- Sidebar-based application shell with authenticated user and API status.
+- Tee sheet Agenda layout with booking operation side panel.
+- shadcn dialogs, sheets, tabs, badges, buttons, inputs, selects, dropdown menus, and separators.
+- Cleanup of unused legacy CSS after the visual migration.
 
 Planned future implementations:
 
 - Real usage of `createdBy` and `closedBy` with authenticated users.
+- Continue extracting remaining legacy operational CSS into smaller reusable React/Tailwind components.
 - Review high-volume service logs, moving repetitive operational logs such as authenticated user lookup from `INFO` to `DEBUG`.
 - Evaluate JWT authentication lookup optimization, reducing repeated user database reads when the token already carries safe claims.
 - Add database indexes for the most used Agenda queries, especially by play date, booking, booking player, payment, rental, receipt, and ticket relationships.
