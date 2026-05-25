@@ -1,5 +1,5 @@
 import type { CashRegisterClosure } from "../types/cashRegister";
-import { formatDate, formatDateTime, formatMoney, itemTypeLabel } from "./cashRegisterFormat";
+import { formatDate, formatDateTime, formatMoney, isPaymentMovement, itemTypeLabel } from "./cashRegisterFormat";
 
 type CashRegisterReportPreviewProps = {
   closure: CashRegisterClosure;
@@ -7,7 +7,7 @@ type CashRegisterReportPreviewProps = {
 };
 
 export function CashRegisterReportPreview({ closure, mode }: CashRegisterReportPreviewProps) {
-  const items = closure.items || [];
+  const items = (closure.items || []).filter(isPaymentMovement);
 
   return (
     <section className="cash-report-paper" id="cash-register-report-print-area">
@@ -25,6 +25,8 @@ export function CashRegisterReportPreview({ closure, mode }: CashRegisterReportP
         <strong>{formatDateTime(closure.openedAt)}</strong>
         <span>Fechado em</span>
         <strong>{formatDateTime(closure.closedAt)}</strong>
+        <span>Fechado por</span>
+        <strong>{closure.closedBy ? `Usuario #${closure.closedBy}` : "-"}</strong>
         <span>Pagamentos</span>
         <strong>{closure.paidPaymentsCount || 0}</strong>
         <span>Reembolsos</span>
@@ -70,14 +72,18 @@ export function CashRegisterReportPreview({ closure, mode }: CashRegisterReportP
           <span>Descricao</span>
           <span>Valor</span>
         </div>
-        {items.map((item, index) => (
-          <div className="receipt-item-row" key={`${item.type}-${item.referenceId || index}-${item.occurredAt || index}`}>
-            <span>{itemTypeLabel(item.type)}</span>
-            <span>{item.referenceCode || "-"}</span>
-            <span>{item.description || "-"}</span>
-            <strong>{formatMoney(item.amount)}</strong>
-          </div>
-        ))}
+        {items.length === 0 ? (
+          <p className="cash-report-note">Nenhum pagamento encontrado para este caixa.</p>
+        ) : (
+          items.map((item, index) => (
+            <div className="receipt-item-row" key={`${item.type}-${item.referenceId || index}-${item.occurredAt || index}`}>
+              <span>{itemTypeLabel(item.type)}</span>
+              <span>{item.referenceCode || "-"}</span>
+              <span>{item.description || "-"}</span>
+              <strong>{formatMoney(item.amount)}</strong>
+            </div>
+          ))
+        )}
       </div>
 
       {closure.notes && <p className="cash-report-note">{closure.notes}</p>}

@@ -39,18 +39,22 @@ public class TeeTimeService {
     @Autowired
     TeeTimeMapper mapper;
 
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
+
     private final Logger logger = Logger.getLogger(TeeTimeService.class.getName());
 
     public TeeTimeService(
             TeeTimeRepository repository,
             BookingRepository bookingRepository,
             BookingPlayerRepository bookingPlayerRepository,
-            TeeTimeMapper mapper
+            TeeTimeMapper mapper,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
         this.bookingPlayerRepository = bookingPlayerRepository;
         this.mapper = mapper;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<TeeTimeDTO> findAll() {
@@ -76,6 +80,7 @@ public class TeeTimeService {
             teeTime.setMaxPlayers(4);
         }
         validateTeeTimeDateIsNotInPast(teeTime.getPlayDate(), "Cannot create tee time in the past");
+        cashRegisterClosureGuardService.ensureDateIsOpen(teeTime.getPlayDate());
         teeTime.setBaseGreenFee(
                 calculateBaseGreenFee(teeTime.getPlayDate(), teeTime.getStartTime())
         );
@@ -107,6 +112,8 @@ public class TeeTimeService {
 
         TeeTime entity = repository.findById(teeTime.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(entity);
+        cashRegisterClosureGuardService.ensureDateIsOpen(teeTime.getPlayDate());
 
         if (repository.existsByPlayDateAndStartTimeAndIdNot(
                 teeTime.getPlayDate(),
@@ -131,6 +138,7 @@ public class TeeTimeService {
         logger.info("Delete Tee Time");
         TeeTime entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(entity);
 
         if (bookingRepository.existsByTeeTimeId(entity.getId())) {
             entity.setStatus(TeeTimeStatus.CANCELLED);

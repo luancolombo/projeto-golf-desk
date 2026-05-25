@@ -12,4 +12,4 @@ export type Booking = HateoasResource & {
   teeTimeId: Id;
 };
 
-export type BookingPayload = Omit<Booking, "_links" | "createdAt">;
+export type BookingPayload = Omit<Booking, "_links" | "createdAt" | "createdBy">;

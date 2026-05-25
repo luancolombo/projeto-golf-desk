@@ -1,5 +1,7 @@
 package com.project.golfofficeapi.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
 
@@ -23,6 +25,8 @@ public class CashRegisterClosureDTO extends RepresentationModel<CashRegisterClos
     private LocalDateTime openedAt;
     private LocalDateTime closedAt;
     private String status;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "ID of the authenticated user that closed the cash register.")
     private Long closedBy;
     private BigDecimal cashTotal;
     private BigDecimal cardTotal;

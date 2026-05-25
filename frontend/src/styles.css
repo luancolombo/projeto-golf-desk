@@ -142,9 +142,9 @@ h2 {
 .login-seed-note {
   display: grid;
   gap: 6px;
-  border: 1px solid rgba(164, 184, 198, 0.12);
+  border: 1px solid #d8e3ed;
   border-radius: 8px;
-  background: rgba(6, 16, 28, 0.58);
+  background: #f8fafc;
   padding: 14px;
 }
 
@@ -200,9 +200,9 @@ input,
 textarea,
 select {
   width: 100%;
-  border: 1px solid rgba(164, 184, 198, 0.18);
+  border: 1px solid #d3dfeb;
   border-radius: 8px;
-  background: rgba(6, 16, 28, 0.72);
+  background: #ffffff;
   color: var(--text);
   outline: none;
   padding: 13px 14px;
@@ -215,16 +215,17 @@ textarea {
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: rgba(159, 232, 112, 0.58);
+  border-color: #2f7d5b;
+  box-shadow: 0 0 0 3px rgba(47, 125, 91, 0.12);
 }
 
 .checkbox-field {
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 12px;
-  border: 1px solid rgba(164, 184, 198, 0.12);
+  border: 1px solid #d8e3ed;
   border-radius: 8px;
-  background: rgba(8, 19, 32, 0.6);
+  background: #f8fafc;
   padding: 14px 16px;
 }
 
@@ -242,14 +243,14 @@ select:focus {
   width: 100%;
   border-radius: 8px;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-  color: #09200f;
+  color: #ffffff;
   padding: 14px 18px;
 }
 
 .ghost-button {
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text);
+  background: #eef4f9;
+  color: #41546a;
   padding: 11px 14px;
 }
 
@@ -308,7 +309,7 @@ th {
 }
 
 tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: #f8fafc;
 }
 
 .row-main {
@@ -487,37 +488,11 @@ tbody tr:hover {
   overflow-x: auto;
 }
 
-.agenda-tee-sheet-header,
 .agenda-tee-row {
   display: grid;
   grid-template-columns: 118px minmax(560px, 1fr);
   gap: 10px;
   align-items: stretch;
-}
-
-.agenda-tee-sheet-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  color: #64748b;
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.agenda-tee-sheet-header span:first-child {
-  display: flex;
-  align-items: center;
-}
-
-.agenda-tee-sheet-header span:not(:first-child) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 32px;
-  border-radius: 8px;
-  background: #eef4f9;
 }
 
 .agenda-tee-row {
@@ -603,6 +578,46 @@ tbody tr:hover {
 .agenda-tee-cell span {
   color: #64748b;
   font-size: 0.78rem;
+}
+
+.agenda-tee-rental-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.agenda-tee-rental-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  color: #475569;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 4px 7px;
+}
+
+.agenda-tee-rental-icon.buggy {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.agenda-tee-rental-icon.trolley {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.agenda-tee-rental-icon.clubs,
+.agenda-tee-rental-icon.other {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 .agenda-tee-cell.free {
@@ -708,19 +723,19 @@ tbody tr:hover {
 }
 
 .booking-detail-tabs button {
-  border: 1px solid rgba(164, 184, 198, 0.14);
+  border: 1px solid #d8e3ed;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--muted);
+  background: #eef4f9;
+  color: #41546a;
   cursor: pointer;
   font-weight: 800;
   padding: 10px 13px;
 }
 
 .booking-detail-tabs button.active {
-  border-color: rgba(159, 232, 112, 0.36);
-  background: rgba(159, 232, 112, 0.14);
-  color: var(--accent);
+  border-color: rgba(47, 125, 91, 0.34);
+  background: rgba(47, 125, 91, 0.12);
+  color: #236445;
 }
 
 .booking-detail-grid {
@@ -730,9 +745,9 @@ tbody tr:hover {
 }
 
 .booking-detail-grid > div {
-  border: 1px solid rgba(164, 184, 198, 0.12);
+  border: 1px solid #d8e3ed;
   border-radius: 8px;
-  background: rgba(6, 16, 28, 0.58);
+  background: #f8fafc;
   padding: 14px;
 }
 
@@ -761,9 +776,9 @@ tbody tr:hover {
 
 .booking-summary-status > div,
 .summary-player-list {
-  border: 1px solid rgba(164, 184, 198, 0.12);
+  border: 1px solid #d8e3ed;
   border-radius: 8px;
-  background: rgba(6, 16, 28, 0.58);
+  background: #f8fafc;
   padding: 16px;
 }
 
@@ -842,9 +857,9 @@ tbody tr:hover {
 }
 
 .booking-player-totals span {
-  border: 1px solid rgba(164, 184, 198, 0.12);
+  border: 1px solid #d8e3ed;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: #eef4f9;
   color: var(--muted);
   padding: 8px 12px;
 }
@@ -859,9 +874,9 @@ tbody tr:hover {
   grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.6fr) auto;
   gap: 12px;
   align-items: center;
-  border: 1px solid rgba(164, 184, 198, 0.12);
+  border: 1px solid #d8e3ed;
   border-radius: 8px;
-  background: rgba(6, 16, 28, 0.58);
+  background: #f8fafc;
   padding: 14px;
 }
 

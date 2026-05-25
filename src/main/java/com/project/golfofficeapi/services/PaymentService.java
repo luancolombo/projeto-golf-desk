@@ -59,6 +59,8 @@ public class PaymentService {
     @Autowired
     PaymentMapper mapper;
 
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
+
     private final Logger logger = Logger.getLogger(PaymentService.class.getName());
 
     public PaymentService(
@@ -70,7 +72,8 @@ public class PaymentService {
             ReceiptService receiptService,
             RentalTransactionService rentalTransactionService,
             BookingPlayerService bookingPlayerService,
-            PaymentMapper mapper
+            PaymentMapper mapper,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
@@ -81,6 +84,7 @@ public class PaymentService {
         this.rentalTransactionService = rentalTransactionService;
         this.bookingPlayerService = bookingPlayerService;
         this.mapper = mapper;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<PaymentDTO> findAll() {
@@ -122,6 +126,7 @@ public class PaymentService {
 
         PaymentStatus requestedStatus = resolveStatus(payment.getStatus());
         Booking booking = validateBooking(payment.getBookingId(), requestedStatus);
+        cashRegisterClosureGuardService.ensureBookingIsOpen(booking);
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(payment.getBookingPlayerId(), booking.getId());
         preparePayment(payment, bookingPlayer, null, null);
 
@@ -146,6 +151,8 @@ public class PaymentService {
         PaymentStatus previousStatus = entity.getStatus();
         PaymentStatus newStatus = resolveStatus(payment.getStatus());
         Booking booking = validateBooking(payment.getBookingId(), newStatus);
+        cashRegisterClosureGuardService.ensurePaymentIsOpen(entity);
+        cashRegisterClosureGuardService.ensureBookingIsOpen(booking);
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(payment.getBookingPlayerId(), booking.getId());
         preparePayment(payment, bookingPlayer, entity.getId(), entity.getPaidAt());
 
@@ -179,6 +186,7 @@ public class PaymentService {
         Payment entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
         Long bookingId = entity.getBookingId();
+        cashRegisterClosureGuardService.ensurePaymentIsOpen(entity);
 
         if (entity.getStatus() != PaymentStatus.CANCELLED) {
             receiptService.cancelReceiptsByPaymentId(entity.getId(), "Payment cancelled");

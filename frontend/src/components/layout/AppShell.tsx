@@ -3,6 +3,7 @@ import { CalendarDays, CircleDollarSign, LogOut, Package, Search, UsersRound } f
 
 import { authService } from "@/api";
 import type { AppPage } from "@/App";
+import golfDeskLogo from "@/assets/logo_golf_api.png";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,15 +79,11 @@ export function AppShell({
     <div className="min-h-screen bg-[#f4f7fb] text-slate-950">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-[#052d5f] text-white shadow-2xl lg:flex">
         <div className="px-8 py-10">
-          <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-white/85 bg-white/10 text-xl font-black">
-              G
-            </span>
-            <div>
-              <strong className="block text-2xl leading-none">Golf Office</strong>
-              <span className="text-sm text-blue-100">desk manager</span>
-            </div>
-          </div>
+          <img
+            alt="Golf Desk OS"
+            className="h-auto w-52 rounded-md bg-white/95 p-2 shadow-lg"
+            src={golfDeskLogo}
+          />
         </div>
 
         <nav className="flex-1 space-y-1 px-4" aria-label="Navegacao principal">

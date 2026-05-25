@@ -1,0 +1,56 @@
+services:
+  mysql:
+    image: mysql:8.3
+    container_name: golf-office-mysql-prod
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: golf_api
+      MYSQL_ROOT_PASSWORD: 123456
+      TZ: UTC
+    ports:
+      - "3307:3306"
+    volumes:
+      - golf-office-mysql-prod-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: lemaretv/golf_desk:latest
+    container_name: golf-office-api-prod
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/golf_api?useTimezone=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      JPA_DDL_AUTO: validate
+      JPA_SHOW_SQL: "false"
+      OPENAPI_SERVER_URL: https://499e030fc324-api-2ee9cb30af594dd1.megacorpservers.com
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: golf-office-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/golf_api?useTimezone=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      JPA_DDL_AUTO: validate
+      JPA_SHOW_SQL: "false"
+    ports:
+      - "8080:8080"
+
+volumes:
+  golf-office-mysql-prod-data:

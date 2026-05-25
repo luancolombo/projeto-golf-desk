@@ -13,7 +13,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: "https://499e030fc324-api-2ee9cb30af594dd1.megacorpservers.com",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, "")
       }

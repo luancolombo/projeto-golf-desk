@@ -30,18 +30,21 @@ public class RentalDamageReportService {
     private final RentalTransactionRepository rentalTransactionRepository;
     private final RentalItemRepository rentalItemRepository;
     private final RentalDamageReportMapper mapper;
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
     private final Logger logger = Logger.getLogger(RentalDamageReportService.class.getName());
 
     public RentalDamageReportService(
             RentalDamageReportRepository repository,
             RentalTransactionRepository rentalTransactionRepository,
             RentalItemRepository rentalItemRepository,
-            RentalDamageReportMapper mapper
+            RentalDamageReportMapper mapper,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.rentalTransactionRepository = rentalTransactionRepository;
         this.rentalItemRepository = rentalItemRepository;
         this.mapper = mapper;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<RentalDamageReportDTO> findAll() {
@@ -83,6 +86,9 @@ public class RentalDamageReportService {
         prepareDefaults(report);
 
         RentalTransaction rentalTransaction = resolveRentalTransaction(report.getRentalTransactionId());
+        if (rentalTransaction != null) {
+            cashRegisterClosureGuardService.ensureRentalTransactionIsOpen(rentalTransaction);
+        }
         RentalItem rentalItem = resolveRentalItem(report, rentalTransaction);
 
         RentalDamageReport entity = mapper.toEntity(report, rentalTransaction, rentalItem);
@@ -103,6 +109,9 @@ public class RentalDamageReportService {
 
         RentalDamageReportStatus status = resolveStatus(report.getStatus());
         RentalTransaction rentalTransaction = resolveRentalTransaction(report.getRentalTransactionId());
+        if (rentalTransaction != null) {
+            cashRegisterClosureGuardService.ensureRentalTransactionIsOpen(rentalTransaction);
+        }
         RentalItem rentalItem = resolveRentalItem(report, rentalTransaction);
 
         entity.setRentalTransaction(rentalTransaction);
@@ -131,6 +140,9 @@ public class RentalDamageReportService {
         logger.info("Resolve Rental Damage Report");
         RentalDamageReport entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental damage report not found"));
+        if (entity.getRentalTransaction() != null) {
+            cashRegisterClosureGuardService.ensureRentalTransactionIsOpen(entity.getRentalTransaction());
+        }
 
         if (entity.getStatus() == RentalDamageReportStatus.CANCELLED) {
             throw new BusinessException("Cancelled damage reports cannot be resolved");
@@ -149,6 +161,9 @@ public class RentalDamageReportService {
         logger.info("Cancel Rental Damage Report");
         RentalDamageReport entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental damage report not found"));
+        if (entity.getRentalTransaction() != null) {
+            cashRegisterClosureGuardService.ensureRentalTransactionIsOpen(entity.getRentalTransaction());
+        }
         entity.setStatus(RentalDamageReportStatus.CANCELLED);
         repository.save(entity);
     }

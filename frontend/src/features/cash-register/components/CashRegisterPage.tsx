@@ -138,7 +138,6 @@ export function CashRegisterPage({ onApiStatusChange }: CashRegisterPageProps) {
     setIsCloseDialogOpen(false);
     const payload = {
       businessDate: closure.businessDate,
-      closedBy: null,
       notes: notes.trim() || null
     };
 

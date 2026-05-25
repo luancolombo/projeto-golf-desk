@@ -18,7 +18,6 @@ public class BookingMapper {
         entity.setCreatedAt(dto.getCreatedAt());
         entity.setStatus(BookingStatus.fromString(dto.getStatus()));
         entity.setTotalAmount(dto.getTotalAmount());
-        entity.setCreatedBy(dto.getCreatedBy());
         entity.setTeeTime(teeTime);
         return entity;
     }

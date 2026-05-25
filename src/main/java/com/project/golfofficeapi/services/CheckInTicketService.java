@@ -39,6 +39,7 @@ public class CheckInTicketService {
     private final PlayerRepository playerRepository;
     private final TeeTimeRepository teeTimeRepository;
     private final CheckInTicketMapper mapper;
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
     private final Logger logger = Logger.getLogger(CheckInTicketService.class.getName());
 
     public CheckInTicketService(
@@ -47,7 +48,8 @@ public class CheckInTicketService {
             BookingRepository bookingRepository,
             PlayerRepository playerRepository,
             TeeTimeRepository teeTimeRepository,
-            CheckInTicketMapper mapper
+            CheckInTicketMapper mapper,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.bookingPlayerRepository = bookingPlayerRepository;
@@ -55,6 +57,7 @@ public class CheckInTicketService {
         this.playerRepository = playerRepository;
         this.teeTimeRepository = teeTimeRepository;
         this.mapper = mapper;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<CheckInTicketDTO> findAll() {
@@ -100,6 +103,7 @@ public class CheckInTicketService {
         logger.info("Cancel Check-in Ticket");
         CheckInTicket ticket = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Check-in ticket not found"));
+        cashRegisterClosureGuardService.ensureBookingPlayerIsOpen(ticket.getBookingPlayer());
         cancelTicketEntity(ticket, resolveCancellationReason(reason));
         var dto = mapper.toDTO(repository.save(ticket));
         addHateoasLinks(dto);
@@ -111,6 +115,7 @@ public class CheckInTicketService {
         logger.info("Cancel Check-in Ticket by delete request");
         CheckInTicket ticket = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Check-in ticket not found"));
+        cashRegisterClosureGuardService.ensureBookingPlayerIsOpen(ticket.getBookingPlayer());
         cancelTicketEntity(ticket, "Check-in ticket cancelled by delete request");
         repository.save(ticket);
     }
@@ -136,6 +141,7 @@ public class CheckInTicketService {
 
         Booking booking = findBooking(bookingPlayer.getBookingId());
         TeeTime teeTime = findTeeTime(booking.getTeeTimeId());
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(teeTime);
         validateTeeTimeIsNotInPast(teeTime);
 
         var activeTicket = repository.findFirstByBookingPlayer_IdAndCancelledFalseOrderByIdDesc(bookingPlayer.getId());

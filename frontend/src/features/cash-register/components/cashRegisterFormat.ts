@@ -39,6 +39,10 @@ export function itemTypeLabel(type: CashRegisterClosureItem["type"]) {
   return type ? labels[type] ?? type : "-";
 }
 
+export function isPaymentMovement(item: CashRegisterClosureItem) {
+  return item.type === "PAYMENT" || item.type === "REFUND";
+}
+
 export function signedMoneyClass(value: number | null | undefined) {
   const amount = Number(value || 0);
 

@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import golfDeskLogo from "../assets/logo_golf_api.png";
 import { authService, getApiErrorMessage } from "../api";
 import { AUTH_SESSION_MESSAGE_STORAGE_KEY, useAuth } from "../features/auth/AuthContext";
 
@@ -56,11 +57,11 @@ export function LoginPage() {
     <main className="app-shell login-shell">
       <section className="login-layout">
         <header className="login-intro">
-          <p className="eyebrow">Golf Office</p>
-          <h1>Acesso</h1>
-          <p className="page-description">
-            Entre com seu usuario para acessar a operacao do campo, agenda, materiais e caixa.
-          </p>
+          <img
+            alt="Golf Desk OS"
+            className="h-auto w-full max-w-lg rounded-lg bg-white p-6 shadow-sm"
+            src={golfDeskLogo}
+          />
         </header>
 
         <article className="panel login-panel">

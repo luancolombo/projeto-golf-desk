@@ -1,5 +1,5 @@
 import type { CashRegisterClosureItem } from "../types/cashRegister";
-import { formatDateTime, formatMoney, itemTypeLabel, signedMoneyClass } from "./cashRegisterFormat";
+import { formatDateTime, formatMoney, isPaymentMovement, itemTypeLabel, signedMoneyClass } from "./cashRegisterFormat";
 import { Badge } from "../../../components/ui/badge";
 
 type CashRegisterItemsTableProps = {
@@ -7,6 +7,8 @@ type CashRegisterItemsTableProps = {
 };
 
 export function CashRegisterItemsTable({ items }: CashRegisterItemsTableProps) {
+  const paymentItems = items.filter(isPaymentMovement);
+
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table>
@@ -21,14 +23,14 @@ export function CashRegisterItemsTable({ items }: CashRegisterItemsTableProps) {
           </tr>
         </thead>
         <tbody>
-          {items.length === 0 ? (
+          {paymentItems.length === 0 ? (
             <tr>
               <td className="empty-state" colSpan={6}>
-                Nenhum movimento encontrado para este caixa.
+                Nenhum pagamento encontrado para este caixa.
               </td>
             </tr>
           ) : (
-            items.map((item, index) => (
+            paymentItems.map((item, index) => (
               <tr key={`${item.type}-${item.referenceId || index}-${item.occurredAt || index}`}>
                 <td>
                   <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">

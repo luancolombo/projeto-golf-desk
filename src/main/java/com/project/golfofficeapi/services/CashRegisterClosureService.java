@@ -55,6 +55,7 @@ public class CashRegisterClosureService {
     private final RentalTransactionRepository rentalTransactionRepository;
     private final CashRegisterClosureMapper mapper;
     private final CashRegisterClosureItemMapper itemMapper;
+    private final AuthenticatedUserService authenticatedUserService;
     private final Logger logger = Logger.getLogger(CashRegisterClosureService.class.getName());
 
     public CashRegisterClosureService(
@@ -65,7 +66,8 @@ public class CashRegisterClosureService {
             BookingRepository bookingRepository,
             RentalTransactionRepository rentalTransactionRepository,
             CashRegisterClosureMapper mapper,
-            CashRegisterClosureItemMapper itemMapper
+            CashRegisterClosureItemMapper itemMapper,
+            AuthenticatedUserService authenticatedUserService
     ) {
         this.repository = repository;
         this.itemRepository = itemRepository;
@@ -75,6 +77,7 @@ public class CashRegisterClosureService {
         this.rentalTransactionRepository = rentalTransactionRepository;
         this.mapper = mapper;
         this.itemMapper = itemMapper;
+        this.authenticatedUserService = authenticatedUserService;
     }
 
     public List<CashRegisterClosureDTO> findAll() {
@@ -128,7 +131,11 @@ public class CashRegisterClosureService {
         validateBusinessDate(request.getBusinessDate());
         validateCanCloseBusinessDate(request.getBusinessDate());
 
-        CashRegisterClosureCalculation calculated = calculateClosure(request.getBusinessDate(), request.getClosedBy(), request.getNotes());
+        CashRegisterClosureCalculation calculated = calculateClosure(
+                request.getBusinessDate(),
+                resolveCurrentUserId(request.getClosedBy()),
+                request.getNotes()
+        );
 
         CashRegisterClosure entity = mapper.toEntity(calculated);
         CashRegisterClosure savedClosure = repository.save(entity);
@@ -158,7 +165,6 @@ public class CashRegisterClosureService {
             throw new BusinessException("Closed cash register closures cannot be reopened");
         }
 
-        entity.setClosedBy(closure.getClosedBy());
         entity.setNotes(closure.getNotes());
 
         if (requestedStatus == CashRegisterClosureStatus.CANCELLED) {
@@ -218,6 +224,11 @@ public class CashRegisterClosureService {
                 unreturnedRentals,
                 items
         );
+    }
+
+    private Long resolveCurrentUserId(Long fallbackUserId) {
+        Long currentUserId = authenticatedUserService.getCurrentUserIdOrNull();
+        return currentUserId == null ? fallbackUserId : currentUserId;
     }
 
     private ClosurePeriod closurePeriod(LocalDate businessDate) {

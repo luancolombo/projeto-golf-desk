@@ -54,6 +54,9 @@ public class BookingService {
     @Autowired
     BookingMapper mapper;
 
+    private final AuthenticatedUserService authenticatedUserService;
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
+
     private final Logger logger = Logger.getLogger(BookingService.class.getName());
 
     public BookingService(
@@ -63,7 +66,9 @@ public class BookingService {
             RentalTransactionRepository rentalTransactionRepository,
             PaymentRepository paymentRepository,
             ReceiptRepository receiptRepository,
-            BookingMapper mapper
+            BookingMapper mapper,
+            AuthenticatedUserService authenticatedUserService,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.teeTimeRepository = teeTimeRepository;
@@ -72,6 +77,8 @@ public class BookingService {
         this.paymentRepository = paymentRepository;
         this.receiptRepository = receiptRepository;
         this.mapper = mapper;
+        this.authenticatedUserService = authenticatedUserService;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<BookingDTO> findAll() {
@@ -94,9 +101,11 @@ public class BookingService {
         if (booking == null) throw new RequiredObjectIsNullException();
         logger.info("Create Booking");
         TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(teeTime);
         prepareNewBooking(booking);
 
         var entity = mapper.toEntity(booking, teeTime);
+        entity.setCreatedBy(resolveCurrentUserId(booking.getCreatedBy()));
         var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
         return dto;
@@ -109,6 +118,8 @@ public class BookingService {
 
         Booking entity = repository.findById(booking.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        cashRegisterClosureGuardService.ensureBookingIsOpen(entity);
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(teeTime);
 
         if (booking.getCode() != null
                 && !booking.getCode().isBlank()
@@ -119,7 +130,6 @@ public class BookingService {
         entity.setCode(resolveCodeForUpdate(booking, entity));
         entity.setStatus(resolveStatus(booking.getStatus()));
         entity.setTotalAmount(resolveTotalAmount(booking.getTotalAmount()));
-        entity.setCreatedBy(booking.getCreatedBy());
         entity.setTeeTime(teeTime);
         var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
@@ -131,6 +141,7 @@ public class BookingService {
         logger.info("Delete Booking");
         Booking entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        cashRegisterClosureGuardService.ensureBookingIsOpen(entity);
 
         if (hasBookingHistory(entity.getId())) {
             entity.setStatus(BookingStatus.CANCELLED);
@@ -170,6 +181,11 @@ public class BookingService {
         booking.setCreatedAt(LocalDateTime.now());
         booking.setStatus(resolveStatus(booking.getStatus()).name());
         booking.setTotalAmount(resolveTotalAmount(booking.getTotalAmount()));
+    }
+
+    private Long resolveCurrentUserId(Long fallbackUserId) {
+        Long currentUserId = authenticatedUserService.getCurrentUserIdOrNull();
+        return currentUserId == null ? fallbackUserId : currentUserId;
     }
 
     private TeeTime validateTeeTime(Long teeTimeId) {

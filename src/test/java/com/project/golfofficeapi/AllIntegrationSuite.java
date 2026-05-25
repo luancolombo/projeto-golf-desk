@@ -11,6 +11,8 @@ import org.junit.platform.suite.api.Suite;
 @SelectClasses({
         GolfOfficeApiApplicationTests.class,
         AgendaControllerIntegrationTests.class,
+        AuditFieldsIntegrationTests.class,
+        CashRegisterClosureLockIntegrationTests.class,
         SecurityMockMvcIntegrationTests.class,
         BookingServiceIntegrationTests.class,
         BookingPlayerServiceIntegrationTests.class,

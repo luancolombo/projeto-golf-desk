@@ -36,6 +36,7 @@ public class ReceiptService {
     private final TeeTimeRepository teeTimeRepository;
     private final RentalTransactionRepository rentalTransactionRepository;
     private final ReceiptMapper mapper;
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
     private final Logger logger = Logger.getLogger(ReceiptService.class.getName());
 
     public ReceiptService(
@@ -47,7 +48,8 @@ public class ReceiptService {
             PlayerRepository playerRepository,
             TeeTimeRepository teeTimeRepository,
             RentalTransactionRepository rentalTransactionRepository,
-            ReceiptMapper mapper
+            ReceiptMapper mapper,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.receiptItemRepository = receiptItemRepository;
@@ -58,6 +60,7 @@ public class ReceiptService {
         this.teeTimeRepository = teeTimeRepository;
         this.rentalTransactionRepository = rentalTransactionRepository;
         this.mapper = mapper;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<ReceiptDTO> findAll() {
@@ -105,6 +108,7 @@ public class ReceiptService {
         if (receipt == null) throw new RequiredObjectIsNullException();
         logger.info("Create Receipt");
         Payment payment = findPayment(receipt.getPaymentId());
+        cashRegisterClosureGuardService.ensurePaymentIsOpen(payment);
         return issueReceiptForPayment(payment);
     }
 
@@ -112,6 +116,7 @@ public class ReceiptService {
     public ReceiptDTO issueReceiptForPaymentId(Long paymentId) {
         logger.info("Issue Receipt by Payment ID");
         Payment payment = findPayment(paymentId);
+        cashRegisterClosureGuardService.ensurePaymentIsOpen(payment);
         return issueReceiptForPayment(payment);
     }
 
@@ -123,6 +128,7 @@ public class ReceiptService {
 
         Receipt entity = repository.findById(receipt.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
+        cashRegisterClosureGuardService.ensureBookingIsOpen(findBooking(entity.getBookingId()));
 
         if (Boolean.TRUE.equals(entity.getCancelled())) {
             throw new BusinessException("Cancelled receipts cannot be changed");
@@ -142,6 +148,7 @@ public class ReceiptService {
         logger.info("Cancel Receipt");
         Receipt entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
+        cashRegisterClosureGuardService.ensureBookingIsOpen(findBooking(entity.getBookingId()));
         cancelReceiptEntity(entity, resolveCancellationReason(reason));
         var dto = mapper.toDTO(repository.save(entity));
         addHateoasLinks(dto);
@@ -153,6 +160,7 @@ public class ReceiptService {
         logger.info("Cancel Receipt by delete request");
         Receipt entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
+        cashRegisterClosureGuardService.ensureBookingIsOpen(findBooking(entity.getBookingId()));
 
         if (Boolean.TRUE.equals(entity.getCancelled())) {
             return;
@@ -201,6 +209,7 @@ public class ReceiptService {
 
     private ReceiptDTO issueReceiptForPayment(Payment payment) {
         validatePaymentCanIssueReceipt(payment);
+        cashRegisterClosureGuardService.ensurePaymentIsOpen(payment);
 
         var existingActiveReceipt = repository.findFirstByPayment_IdAndCancelledFalseOrderByIdAsc(payment.getId());
         if (existingActiveReceipt.isPresent()) {

@@ -45,6 +45,7 @@ public class RentalTransactionService {
     private final RentalItemRepository rentalItemRepository;
     private final BookingStatusService bookingStatusService;
     private final RentalTransactionMapper mapper;
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
     private final Logger logger = Logger.getLogger(RentalTransactionService.class.getName());
 
     public RentalTransactionService(
@@ -53,7 +54,8 @@ public class RentalTransactionService {
             BookingPlayerRepository bookingPlayerRepository,
             RentalItemRepository rentalItemRepository,
             BookingStatusService bookingStatusService,
-            RentalTransactionMapper mapper
+            RentalTransactionMapper mapper,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
@@ -61,6 +63,7 @@ public class RentalTransactionService {
         this.rentalItemRepository = rentalItemRepository;
         this.bookingStatusService = bookingStatusService;
         this.mapper = mapper;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<RentalTransactionDTO> findAll() {
@@ -93,6 +96,7 @@ public class RentalTransactionService {
     public List<RentalTransactionDTO> returnAllByBookingId(Long bookingId) {
         logger.info("Return All Rental Transactions by Booking ID");
         Booking booking = findBooking(bookingId);
+        cashRegisterClosureGuardService.ensureBookingIsOpen(booking);
         returnRentalTransactions(repository.findByBookingId(bookingId), this::isRented);
         syncBookingTotal(booking.getId());
         return toDTOListWithLinks(repository.findByBookingId(bookingId));
@@ -102,6 +106,7 @@ public class RentalTransactionService {
     public List<RentalTransactionDTO> returnAllByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Return All Rental Transactions by Booking Player ID");
         BookingPlayer bookingPlayer = findBookingPlayer(bookingPlayerId);
+        cashRegisterClosureGuardService.ensureBookingPlayerIsOpen(bookingPlayer);
         returnRentalTransactions(repository.findByBookingPlayerId(bookingPlayerId), this::isRented);
         syncBookingTotal(bookingPlayer.getBookingId());
         return toDTOListWithLinks(repository.findByBookingPlayerId(bookingPlayerId));
@@ -110,6 +115,9 @@ public class RentalTransactionService {
     @Transactional
     public List<RentalTransactionDTO> returnAll() {
         logger.info("Return All Rental Transactions");
+        repository.findAll().stream()
+                .filter(this::isRented)
+                .forEach(cashRegisterClosureGuardService::ensureRentalTransactionIsOpen);
         Set<Long> bookingIdsToSync = returnRentalTransactions(repository.findAll(), this::isRented);
         bookingIdsToSync.forEach(this::syncBookingTotal);
         return toDTOListWithLinks(repository.findAll());
@@ -164,6 +172,7 @@ public class RentalTransactionService {
         logger.info("Create Rental Transaction");
 
         Booking booking = validateBooking(rentalTransaction.getBookingId());
+        cashRegisterClosureGuardService.ensureBookingIsOpen(booking);
         BookingPlayer bookingPlayer = validateBookingPlayerBelongsToBooking(rentalTransaction.getBookingPlayerId(), booking.getId());
         RentalItem rentalItem = validateRentalItem(rentalTransaction.getRentalItemId());
         validateQuantity(rentalTransaction.getQuantity());
@@ -195,6 +204,8 @@ public class RentalTransactionService {
 
         Booking oldBooking = findBooking(entity.getBookingId());
         Booking newBooking = validateBooking(rentalTransaction.getBookingId());
+        cashRegisterClosureGuardService.ensureBookingIsOpen(oldBooking);
+        cashRegisterClosureGuardService.ensureBookingIsOpen(newBooking);
         BookingPlayer newBookingPlayer = validateBookingPlayerBelongsToBooking(rentalTransaction.getBookingPlayerId(), newBooking.getId());
         RentalItem oldRentalItem = findRentalItem(entity.getRentalItemId());
         RentalItem newRentalItem = findRentalItem(rentalTransaction.getRentalItemId());
@@ -229,6 +240,7 @@ public class RentalTransactionService {
         RentalTransaction entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental transaction not found"));
         Booking booking = findBooking(entity.getBookingId());
+        cashRegisterClosureGuardService.ensureBookingIsOpen(booking);
 
         if (entity.getStatus() != RentalTransactionStatus.CANCELLED) {
             if (isStockReserved(entity.getStatus())) {

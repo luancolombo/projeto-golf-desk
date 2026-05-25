@@ -60,7 +60,14 @@ type TeeSheetBookingCell = {
   count: number;
   label: string;
   meta: string;
+  rentalIcons: TeeSheetRentalIcon[];
   state: "partial" | "checked-in" | "paid";
+};
+
+type TeeSheetRentalIcon = {
+  key: string;
+  label: string;
+  type: "buggy" | "trolley" | "clubs" | "other";
 };
 
 type ConfirmationState = {
@@ -481,6 +488,52 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
     return bookingPlayer ? getPlayerName(bookingPlayer.playerId) : `Booking player #${bookingPlayerId}`;
   }
 
+  function getRentalIconType(rentalItem: RentalItem): TeeSheetRentalIcon["type"] {
+    const name = `${rentalItem.name || ""} ${rentalItem.type || ""}`.toUpperCase();
+
+    if (name.includes("BUGGY")) {
+      return "buggy";
+    }
+
+    if (name.includes("TROLLEY")) {
+      return "trolley";
+    }
+
+    if (name.includes("CLUB") || name.includes("TACO") || name.includes("SET")) {
+      return "clubs";
+    }
+
+    return "other";
+  }
+
+  function getBookingPlayerRentalIcons(bookingPlayerId: number | undefined): TeeSheetRentalIcon[] {
+    if (!bookingPlayerId) {
+      return [];
+    }
+
+    const iconsByType = new Map<TeeSheetRentalIcon["type"], TeeSheetRentalIcon>();
+
+    rentalTransactions
+      .filter((rentalTransaction) => rentalTransaction.bookingPlayerId === bookingPlayerId)
+      .filter((rentalTransaction) => !["CANCELLED", "RETURNED"].includes(String(rentalTransaction.status || "").toUpperCase()))
+      .forEach((rentalTransaction) => {
+        const rentalItem = rentalItems.find((item) => item.id === rentalTransaction.rentalItemId);
+
+        if (!rentalItem) {
+          return;
+        }
+
+        const type = getRentalIconType(rentalItem);
+        iconsByType.set(type, {
+          key: `${type}-${rentalItem.id}`,
+          label: rentalItem.name,
+          type
+        });
+      });
+
+    return Array.from(iconsByType.values());
+  }
+
   function getBookingPlayersForBooking(bookingId: number | undefined) {
     if (!bookingId) {
       return [];
@@ -503,6 +556,7 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
           count,
           label: getPlayerName(bookingPlayer.playerId),
           meta: `${count} player${count === 1 ? "" : "s"} - ${booking.code || `Booking #${booking.id}`}`,
+          rentalIcons: getBookingPlayerRentalIcons(bookingPlayer.id),
           state
         };
       })
@@ -602,6 +656,22 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
         {status || "STATUS"}
       </Badge>
     );
+  }
+
+  function getRentalBadgeText(icon: TeeSheetRentalIcon) {
+    if (icon.type === "buggy") {
+      return "BUGGY";
+    }
+
+    if (icon.type === "trolley") {
+      return "TROLLEY";
+    }
+
+    if (icon.type === "clubs") {
+      return "CLUBS";
+    }
+
+    return "ITEM";
   }
 
   function getReceiptForPayment(paymentId: number | undefined) {
@@ -769,7 +839,6 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
       code: null,
       status: "CREATED",
       totalAmount: 0,
-      createdBy: null,
       teeTimeId: teeTime.id
     });
   }
@@ -1725,25 +1794,7 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
         </div>
 
         <div className="agenda-slots-surface">
-          <div className="agenda-slots-heading">
-            <div>
-              <span>Timeline</span>
-              <strong>{formatDate(selectedDate)}</strong>
-            </div>
-            <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
-              {slots.length} slots
-            </Badge>
-          </div>
-
           <div className="agenda-tee-sheet" role="table" aria-label="Tee sheet do dia">
-            <div className="agenda-tee-sheet-header" role="row">
-              <span role="columnheader">Hora</span>
-              <span role="columnheader">Slot 1</span>
-              <span role="columnheader">Slot 2</span>
-              <span role="columnheader">Slot 3</span>
-              <span role="columnheader">Slot 4</span>
-            </div>
-
             {agendaSlots.map((slot) => {
               const rowState = getTeeSheetRowState(slot);
               const rowLabel = getTeeSheetRowLabel(slot);
@@ -1800,6 +1851,15 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
                           >
                             <strong>{cell.label}</strong>
                             <span>{cell.meta}</span>
+                            {cell.rentalIcons.length > 0 ? (
+                              <span className="agenda-tee-rental-icons" aria-label="Materiais alugados">
+                                {cell.rentalIcons.map((icon) => (
+                                  <span className={`agenda-tee-rental-icon ${icon.type}`} key={icon.key} title={icon.label}>
+                                    {getRentalBadgeText(icon)}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : null}
                           </button>
                         ))}
 
@@ -1956,6 +2016,12 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
                     <span className="detail-label">Total booking</span>
                     <strong>{formatMoney(selectedBooking.totalAmount)}</strong>
                   </div>
+                  {selectedBooking.createdBy ? (
+                    <div>
+                      <span className="detail-label">Criado por</span>
+                      <strong>Usuario #{selectedBooking.createdBy}</strong>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="summary-player-list">

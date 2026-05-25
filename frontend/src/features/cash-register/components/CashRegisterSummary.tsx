@@ -21,6 +21,9 @@ export function CashRegisterSummary({ closure, mode }: CashRegisterSummaryProps)
         <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Status</span>
         <strong className="mt-2 block text-xl text-slate-950">{closure.status || "-"}</strong>
         <small className="mt-2 block text-sm text-slate-600">{closure.closedAt ? formatDateTime(closure.closedAt) : "Aguardando fechamento"}</small>
+        {closure.closedBy ? (
+          <small className="mt-1 block text-sm text-slate-600">Fechado por usuario #{closure.closedBy}</small>
+        ) : null}
       </article>
       <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
         <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Total bruto</span>

@@ -15,6 +15,7 @@ public class CashRegisterClosureMapper {
 
     private static final String STATUS_FIELD = "status";
     private static final String ITEMS_FIELD = "items";
+    private static final String CLOSED_BY_FIELD = "closedBy";
 
     private final CashRegisterClosureItemMapper itemMapper;
 
@@ -24,7 +25,7 @@ public class CashRegisterClosureMapper {
 
     public CashRegisterClosure toEntity(CashRegisterClosureDTO dto) {
         CashRegisterClosure entity = new CashRegisterClosure();
-        BeanUtils.copyProperties(dto, entity, STATUS_FIELD, ITEMS_FIELD);
+        BeanUtils.copyProperties(dto, entity, STATUS_FIELD, ITEMS_FIELD, CLOSED_BY_FIELD);
         entity.setStatus(CashRegisterClosureStatus.fromString(dto.getStatus()));
         return entity;
     }

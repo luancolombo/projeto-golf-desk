@@ -68,6 +68,8 @@ public class BookingPlayerService {
     @Autowired
     BookingPlayerMapper mapper;
 
+    private final CashRegisterClosureGuardService cashRegisterClosureGuardService;
+
     private final Logger logger = Logger.getLogger(BookingPlayerService.class.getName());
 
     public BookingPlayerService(
@@ -81,7 +83,8 @@ public class BookingPlayerService {
             CheckInTicketRepository checkInTicketRepository,
             BookingStatusService bookingStatusService,
             CheckInTicketService checkInTicketService,
-            BookingPlayerMapper mapper
+            BookingPlayerMapper mapper,
+            CashRegisterClosureGuardService cashRegisterClosureGuardService
     ) {
         this.repository = repository;
         this.bookingRepository = bookingRepository;
@@ -94,6 +97,7 @@ public class BookingPlayerService {
         this.bookingStatusService = bookingStatusService;
         this.checkInTicketService = checkInTicketService;
         this.mapper = mapper;
+        this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
     public List<BookingPlayerDTO> findAll() {
@@ -120,6 +124,7 @@ public class BookingPlayerService {
         Booking booking = validateBooking(bookingPlayer.getBookingId());
         Player player = validatePlayer(bookingPlayer.getPlayerId());
         TeeTime teeTime = validateTeeTimeForNewPlayer(booking.getTeeTimeId());
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(teeTime);
         prepareNewBookingPlayer(bookingPlayer, teeTime);
         validateCapacity(teeTime, bookingPlayer.getPlayerCount(), 0);
 
@@ -148,6 +153,8 @@ public class BookingPlayerService {
         Booking newBooking = validateBooking(bookingPlayer.getBookingId());
         Player newPlayer = validatePlayer(bookingPlayer.getPlayerId());
         TeeTime newTeeTime = validateTeeTimeForUpdate(newBooking.getTeeTimeId(), oldTeeTime.getId());
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(oldTeeTime);
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(newTeeTime);
         Integer newPlayerCount = resolvePlayerCount(bookingPlayer.getPlayerCount());
         Integer currentPlayerCount = resolvePlayerCount(entity.getPlayerCount());
         validatePastTeeTimeForUpdate(newTeeTime, bookingPlayer, entity);
@@ -188,6 +195,7 @@ public class BookingPlayerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking player not found"));
         Booking booking = findBooking(entity.getBookingId());
         TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(teeTime);
 
         if (Boolean.TRUE.equals(entity.getCheckedIn())) {
             throw new BusinessException("Cannot remove checked-in booking player");
@@ -213,6 +221,7 @@ public class BookingPlayerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking player not found"));
         Booking booking = findBooking(entity.getBookingId());
         TeeTime teeTime = validateTeeTime(booking.getTeeTimeId());
+        cashRegisterClosureGuardService.ensureTeeTimeIsOpen(teeTime);
 
         entity.setCheckedIn(false);
         entity.setStatus(BookingPlayerStatus.REFUNDED);

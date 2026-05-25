@@ -2,6 +2,7 @@ package com.project.golfofficeapi.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.info.Info;
@@ -11,17 +12,23 @@ import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
 
     private static final String BEARER_AUTH = "bearerAuth";
 
+    @Value("${openapi.server-url:}")
+    private String serverUrl;
+
     @Bean
     OpenAPI customOpenAPI() {
-        return new OpenAPI()
+        OpenAPI openAPI = new OpenAPI()
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
                 .info(new Info()
                         .title("Golf Office API")
@@ -52,6 +59,14 @@ public class OpenApiConfig {
                                 .description("Paste the JWT access token returned by /auth/login or /auth/refresh.")
                         )
                 );
+
+        if (serverUrl != null && !serverUrl.isBlank()) {
+            openAPI.setServers(List.of(new Server()
+                    .url(serverUrl)
+                    .description("Public API URL")));
+        }
+
+        return openAPI;
     }
 
     private Schema<?> exceptionResponseSchema() {

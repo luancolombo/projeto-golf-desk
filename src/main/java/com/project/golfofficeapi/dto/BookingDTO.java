@@ -1,5 +1,7 @@
 package com.project.golfofficeapi.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.hateoas.RepresentationModel;
@@ -21,6 +23,8 @@ public class BookingDTO extends RepresentationModel<BookingDTO> implements Seria
     private String status;
     @DecimalMin(value = "0.00", message = "Total amount cannot be negative")
     private BigDecimal totalAmount;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "ID of the authenticated user that created the booking.")
     private Long createdBy;
     @NotNull(message = "Tee time id is Required!")
     private Long teeTimeId;
