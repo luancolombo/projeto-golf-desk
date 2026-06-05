@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.repository;
 
 import com.project.golfofficeapi.model.CashRegisterClosureItem;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,6 +12,8 @@ import java.util.List;
 public interface CashRegisterClosureItemRepository extends JpaRepository<CashRegisterClosureItem, Long> {
 
     List<CashRegisterClosureItem> findByCashRegisterClosure_Id(Long cashRegisterClosureId);
+
+    Page<CashRegisterClosureItem> findByCashRegisterClosure_Id(Long cashRegisterClosureId, Pageable pageable);
 
     default List<CashRegisterClosureItem> findByCashRegisterClosureId(Long cashRegisterClosureId) {
         return findByCashRegisterClosure_Id(cashRegisterClosureId);

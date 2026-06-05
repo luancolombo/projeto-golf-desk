@@ -10,11 +10,12 @@ import com.project.golfofficeapi.model.CashRegisterClosure;
 import com.project.golfofficeapi.model.CashRegisterClosureItem;
 import com.project.golfofficeapi.repository.CashRegisterClosureItemRepository;
 import com.project.golfofficeapi.repository.CashRegisterClosureRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.logging.Logger;
 
 @Service
@@ -35,9 +36,9 @@ public class CashRegisterClosureItemService {
         this.mapper = mapper;
     }
 
-    public List<CashRegisterClosureItemDTO> findAll() {
+    public Page<CashRegisterClosureItemDTO> findAll(Pageable pageable) {
         logger.info("Find All Cash Register Closure Items");
-        return mapper.toDTOList(repository.findAll());
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     public CashRegisterClosureItemDTO findById(Long id) {
@@ -47,10 +48,10 @@ public class CashRegisterClosureItemService {
         return mapper.toDTO(item);
     }
 
-    public List<CashRegisterClosureItemDTO> findByCashRegisterClosureId(Long cashRegisterClosureId) {
+    public Page<CashRegisterClosureItemDTO> findByCashRegisterClosureId(Long cashRegisterClosureId, Pageable pageable) {
         logger.info("Find Cash Register Closure Items by Closure ID");
         findClosure(cashRegisterClosureId);
-        return mapper.toDTOList(repository.findByCashRegisterClosureId(cashRegisterClosureId));
+        return repository.findByCashRegisterClosure_Id(cashRegisterClosureId, pageable).map(mapper::toDTO);
     }
 
     @Transactional

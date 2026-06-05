@@ -6,6 +6,8 @@ import com.project.golfofficeapi.dto.RentalTransactionDTO;
 import com.project.golfofficeapi.services.RentalTransactionService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,8 +31,8 @@ public class RentalTransactionController implements RentalTransactionControllerD
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<RentalTransactionDTO> findAll() {
-        return links.rentalTransactions(service.findAll());
+    public Page<RentalTransactionDTO> findAll(Pageable pageable) {
+        return links.rentalTransactions(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}",
@@ -45,16 +47,16 @@ public class RentalTransactionController implements RentalTransactionControllerD
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<RentalTransactionDTO> findByBookingId(@PathVariable("bookingId") Long bookingId) {
-        return links.rentalTransactions(service.findByBookingId(bookingId));
+    public Page<RentalTransactionDTO> findByBookingId(@PathVariable("bookingId") Long bookingId, Pageable pageable) {
+        return links.rentalTransactions(service.findByBookingId(bookingId, pageable));
     }
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}",
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<RentalTransactionDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return links.rentalTransactions(service.findByBookingPlayerId(bookingPlayerId));
+    public Page<RentalTransactionDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId, Pageable pageable) {
+        return links.rentalTransactions(service.findByBookingPlayerId(bookingPlayerId, pageable));
     }
 
     @PutMapping(value = "/booking/{bookingId}/return-all",

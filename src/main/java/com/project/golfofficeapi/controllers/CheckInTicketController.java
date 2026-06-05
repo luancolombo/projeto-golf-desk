@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.CheckInTicketDTO;
 import com.project.golfofficeapi.services.CheckInTicketService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/check-in-ticket")
@@ -27,8 +27,8 @@ public class CheckInTicketController implements CheckInTicketControllerDocs {
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<CheckInTicketDTO> findAll() {
-        return links.checkInTickets(service.findAll());
+    public Page<CheckInTicketDTO> findAll(Pageable pageable) {
+        return links.checkInTickets(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,8 +39,11 @@ public class CheckInTicketController implements CheckInTicketControllerDocs {
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<CheckInTicketDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return links.checkInTickets(service.findByBookingPlayerId(bookingPlayerId));
+    public Page<CheckInTicketDTO> findByBookingPlayerId(
+            @PathVariable("bookingPlayerId") Long bookingPlayerId,
+            Pageable pageable
+    ) {
+        return links.checkInTickets(service.findByBookingPlayerId(bookingPlayerId, pageable));
     }
 
     @PostMapping(

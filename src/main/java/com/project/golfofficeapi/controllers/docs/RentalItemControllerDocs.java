@@ -7,12 +7,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import java.util.List;
 
 public interface RentalItemControllerDocs {
 
@@ -32,7 +32,7 @@ public interface RentalItemControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalItemDTO> findAll();
+    Page<RentalItemDTO> findAll(Pageable pageable);
 
     @Operation(
             summary = "Find Rental Item by ID",

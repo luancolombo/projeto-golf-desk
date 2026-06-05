@@ -12,6 +12,8 @@ import com.project.golfofficeapi.model.RentalTransaction;
 import com.project.golfofficeapi.repository.RentalDamageReportRepository;
 import com.project.golfofficeapi.repository.RentalItemRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,9 +45,9 @@ public class RentalDamageReportService {
         this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
-    public List<RentalDamageReportDTO> findAll() {
+    public Page<RentalDamageReportDTO> findAll(Pageable pageable) {
         logger.info("Find All Rental Damage Reports");
-        return mapper.toDTOList(repository.findAll());
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     public RentalDamageReportDTO findById(Long id) {
@@ -55,21 +57,21 @@ public class RentalDamageReportService {
         return mapper.toDTO(report);
     }
 
-    public List<RentalDamageReportDTO> findByStatus(String status) {
+    public Page<RentalDamageReportDTO> findByStatus(String status, Pageable pageable) {
         logger.info("Find Rental Damage Reports by Status");
-        return mapper.toDTOList(repository.findByStatus(resolveStatus(status)));
+        return repository.findByStatus(resolveStatus(status), pageable).map(mapper::toDTO);
     }
 
-    public List<RentalDamageReportDTO> findByRentalItemId(Long rentalItemId) {
+    public Page<RentalDamageReportDTO> findByRentalItemId(Long rentalItemId, Pageable pageable) {
         logger.info("Find Rental Damage Reports by Rental Item ID");
         findRentalItem(rentalItemId);
-        return mapper.toDTOList(repository.findByRentalItemId(rentalItemId));
+        return repository.findByRentalItem_Id(rentalItemId, pageable).map(mapper::toDTO);
     }
 
-    public List<RentalDamageReportDTO> findByRentalTransactionId(Long rentalTransactionId) {
+    public Page<RentalDamageReportDTO> findByRentalTransactionId(Long rentalTransactionId, Pageable pageable) {
         logger.info("Find Rental Damage Reports by Rental Transaction ID");
         findRentalTransaction(rentalTransactionId);
-        return mapper.toDTOList(repository.findByRentalTransactionId(rentalTransactionId));
+        return repository.findByRentalTransaction_Id(rentalTransactionId, pageable).map(mapper::toDTO);
     }
 
     @Transactional

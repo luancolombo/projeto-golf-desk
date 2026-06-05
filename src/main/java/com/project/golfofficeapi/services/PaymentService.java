@@ -16,6 +16,8 @@ import com.project.golfofficeapi.repository.BookingRepository;
 import com.project.golfofficeapi.repository.PaymentRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,9 +85,9 @@ public class PaymentService {
         this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
-    public List<PaymentDTO> findAll() {
+    public Page<PaymentDTO> findAll(Pageable pageable) {
         logger.info("Find All Payments");
-        return mapper.toDTOList(repository.findAll());
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     public PaymentDTO findById(Long id) {
@@ -95,16 +97,16 @@ public class PaymentService {
         return mapper.toDTO(payment);
     }
 
-    public List<PaymentDTO> findByBookingId(Long bookingId) {
+    public Page<PaymentDTO> findByBookingId(Long bookingId, Pageable pageable) {
         logger.info("Find Payments by Booking ID");
         findBooking(bookingId);
-        return mapper.toDTOList(repository.findByBookingId(bookingId));
+        return repository.findByBooking_Id(bookingId, pageable).map(mapper::toDTO);
     }
 
-    public List<PaymentDTO> findByBookingPlayerId(Long bookingPlayerId) {
+    public Page<PaymentDTO> findByBookingPlayerId(Long bookingPlayerId, Pageable pageable) {
         logger.info("Find Payments by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
+        return repository.findByBookingPlayer_Id(bookingPlayerId, pageable).map(mapper::toDTO);
     }
 
     @Transactional

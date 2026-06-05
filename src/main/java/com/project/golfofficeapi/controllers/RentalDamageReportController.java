@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.RentalDamageReportDTO;
 import com.project.golfofficeapi.services.RentalDamageReportService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/rental-damage-report")
@@ -27,8 +27,8 @@ public class RentalDamageReportController implements RentalDamageReportControlle
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<RentalDamageReportDTO> findAll() {
-        return links.rentalDamageReports(service.findAll());
+    public Page<RentalDamageReportDTO> findAll(Pageable pageable) {
+        return links.rentalDamageReports(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,20 +39,20 @@ public class RentalDamageReportController implements RentalDamageReportControlle
 
     @GetMapping(value = "/status/{status}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<RentalDamageReportDTO> findByStatus(@PathVariable("status") String status) {
-        return links.rentalDamageReports(service.findByStatus(status));
+    public Page<RentalDamageReportDTO> findByStatus(@PathVariable("status") String status, Pageable pageable) {
+        return links.rentalDamageReports(service.findByStatus(status, pageable));
     }
 
     @GetMapping(value = "/rental-item/{rentalItemId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<RentalDamageReportDTO> findByRentalItemId(@PathVariable("rentalItemId") Long rentalItemId) {
-        return links.rentalDamageReports(service.findByRentalItemId(rentalItemId));
+    public Page<RentalDamageReportDTO> findByRentalItemId(@PathVariable("rentalItemId") Long rentalItemId, Pageable pageable) {
+        return links.rentalDamageReports(service.findByRentalItemId(rentalItemId, pageable));
     }
 
     @GetMapping(value = "/rental-transaction/{rentalTransactionId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<RentalDamageReportDTO> findByRentalTransactionId(@PathVariable("rentalTransactionId") Long rentalTransactionId) {
-        return links.rentalDamageReports(service.findByRentalTransactionId(rentalTransactionId));
+    public Page<RentalDamageReportDTO> findByRentalTransactionId(@PathVariable("rentalTransactionId") Long rentalTransactionId, Pageable pageable) {
+        return links.rentalDamageReports(service.findByRentalTransactionId(rentalTransactionId, pageable));
     }
 
     @PostMapping(

@@ -9,6 +9,8 @@ import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
 import com.project.golfofficeapi.mapper.custom.ReceiptMapper;
 import com.project.golfofficeapi.model.*;
 import com.project.golfofficeapi.repository.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,9 +61,9 @@ public class ReceiptService {
         this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
-    public List<ReceiptDTO> findAll() {
+    public Page<ReceiptDTO> findAll(Pageable pageable) {
         logger.info("Find All Receipts");
-        return mapper.toDTOList(repository.findAll());
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     public ReceiptDTO findById(Long id) {
@@ -71,22 +73,22 @@ public class ReceiptService {
         return mapper.toDTO(receipt);
     }
 
-    public List<ReceiptDTO> findByBookingId(Long bookingId) {
+    public Page<ReceiptDTO> findByBookingId(Long bookingId, Pageable pageable) {
         logger.info("Find Receipts by Booking ID");
         findBooking(bookingId);
-        return mapper.toDTOList(repository.findByBookingId(bookingId));
+        return repository.findByBooking_Id(bookingId, pageable).map(mapper::toDTO);
     }
 
-    public List<ReceiptDTO> findByBookingPlayerId(Long bookingPlayerId) {
+    public Page<ReceiptDTO> findByBookingPlayerId(Long bookingPlayerId, Pageable pageable) {
         logger.info("Find Receipts by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
+        return repository.findByBookingPlayer_Id(bookingPlayerId, pageable).map(mapper::toDTO);
     }
 
-    public List<ReceiptDTO> findByPaymentId(Long paymentId) {
+    public Page<ReceiptDTO> findByPaymentId(Long paymentId, Pageable pageable) {
         logger.info("Find Receipts by Payment ID");
         findPayment(paymentId);
-        return mapper.toDTOList(repository.findByPaymentId(paymentId));
+        return repository.findByPayment_Id(paymentId, pageable).map(mapper::toDTO);
     }
 
     @Transactional

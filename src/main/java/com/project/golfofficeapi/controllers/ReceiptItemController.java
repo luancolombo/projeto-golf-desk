@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.ReceiptItemDTO;
 import com.project.golfofficeapi.services.ReceiptItemService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/receipt-item")
@@ -27,8 +27,8 @@ public class ReceiptItemController implements ReceiptItemControllerDocs {
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<ReceiptItemDTO> findAll() {
-        return links.receiptItems(service.findAll());
+    public Page<ReceiptItemDTO> findAll(Pageable pageable) {
+        return links.receiptItems(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,8 +39,8 @@ public class ReceiptItemController implements ReceiptItemControllerDocs {
 
     @GetMapping(value = "/receipt/{receiptId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<ReceiptItemDTO> findByReceiptId(@PathVariable("receiptId") Long receiptId) {
-        return links.receiptItems(service.findByReceiptId(receiptId));
+    public Page<ReceiptItemDTO> findByReceiptId(@PathVariable("receiptId") Long receiptId, Pageable pageable) {
+        return links.receiptItems(service.findByReceiptId(receiptId, pageable));
     }
 
     @PostMapping(

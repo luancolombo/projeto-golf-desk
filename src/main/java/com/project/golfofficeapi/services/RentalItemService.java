@@ -8,6 +8,8 @@ import com.project.golfofficeapi.model.RentalItem;
 import com.project.golfofficeapi.repository.RentalItemRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -33,9 +35,9 @@ public class RentalItemService {
         this.rentalTransactionRepository = rentalTransactionRepository;
     }
 
-    public List<RentalItemDTO> findAll() {
+    public Page<RentalItemDTO> findAll(Pageable pageable) {
         logger.info("Find All Rental Items");
-        return parseListObject(repository.findAll(), RentalItemDTO.class);
+        return repository.findAll(pageable).map(rentalItem -> parseObject(rentalItem, RentalItemDTO.class));
     }
 
     public RentalItemDTO findById(Long id) {

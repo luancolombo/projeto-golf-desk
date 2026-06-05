@@ -8,6 +8,8 @@ import com.project.golfofficeapi.model.Player;
 import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.PlayerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,9 +33,9 @@ public class PlayerService {
         this.bookingPlayerRepository = bookingPlayerRepository;
     }
 
-    public List<PlayerDTO> findAll() {
+    public Page<PlayerDTO> findAll(Pageable pageable) {
         logger.info("Find All Players");
-        return parseListObject(repository.findAll(), PlayerDTO.class);
+        return repository.findAll(pageable).map(player -> parseObject(player, PlayerDTO.class));
     }
     public PlayerDTO findById(Long id) {
         logger.info("Find Player by ID");
@@ -42,9 +44,10 @@ public class PlayerService {
         return parseObject(player, PlayerDTO.class);
     }
 
-    public List<PlayerDTO> findByName(String name) {
+    public Page<PlayerDTO> findByName(String name, Pageable pageable) {
         logger.info("Find Players by name");
-        return parseListObject(repository.findByFullNameContainingIgnoreCase(name), PlayerDTO.class);
+        return repository.findByFullNameContainingIgnoreCase(name, pageable)
+                .map(player -> parseObject(player, PlayerDTO.class));
     }
 
     public PlayerDTO create(PlayerDTO player) {

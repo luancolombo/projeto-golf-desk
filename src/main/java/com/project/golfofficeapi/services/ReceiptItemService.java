@@ -9,6 +9,8 @@ import com.project.golfofficeapi.model.Receipt;
 import com.project.golfofficeapi.model.ReceiptItem;
 import com.project.golfofficeapi.repository.ReceiptItemRepository;
 import com.project.golfofficeapi.repository.ReceiptRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,9 +37,9 @@ public class ReceiptItemService {
         this.mapper = mapper;
     }
 
-    public List<ReceiptItemDTO> findAll() {
+    public Page<ReceiptItemDTO> findAll(Pageable pageable) {
         logger.info("Find All Receipt Items");
-        return mapper.toDTOList(repository.findAll());
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     public ReceiptItemDTO findById(Long id) {
@@ -47,10 +49,10 @@ public class ReceiptItemService {
         return mapper.toDTO(receiptItem);
     }
 
-    public List<ReceiptItemDTO> findByReceiptId(Long receiptId) {
+    public Page<ReceiptItemDTO> findByReceiptId(Long receiptId, Pageable pageable) {
         logger.info("Find Receipt Items by Receipt ID");
         findReceipt(receiptId);
-        return mapper.toDTOList(repository.findByReceiptId(receiptId));
+        return repository.findByReceipt_Id(receiptId, pageable).map(mapper::toDTO);
     }
 
     @Transactional

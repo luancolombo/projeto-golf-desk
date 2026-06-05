@@ -26,6 +26,8 @@ import com.project.golfofficeapi.dto.RentalDamageReportDTO;
 import com.project.golfofficeapi.dto.RentalItemDTO;
 import com.project.golfofficeapi.dto.RentalTransactionDTO;
 import com.project.golfofficeapi.dto.TeeTimeDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -41,9 +43,13 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::booking);
     }
 
+    public Page<BookingDTO> bookings(Page<BookingDTO> dtos) {
+        return addLinks(dtos, this::booking);
+    }
+
     public BookingDTO booking(BookingDTO dto) {
         dto.add(linkTo(methodOn(BookingController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(BookingController.class).findAll()).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(BookingController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
         dto.add(linkTo(methodOn(BookingController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(BookingController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(BookingController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -54,9 +60,13 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::bookingPlayer);
     }
 
+    public Page<BookingPlayerDTO> bookingPlayers(Page<BookingPlayerDTO> dtos) {
+        return addLinks(dtos, this::bookingPlayer);
+    }
+
     public BookingPlayerDTO bookingPlayer(BookingPlayerDTO dto) {
         dto.add(linkTo(methodOn(BookingPlayerController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(BookingPlayerController.class).findAll()).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(BookingPlayerController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
         dto.add(linkTo(methodOn(BookingPlayerController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(BookingPlayerController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(BookingPlayerController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -67,12 +77,16 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::cashRegisterClosure);
     }
 
+    public Page<CashRegisterClosureDTO> cashRegisterClosures(Page<CashRegisterClosureDTO> dtos) {
+        return addLinks(dtos, this::cashRegisterClosure);
+    }
+
     public CashRegisterClosureDTO cashRegisterClosure(CashRegisterClosureDTO dto) {
         if (dto.getId() != null) {
             dto.add(linkTo(methodOn(CashRegisterClosureController.class).findById(dto.getId())).withSelfRel().withType("GET"));
             dto.add(linkTo(methodOn(CashRegisterClosureController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
         }
-        dto.add(linkTo(methodOn(CashRegisterClosureController.class).findAll()).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(CashRegisterClosureController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
         dto.add(linkTo(methodOn(CashRegisterClosureController.class).findByBusinessDate(dto.getBusinessDate())).withRel("findByBusinessDate").withType("GET"));
         dto.add(linkTo(methodOn(CashRegisterClosureController.class).preview(dto.getBusinessDate())).withRel("preview").withType("GET"));
         dto.add(linkTo(methodOn(CashRegisterClosureController.class).close(dto)).withRel("close").withType("POST"));
@@ -90,10 +104,14 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::cashRegisterClosureItem);
     }
 
+    public Page<CashRegisterClosureItemDTO> cashRegisterClosureItems(Page<CashRegisterClosureItemDTO> dtos) {
+        return addLinks(dtos, this::cashRegisterClosureItem);
+    }
+
     public CashRegisterClosureItemDTO cashRegisterClosureItem(CashRegisterClosureItemDTO dto) {
         dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findByCashRegisterClosureId(dto.getCashRegisterClosureId())).withRel("findByCashRegisterClosure").withType("GET"));
+        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findByCashRegisterClosureId(dto.getCashRegisterClosureId(), Pageable.unpaged())).withRel("findByCashRegisterClosure").withType("GET"));
         dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -109,10 +127,14 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::checkInTicket);
     }
 
+    public Page<CheckInTicketDTO> checkInTickets(Page<CheckInTicketDTO> dtos) {
+        return addLinks(dtos, this::checkInTicket);
+    }
+
     public CheckInTicketDTO checkInTicket(CheckInTicketDTO dto) {
         dto.add(linkTo(methodOn(CheckInTicketController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
+        dto.add(linkTo(methodOn(CheckInTicketController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(CheckInTicketController.class).findByBookingPlayerId(dto.getBookingPlayerId(), Pageable.unpaged())).withRel("findByBookingPlayer").withType("GET"));
         dto.add(linkTo(methodOn(CheckInTicketController.class).issueByBookingPlayerId(dto.getBookingPlayerId())).withRel("issueByBookingPlayer").withType("POST"));
         dto.add(linkTo(methodOn(CheckInTicketController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(CheckInTicketController.class).cancel(dto.getId(), dto.getCancellationReason())).withRel("cancel").withType("PUT"));
@@ -124,11 +146,15 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::payment);
     }
 
+    public Page<PaymentDTO> payments(Page<PaymentDTO> dtos) {
+        return addLinks(dtos, this::payment);
+    }
+
     public PaymentDTO payment(PaymentDTO dto) {
         dto.add(linkTo(methodOn(PaymentController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(PaymentController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(PaymentController.class).findByBookingId(dto.getBookingId())).withRel("findByBooking").withType("GET"));
-        dto.add(linkTo(methodOn(PaymentController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
+        dto.add(linkTo(methodOn(PaymentController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(PaymentController.class).findByBookingId(dto.getBookingId(), Pageable.unpaged())).withRel("findByBooking").withType("GET"));
+        dto.add(linkTo(methodOn(PaymentController.class).findByBookingPlayerId(dto.getBookingPlayerId(), Pageable.unpaged())).withRel("findByBookingPlayer").withType("GET"));
         dto.add(linkTo(methodOn(PaymentController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(PaymentController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(PaymentController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -139,10 +165,14 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::player);
     }
 
+    public Page<PlayerDTO> players(Page<PlayerDTO> dtos) {
+        return addLinks(dtos, this::player);
+    }
+
     public PlayerDTO player(PlayerDTO dto) {
         dto.add(linkTo(methodOn(PlayerController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(PlayerController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(PlayerController.class).findByName(dto.getFullName())).withRel("findByName").withType("GET"));
+        dto.add(linkTo(methodOn(PlayerController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(PlayerController.class).findByName(dto.getFullName(), Pageable.unpaged())).withRel("findByName").withType("GET"));
         dto.add(linkTo(methodOn(PlayerController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(PlayerController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(PlayerController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -153,12 +183,16 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::receipt);
     }
 
+    public Page<ReceiptDTO> receipts(Page<ReceiptDTO> dtos) {
+        return addLinks(dtos, this::receipt);
+    }
+
     public ReceiptDTO receipt(ReceiptDTO dto) {
         dto.add(linkTo(methodOn(ReceiptController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findByBookingId(dto.getBookingId())).withRel("findByBooking").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findByPaymentId(dto.getPaymentId())).withRel("findByPayment").withType("GET"));
+        dto.add(linkTo(methodOn(ReceiptController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(ReceiptController.class).findByBookingId(dto.getBookingId(), Pageable.unpaged())).withRel("findByBooking").withType("GET"));
+        dto.add(linkTo(methodOn(ReceiptController.class).findByBookingPlayerId(dto.getBookingPlayerId(), Pageable.unpaged())).withRel("findByBookingPlayer").withType("GET"));
+        dto.add(linkTo(methodOn(ReceiptController.class).findByPaymentId(dto.getPaymentId(), Pageable.unpaged())).withRel("findByPayment").withType("GET"));
         dto.add(linkTo(methodOn(ReceiptController.class).issueByPaymentId(dto.getPaymentId())).withRel("issueByPayment").withType("POST"));
         dto.add(linkTo(methodOn(ReceiptController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(ReceiptController.class).update(dto)).withRel("update").withType("PUT"));
@@ -171,10 +205,14 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::receiptItem);
     }
 
+    public Page<ReceiptItemDTO> receiptItems(Page<ReceiptItemDTO> dtos) {
+        return addLinks(dtos, this::receiptItem);
+    }
+
     public ReceiptItemDTO receiptItem(ReceiptItemDTO dto) {
         dto.add(linkTo(methodOn(ReceiptItemController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptItemController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptItemController.class).findByReceiptId(dto.getReceiptId())).withRel("findByReceipt").withType("GET"));
+        dto.add(linkTo(methodOn(ReceiptItemController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(ReceiptItemController.class).findByReceiptId(dto.getReceiptId(), Pageable.unpaged())).withRel("findByReceipt").withType("GET"));
         dto.add(linkTo(methodOn(ReceiptItemController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(ReceiptItemController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(ReceiptItemController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -185,10 +223,14 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::rentalDamageReport);
     }
 
+    public Page<RentalDamageReportDTO> rentalDamageReports(Page<RentalDamageReportDTO> dtos) {
+        return addLinks(dtos, this::rentalDamageReport);
+    }
+
     public RentalDamageReportDTO rentalDamageReport(RentalDamageReportDTO dto) {
         dto.add(linkTo(methodOn(RentalDamageReportController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).findByStatus(dto.getStatus())).withRel("findByStatus").withType("GET"));
+        dto.add(linkTo(methodOn(RentalDamageReportController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(RentalDamageReportController.class).findByStatus(dto.getStatus(), Pageable.unpaged())).withRel("findByStatus").withType("GET"));
         dto.add(linkTo(methodOn(RentalDamageReportController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(RentalDamageReportController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(RentalDamageReportController.class).resolve(dto.getId())).withRel("resolve").withType("PUT"));
@@ -200,9 +242,13 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::rentalItem);
     }
 
+    public Page<RentalItemDTO> rentalItems(Page<RentalItemDTO> dtos) {
+        return addLinks(dtos, this::rentalItem);
+    }
+
     public RentalItemDTO rentalItem(RentalItemDTO dto) {
         dto.add(linkTo(methodOn(RentalItemController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(RentalItemController.class).findAll()).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(RentalItemController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
         dto.add(linkTo(methodOn(RentalItemController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(RentalItemController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(RentalItemController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -213,11 +259,15 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::rentalTransaction);
     }
 
+    public Page<RentalTransactionDTO> rentalTransactions(Page<RentalTransactionDTO> dtos) {
+        return addLinks(dtos, this::rentalTransaction);
+    }
+
     public RentalTransactionDTO rentalTransaction(RentalTransactionDTO dto) {
         dto.add(linkTo(methodOn(RentalTransactionController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).findByBookingId(dto.getBookingId())).withRel("findByBooking").withType("GET"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
+        dto.add(linkTo(methodOn(RentalTransactionController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(RentalTransactionController.class).findByBookingId(dto.getBookingId(), Pageable.unpaged())).withRel("findByBooking").withType("GET"));
+        dto.add(linkTo(methodOn(RentalTransactionController.class).findByBookingPlayerId(dto.getBookingPlayerId(), Pageable.unpaged())).withRel("findByBookingPlayer").withType("GET"));
         dto.add(linkTo(methodOn(RentalTransactionController.class).returnAllByBookingId(dto.getBookingId())).withRel("returnAllByBooking").withType("PUT"));
         dto.add(linkTo(methodOn(RentalTransactionController.class).returnAll()).withRel("returnAll").withType("PUT"));
         dto.add(linkTo(methodOn(RentalTransactionController.class).create(dto)).withRel("create").withType("POST"));
@@ -230,9 +280,13 @@ public class ResourceLinkAssembler {
         return addLinks(dtos, this::teeTime);
     }
 
+    public Page<TeeTimeDTO> teeTimes(Page<TeeTimeDTO> dtos) {
+        return addLinks(dtos, this::teeTime);
+    }
+
     public TeeTimeDTO teeTime(TeeTimeDTO dto) {
         dto.add(linkTo(methodOn(TeeTimeController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(TeeTimeController.class).findAll()).withRel("findAll").withType("GET"));
+        dto.add(linkTo(methodOn(TeeTimeController.class).findAll(Pageable.unpaged())).withRel("findAll").withType("GET"));
         dto.add(linkTo(methodOn(TeeTimeController.class).create(dto)).withRel("create").withType("POST"));
         dto.add(linkTo(methodOn(TeeTimeController.class).update(dto)).withRel("update").withType("PUT"));
         dto.add(linkTo(methodOn(TeeTimeController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
@@ -242,5 +296,12 @@ public class ResourceLinkAssembler {
     private <T> List<T> addLinks(List<T> dtos, Consumer<T> linkAdder) {
         dtos.forEach(linkAdder);
         return dtos;
+    }
+
+    private <T> Page<T> addLinks(Page<T> dtos, Consumer<T> linkAdder) {
+        return dtos.map(dto -> {
+            linkAdder.accept(dto);
+            return dto;
+        });
     }
 }

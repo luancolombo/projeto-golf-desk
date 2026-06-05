@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.CashRegisterClosureItemDTO;
 import com.project.golfofficeapi.services.CashRegisterClosureItemService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/cash-register-closure-item")
@@ -27,8 +27,8 @@ public class CashRegisterClosureItemController implements CashRegisterClosureIte
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<CashRegisterClosureItemDTO> findAll() {
-        return links.cashRegisterClosureItems(service.findAll());
+    public Page<CashRegisterClosureItemDTO> findAll(Pageable pageable) {
+        return links.cashRegisterClosureItems(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,10 +39,11 @@ public class CashRegisterClosureItemController implements CashRegisterClosureIte
 
     @GetMapping(value = "/closure/{cashRegisterClosureId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<CashRegisterClosureItemDTO> findByCashRegisterClosureId(
-            @PathVariable("cashRegisterClosureId") Long cashRegisterClosureId
+    public Page<CashRegisterClosureItemDTO> findByCashRegisterClosureId(
+            @PathVariable("cashRegisterClosureId") Long cashRegisterClosureId,
+            Pageable pageable
     ) {
-        return links.cashRegisterClosureItems(service.findByCashRegisterClosureId(cashRegisterClosureId));
+        return links.cashRegisterClosureItems(service.findByCashRegisterClosureId(cashRegisterClosureId, pageable));
     }
 
     @PostMapping(

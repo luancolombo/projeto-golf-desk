@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.repository;
 
 import com.project.golfofficeapi.model.Receipt;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,6 +17,8 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
 
     List<Receipt> findByBooking_Id(Long bookingId);
 
+    Page<Receipt> findByBooking_Id(Long bookingId, Pageable pageable);
+
     default List<Receipt> findByBookingId(Long bookingId) {
         return findByBooking_Id(bookingId);
     }
@@ -27,6 +31,8 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
 
     List<Receipt> findByBookingPlayer_Id(Long bookingPlayerId);
 
+    Page<Receipt> findByBookingPlayer_Id(Long bookingPlayerId, Pageable pageable);
+
     default List<Receipt> findByBookingPlayerId(Long bookingPlayerId) {
         return findByBookingPlayer_Id(bookingPlayerId);
     }
@@ -38,6 +44,8 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
     }
 
     List<Receipt> findByPayment_Id(Long paymentId);
+
+    Page<Receipt> findByPayment_Id(Long paymentId, Pageable pageable);
 
     default List<Receipt> findByPaymentId(Long paymentId) {
         return findByPayment_Id(paymentId);

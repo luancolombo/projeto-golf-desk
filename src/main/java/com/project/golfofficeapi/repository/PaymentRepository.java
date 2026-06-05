@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.repository;
 
 import com.project.golfofficeapi.model.Payment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +19,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByBooking_Id(Long bookingId);
 
+    Page<Payment> findByBooking_Id(Long bookingId, Pageable pageable);
+
     default List<Payment> findByBookingId(Long bookingId) {
         return findByBooking_Id(bookingId);
     }
@@ -28,6 +32,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     }
 
     List<Payment> findByBookingPlayer_Id(Long bookingPlayerId);
+
+    Page<Payment> findByBookingPlayer_Id(Long bookingPlayerId, Pageable pageable);
 
     default List<Payment> findByBookingPlayerId(Long bookingPlayerId) {
         return findByBookingPlayer_Id(bookingPlayerId);

@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.repository;
 
 import com.project.golfofficeapi.model.ReceiptItem;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +15,8 @@ public interface ReceiptItemRepository extends JpaRepository<ReceiptItem, Long> 
     List<ReceiptItem> findByReceipt_PlayDate(LocalDate playDate);
 
     List<ReceiptItem> findByReceipt_Id(Long receiptId);
+
+    Page<ReceiptItem> findByReceipt_Id(Long receiptId, Pageable pageable);
 
     default List<ReceiptItem> findByReceiptId(Long receiptId) {
         return findByReceipt_Id(receiptId);

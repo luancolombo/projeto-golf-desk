@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.repository;
 
 import com.project.golfofficeapi.model.RentalTransaction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +19,8 @@ public interface RentalTransactionRepository extends JpaRepository<RentalTransac
 
     List<RentalTransaction> findByBooking_Id(Long bookingId);
 
+    Page<RentalTransaction> findByBooking_Id(Long bookingId, Pageable pageable);
+
     default List<RentalTransaction> findByBookingId(Long bookingId) {
         return findByBooking_Id(bookingId);
     }
@@ -28,6 +32,8 @@ public interface RentalTransactionRepository extends JpaRepository<RentalTransac
     }
 
     List<RentalTransaction> findByBookingPlayer_Id(Long bookingPlayerId);
+
+    Page<RentalTransaction> findByBookingPlayer_Id(Long bookingPlayerId, Pageable pageable);
 
     default List<RentalTransaction> findByBookingPlayerId(Long bookingPlayerId) {
         return findByBookingPlayer_Id(bookingPlayerId);

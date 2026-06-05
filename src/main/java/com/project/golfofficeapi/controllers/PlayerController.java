@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.PlayerDTO;
 import com.project.golfofficeapi.services.PlayerService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/player")
@@ -28,8 +28,8 @@ public class PlayerController implements PlayerControllerDocs {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<PlayerDTO> findAll(){
-        return links.players(service.findAll());
+    public Page<PlayerDTO> findAll(Pageable pageable){
+        return links.players(service.findAll(pageable));
     }
     @GetMapping(value = "/{id}",
             produces = MediaType.APPLICATION_JSON_VALUE
@@ -43,8 +43,8 @@ public class PlayerController implements PlayerControllerDocs {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<PlayerDTO> findByName(@RequestParam("name") String name){
-        return links.players(service.findByName(name));
+    public Page<PlayerDTO> findByName(@RequestParam("name") String name, Pageable pageable){
+        return links.players(service.findByName(name, pageable));
     }
     @PostMapping(
             consumes = MediaType.APPLICATION_JSON_VALUE,

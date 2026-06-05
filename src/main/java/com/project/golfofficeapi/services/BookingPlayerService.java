@@ -21,6 +21,8 @@ import com.project.golfofficeapi.repository.ReceiptRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import com.project.golfofficeapi.repository.TeeTimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,9 +98,9 @@ public class BookingPlayerService {
         this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
-    public List<BookingPlayerDTO> findAll() {
+    public Page<BookingPlayerDTO> findAll(Pageable pageable) {
         logger.info("Find All Booking Players");
-        return mapper.toDTOList(repository.findByStatus(BookingPlayerStatus.ACTIVE));
+        return repository.findByStatus(BookingPlayerStatus.ACTIVE, pageable).map(mapper::toDTO);
     }
 
     public BookingPlayerDTO findById(Long id) {

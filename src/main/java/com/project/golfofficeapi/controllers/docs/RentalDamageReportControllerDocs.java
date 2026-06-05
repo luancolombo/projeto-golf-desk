@@ -7,12 +7,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import java.util.List;
 
 public interface RentalDamageReportControllerDocs {
 
@@ -25,7 +25,7 @@ public interface RentalDamageReportControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalDamageReportDTO> findAll();
+    Page<RentalDamageReportDTO> findAll(Pageable pageable);
 
     @Operation(
             summary = "Find Rental Damage Report by ID",
@@ -48,7 +48,7 @@ public interface RentalDamageReportControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalDamageReportDTO> findByStatus(@PathVariable("status") String status);
+    Page<RentalDamageReportDTO> findByStatus(@PathVariable("status") String status, Pageable pageable);
 
     @Operation(
             summary = "Find Damage Reports by Rental Item",
@@ -60,7 +60,7 @@ public interface RentalDamageReportControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalDamageReportDTO> findByRentalItemId(@PathVariable("rentalItemId") Long rentalItemId);
+    Page<RentalDamageReportDTO> findByRentalItemId(@PathVariable("rentalItemId") Long rentalItemId, Pageable pageable);
 
     @Operation(
             summary = "Find Damage Reports by Rental Transaction",
@@ -72,7 +72,10 @@ public interface RentalDamageReportControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalDamageReportDTO> findByRentalTransactionId(@PathVariable("rentalTransactionId") Long rentalTransactionId);
+    Page<RentalDamageReportDTO> findByRentalTransactionId(
+            @PathVariable("rentalTransactionId") Long rentalTransactionId,
+            Pageable pageable
+    );
 
     @Operation(
             summary = "Create Rental Damage Report",

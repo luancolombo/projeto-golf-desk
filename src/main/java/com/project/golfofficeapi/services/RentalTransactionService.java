@@ -17,6 +17,8 @@ import com.project.golfofficeapi.repository.BookingPlayerRepository;
 import com.project.golfofficeapi.repository.BookingRepository;
 import com.project.golfofficeapi.repository.RentalItemRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,9 +64,9 @@ public class RentalTransactionService {
         this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
-    public List<RentalTransactionDTO> findAll() {
+    public Page<RentalTransactionDTO> findAll(Pageable pageable) {
         logger.info("Find All Rental Transactions");
-        return mapper.toDTOList(repository.findAll());
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     public RentalTransactionDTO findById(Long id) {
@@ -74,16 +76,16 @@ public class RentalTransactionService {
         return mapper.toDTO(rentalTransaction);
     }
 
-    public List<RentalTransactionDTO> findByBookingId(Long bookingId) {
+    public Page<RentalTransactionDTO> findByBookingId(Long bookingId, Pageable pageable) {
         logger.info("Find Rental Transactions by Booking ID");
         findBooking(bookingId);
-        return mapper.toDTOList(repository.findByBookingId(bookingId));
+        return repository.findByBooking_Id(bookingId, pageable).map(mapper::toDTO);
     }
 
-    public List<RentalTransactionDTO> findByBookingPlayerId(Long bookingPlayerId) {
+    public Page<RentalTransactionDTO> findByBookingPlayerId(Long bookingPlayerId, Pageable pageable) {
         logger.info("Find Rental Transactions by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
+        return repository.findByBookingPlayer_Id(bookingPlayerId, pageable).map(mapper::toDTO);
     }
 
     @Transactional

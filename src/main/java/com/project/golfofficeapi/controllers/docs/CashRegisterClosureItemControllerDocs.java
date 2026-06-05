@@ -7,12 +7,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import java.util.List;
 
 public interface CashRegisterClosureItemControllerDocs {
 
@@ -20,7 +20,7 @@ public interface CashRegisterClosureItemControllerDocs {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = CashRegisterClosureItemDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<CashRegisterClosureItemDTO> findAll();
+    Page<CashRegisterClosureItemDTO> findAll(Pageable pageable);
 
     @Operation(summary = "Find Cash Register Closure Item by ID", description = "Finds a specific cash register closure item by ID.", tags = {"Cash Register Closure Items"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = CashRegisterClosureItemDTO.class))),
@@ -33,7 +33,10 @@ public interface CashRegisterClosureItemControllerDocs {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = CashRegisterClosureItemDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<CashRegisterClosureItemDTO> findByCashRegisterClosureId(@PathVariable("cashRegisterClosureId") Long cashRegisterClosureId);
+    Page<CashRegisterClosureItemDTO> findByCashRegisterClosureId(
+            @PathVariable("cashRegisterClosureId") Long cashRegisterClosureId,
+            Pageable pageable
+    );
 
     @Operation(summary = "Create Cash Register Closure Item", description = "Creates a cash register closure line item.", tags = {"Cash Register Closure Items"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = CashRegisterClosureItemDTO.class))),

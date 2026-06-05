@@ -1,6 +1,8 @@
 package com.project.golfofficeapi.repository;
 
 import com.project.golfofficeapi.model.CheckInTicket;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,6 +16,8 @@ public interface CheckInTicketRepository extends JpaRepository<CheckInTicket, Lo
     List<CheckInTicket> findByPlayDate(LocalDate playDate);
 
     List<CheckInTicket> findByBookingPlayer_Id(Long bookingPlayerId);
+
+    Page<CheckInTicket> findByBookingPlayer_Id(Long bookingPlayerId, Pageable pageable);
 
     default List<CheckInTicket> findByBookingPlayerId(Long bookingPlayerId) {
         return findByBookingPlayer_Id(bookingPlayerId);

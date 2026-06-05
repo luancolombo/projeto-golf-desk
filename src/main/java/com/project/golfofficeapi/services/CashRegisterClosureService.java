@@ -27,6 +27,8 @@ import com.project.golfofficeapi.repository.ReceiptRepository;
 import com.project.golfofficeapi.repository.RentalTransactionRepository;
 import com.project.golfofficeapi.services.calculation.CashRegisterClosureCalculation;
 import com.project.golfofficeapi.services.calculation.CashRegisterClosureItemCalculation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,12 +78,9 @@ public class CashRegisterClosureService {
         this.authenticatedUserService = authenticatedUserService;
     }
 
-    public List<CashRegisterClosureDTO> findAll() {
+    public Page<CashRegisterClosureDTO> findAll(Pageable pageable) {
         logger.info("Find All Cash Register Closures");
-        List<CashRegisterClosureDTO> closures = repository.findAll().stream()
-                .map(this::toDTOWithItems)
-                .toList();
-        return closures;
+        return repository.findAll(pageable).map(this::toDTOWithItems);
     }
 
     public CashRegisterClosureDTO findById(Long id) {

@@ -7,12 +7,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import java.util.List;
 
 public interface ReceiptItemControllerDocs {
 
@@ -20,7 +20,7 @@ public interface ReceiptItemControllerDocs {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ReceiptItemDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<ReceiptItemDTO> findAll();
+    Page<ReceiptItemDTO> findAll(Pageable pageable);
 
     @Operation(summary = "Find Receipt Item by ID", description = "Finds a specific receipt item by ID.", tags = {"Receipt Items"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ReceiptItemDTO.class))),
@@ -33,7 +33,7 @@ public interface ReceiptItemControllerDocs {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ReceiptItemDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<ReceiptItemDTO> findByReceiptId(@PathVariable("receiptId") Long receiptId);
+    Page<ReceiptItemDTO> findByReceiptId(@PathVariable("receiptId") Long receiptId, Pageable pageable);
 
     @Operation(summary = "Create Receipt Item", description = "Creates a receipt line item.", tags = {"Receipt Items"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ReceiptItemDTO.class))),

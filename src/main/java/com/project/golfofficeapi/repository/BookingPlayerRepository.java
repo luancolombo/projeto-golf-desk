@@ -2,6 +2,8 @@ package com.project.golfofficeapi.repository;
 
 import com.project.golfofficeapi.enums.BookingPlayerStatus;
 import com.project.golfofficeapi.model.BookingPlayer;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,9 +38,13 @@ public interface BookingPlayerRepository extends JpaRepository<BookingPlayer, Lo
 
     List<BookingPlayer> findByStatus(BookingPlayerStatus status);
 
+    Page<BookingPlayer> findByStatus(BookingPlayerStatus status, Pageable pageable);
+
     List<BookingPlayer> findByBooking_Id(Long bookingId);
 
     List<BookingPlayer> findByBooking_IdAndStatus(Long bookingId, BookingPlayerStatus status);
+
+    Page<BookingPlayer> findByBooking_IdAndStatus(Long bookingId, BookingPlayerStatus status, Pageable pageable);
 
     long countByBooking_IdAndStatus(Long bookingId, BookingPlayerStatus status);
 

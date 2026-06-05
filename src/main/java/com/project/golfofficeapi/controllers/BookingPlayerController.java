@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.BookingPlayerDTO;
 import com.project.golfofficeapi.services.BookingPlayerService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/booking-player")
@@ -29,8 +29,8 @@ public class BookingPlayerController implements BookingPlayerControllerDocs {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<BookingPlayerDTO> findAll() {
-        return links.bookingPlayers(service.findAll());
+    public Page<BookingPlayerDTO> findAll(Pageable pageable) {
+        return links.bookingPlayers(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}",

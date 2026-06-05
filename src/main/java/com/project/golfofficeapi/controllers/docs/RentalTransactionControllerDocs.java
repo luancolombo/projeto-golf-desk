@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,7 +27,7 @@ public interface RentalTransactionControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalTransactionDTO> findAll();
+    Page<RentalTransactionDTO> findAll(Pageable pageable);
 
     @Operation(
             summary = "Find Rental Transaction by ID",
@@ -48,7 +50,7 @@ public interface RentalTransactionControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalTransactionDTO> findByBookingId(@PathVariable("bookingId") Long bookingId);
+    Page<RentalTransactionDTO> findByBookingId(@PathVariable("bookingId") Long bookingId, Pageable pageable);
 
     @Operation(
             summary = "Find Rentals by Booking Player",
@@ -59,7 +61,7 @@ public interface RentalTransactionControllerDocs {
                     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
             }
     )
-    List<RentalTransactionDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId);
+    Page<RentalTransactionDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId, Pageable pageable);
 
     @Operation(
             summary = "Return All Rentals by Booking",

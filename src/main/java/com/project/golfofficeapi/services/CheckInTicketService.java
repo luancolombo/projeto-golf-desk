@@ -15,6 +15,8 @@ import com.project.golfofficeapi.repository.BookingRepository;
 import com.project.golfofficeapi.repository.CheckInTicketRepository;
 import com.project.golfofficeapi.repository.PlayerRepository;
 import com.project.golfofficeapi.repository.TeeTimeRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,9 +58,9 @@ public class CheckInTicketService {
         this.cashRegisterClosureGuardService = cashRegisterClosureGuardService;
     }
 
-    public List<CheckInTicketDTO> findAll() {
+    public Page<CheckInTicketDTO> findAll(Pageable pageable) {
         logger.info("Find All Check-in Tickets");
-        return mapper.toDTOList(repository.findAll());
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     public CheckInTicketDTO findById(Long id) {
@@ -68,10 +70,10 @@ public class CheckInTicketService {
         return mapper.toDTO(ticket);
     }
 
-    public List<CheckInTicketDTO> findByBookingPlayerId(Long bookingPlayerId) {
+    public Page<CheckInTicketDTO> findByBookingPlayerId(Long bookingPlayerId, Pageable pageable) {
         logger.info("Find Check-in Tickets by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
+        return repository.findByBookingPlayer_Id(bookingPlayerId, pageable).map(mapper::toDTO);
     }
 
     @Transactional

@@ -7,13 +7,13 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import java.util.List;
 
 public interface ReceiptControllerDocs {
 
@@ -21,7 +21,7 @@ public interface ReceiptControllerDocs {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ReceiptDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<ReceiptDTO> findAll();
+    Page<ReceiptDTO> findAll(Pageable pageable);
 
     @Operation(summary = "Find Receipt by ID", description = "Finds a specific receipt by ID.", tags = {"Receipts"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ReceiptDTO.class))),
@@ -34,19 +34,19 @@ public interface ReceiptControllerDocs {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ReceiptDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<ReceiptDTO> findByBookingId(@PathVariable("bookingId") Long bookingId);
+    Page<ReceiptDTO> findByBookingId(@PathVariable("bookingId") Long bookingId, Pageable pageable);
 
     @Operation(summary = "Find Receipts by Booking Player", description = "Finds receipts attached to a booking player.", tags = {"Receipts"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ReceiptDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<ReceiptDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId);
+    Page<ReceiptDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId, Pageable pageable);
 
     @Operation(summary = "Find Receipts by Payment", description = "Finds receipts issued for a payment.", tags = {"Receipts"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ReceiptDTO.class)))),
             @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    List<ReceiptDTO> findByPaymentId(@PathVariable("paymentId") Long paymentId);
+    Page<ReceiptDTO> findByPaymentId(@PathVariable("paymentId") Long paymentId, Pageable pageable);
 
     @Operation(summary = "Create Receipt", description = "Creates a receipt with historical snapshots for financial record keeping.", tags = {"Receipts"}, responses = {
             @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ReceiptDTO.class))),

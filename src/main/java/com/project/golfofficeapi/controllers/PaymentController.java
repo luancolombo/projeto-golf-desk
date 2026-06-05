@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.PaymentDTO;
 import com.project.golfofficeapi.services.PaymentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/payment")
@@ -29,8 +29,8 @@ public class PaymentController implements PaymentControllerDocs {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<PaymentDTO> findAll() {
-        return links.payments(service.findAll());
+    public Page<PaymentDTO> findAll(Pageable pageable) {
+        return links.payments(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}",
@@ -45,16 +45,16 @@ public class PaymentController implements PaymentControllerDocs {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<PaymentDTO> findByBookingId(@PathVariable("bookingId") Long bookingId) {
-        return links.payments(service.findByBookingId(bookingId));
+    public Page<PaymentDTO> findByBookingId(@PathVariable("bookingId") Long bookingId, Pageable pageable) {
+        return links.payments(service.findByBookingId(bookingId, pageable));
     }
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}",
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<PaymentDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return links.payments(service.findByBookingPlayerId(bookingPlayerId));
+    public Page<PaymentDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId, Pageable pageable) {
+        return links.payments(service.findByBookingPlayerId(bookingPlayerId, pageable));
     }
 
     @PostMapping(

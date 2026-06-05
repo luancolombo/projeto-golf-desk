@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.ReceiptDTO;
 import com.project.golfofficeapi.services.ReceiptService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/receipt")
@@ -27,8 +27,8 @@ public class ReceiptController implements ReceiptControllerDocs {
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<ReceiptDTO> findAll() {
-        return links.receipts(service.findAll());
+    public Page<ReceiptDTO> findAll(Pageable pageable) {
+        return links.receipts(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,20 +39,20 @@ public class ReceiptController implements ReceiptControllerDocs {
 
     @GetMapping(value = "/booking/{bookingId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<ReceiptDTO> findByBookingId(@PathVariable("bookingId") Long bookingId) {
-        return links.receipts(service.findByBookingId(bookingId));
+    public Page<ReceiptDTO> findByBookingId(@PathVariable("bookingId") Long bookingId, Pageable pageable) {
+        return links.receipts(service.findByBookingId(bookingId, pageable));
     }
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<ReceiptDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return links.receipts(service.findByBookingPlayerId(bookingPlayerId));
+    public Page<ReceiptDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId, Pageable pageable) {
+        return links.receipts(service.findByBookingPlayerId(bookingPlayerId, pageable));
     }
 
     @GetMapping(value = "/payment/{paymentId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
-    public List<ReceiptDTO> findByPaymentId(@PathVariable("paymentId") Long paymentId) {
-        return links.receipts(service.findByPaymentId(paymentId));
+    public Page<ReceiptDTO> findByPaymentId(@PathVariable("paymentId") Long paymentId, Pageable pageable) {
+        return links.receipts(service.findByPaymentId(paymentId, pageable));
     }
 
     @PostMapping(

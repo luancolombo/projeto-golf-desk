@@ -6,11 +6,11 @@ import com.project.golfofficeapi.dto.TeeTimeDTO;
 import com.project.golfofficeapi.services.TeeTimeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/tee-time")
@@ -29,8 +29,8 @@ public class TeeTimeController implements TeeTimeControllerDocs {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
-    public List<TeeTimeDTO> findAll() {
-        return links.teeTimes(service.findAll());
+    public Page<TeeTimeDTO> findAll(Pageable pageable) {
+        return links.teeTimes(service.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}",
