@@ -5,13 +5,13 @@ const BASE_PATH = "/receipt-item";
 
 export const receiptItemService = {
   findAll() {
-    return apiClient.get<ReceiptItem[]>(BASE_PATH);
+    return apiClient.getPageContent<ReceiptItem>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<ReceiptItem>(`${BASE_PATH}/${id}`);
   },
   findByReceiptId(receiptId: Id) {
-    return apiClient.get<ReceiptItem[]>(`${BASE_PATH}/receipt/${receiptId}`);
+    return apiClient.getPageContent<ReceiptItem>(`${BASE_PATH}/receipt/${receiptId}`);
   },
   create(receiptItem: ReceiptItemPayload) {
     return apiClient.post<ReceiptItem, ReceiptItemPayload>(BASE_PATH, receiptItem);

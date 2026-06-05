@@ -3,7 +3,7 @@ import type { CashRegisterClosure, CashRegisterClosurePayload } from "../types/c
 
 export const cashRegisterService = {
   findAll() {
-    return apiClient.get<CashRegisterClosure[]>("/cash-register-closure");
+    return apiClient.getPageContent<CashRegisterClosure>("/cash-register-closure");
   },
 
   findById(id: number) {

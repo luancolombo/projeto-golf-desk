@@ -5,7 +5,7 @@ const BASE_PATH = "/booking-player";
 
 export const bookingPlayerService = {
   findAll() {
-    return apiClient.get<BookingPlayer[]>(BASE_PATH);
+    return apiClient.getPageContent<BookingPlayer>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<BookingPlayer>(`${BASE_PATH}/${id}`);

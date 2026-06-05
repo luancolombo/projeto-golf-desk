@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Edit, List, RotateCcw, Search, Trash2, UserPlus, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Edit, List, RotateCcw, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { getApiErrorMessage, getApiErrorResponse, playerService } from "../api";
+import type { PageResponse } from "../api/apiClient";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -38,6 +39,14 @@ type Feedback = {
 };
 
 type MemberFilter = "all" | "members" | "nonMembers";
+type PlayerListMode = "list" | "name" | "id";
+
+type PlayerPageState = {
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
+};
 
 type PlayerFormState = {
   id: string;
@@ -59,6 +68,14 @@ const emptyForm: PlayerFormState = {
   handCap: "",
   member: false,
   notes: ""
+};
+
+const PLAYER_PAGE_SIZE = 20;
+const initialPageState: PlayerPageState = {
+  page: 0,
+  size: PLAYER_PAGE_SIZE,
+  totalPages: 0,
+  totalElements: 0
 };
 
 function toPayload(form: PlayerFormState): PlayerPayload {
@@ -91,6 +108,17 @@ function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
+function getPageState<T>(pageResponse: PageResponse<T>): PlayerPageState {
+  const page = pageResponse.page;
+
+  return {
+    page: page?.number ?? pageResponse.number ?? 0,
+    size: page?.size ?? pageResponse.size ?? PLAYER_PAGE_SIZE,
+    totalPages: page?.totalPages ?? pageResponse.totalPages ?? 0,
+    totalElements: page?.totalElements ?? pageResponse.totalElements ?? pageResponse.content.length
+  };
+}
+
 type PlayersPageProps = {
   onApiStatusChange: (status: string) => void;
 };
@@ -99,6 +127,8 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
   const { role } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [visiblePlayers, setVisiblePlayers] = useState<Player[]>([]);
+  const [playerPage, setPlayerPage] = useState<PlayerPageState>(initialPageState);
+  const [listMode, setListMode] = useState<PlayerListMode>("list");
   const [memberFilter, setMemberFilter] = useState<MemberFilter>("all");
   const [form, setForm] = useState<PlayerFormState>(emptyForm);
   const [searchName, setSearchName] = useState("");
@@ -127,9 +157,13 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
     return visiblePlayers;
   }, [memberFilter, visiblePlayers]);
   const playerCountLabel = useMemo(
-    () => `${filteredPlayers.length} player${filteredPlayers.length === 1 ? "" : "s"}`,
-    [filteredPlayers.length]
+    () => `${playerPage.totalElements} player${playerPage.totalElements === 1 ? "" : "s"}`,
+    [playerPage.totalElements]
   );
+  const hasPaginatedResult = listMode !== "id" && playerPage.totalPages > 0;
+  const currentPageLabel = hasPaginatedResult ? playerPage.page + 1 : 0;
+  const canGoPrevious = hasPaginatedResult && playerPage.page > 0 && !isLoading;
+  const canGoNext = hasPaginatedResult && playerPage.page + 1 < playerPage.totalPages && !isLoading;
   const canDelete = canDeleteRecords(role);
 
   useEffect(() => {
@@ -160,21 +194,31 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
     setForm(emptyForm);
   }
 
-  async function loadPlayers() {
+  function applyPlayerPage(pageResponse: PageResponse<Player>) {
+    const content = pageResponse.content;
+    setPlayers(content);
+    setVisiblePlayers(content);
+    setPlayerPage(getPageState(pageResponse));
+    showResponse(pageResponse);
+    setApiStatus("Conectada");
+    return content;
+  }
+
+  async function loadPlayers(page = 0) {
     setIsLoading(true);
     setFeedback({ message: "Carregando players...", type: "success" });
-    showRequest("GET", "/player");
+    setListMode("list");
+    showRequest("GET", `/player?page=${page}&size=${PLAYER_PAGE_SIZE}&sort=fullName,asc`);
 
     try {
-      const data = await playerService.findAll();
-      setPlayers(data);
-      setVisiblePlayers(data);
-      showResponse(data);
-      setApiStatus("Conectada");
+      const data = await playerService.findPage({ page, size: PLAYER_PAGE_SIZE });
+      applyPlayerPage(data);
       setFeedback({ message: "Players carregados com sucesso.", type: "success" });
     } catch (error) {
       const message = getApiErrorMessage(error);
+      setPlayers([]);
       setVisiblePlayers([]);
+      setPlayerPage(initialPageState);
       setApiStatus("Falha na conexao");
       setFeedback({ message, type: "error" });
       showResponse(getApiErrorResponse(error));
@@ -200,7 +244,7 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
       showResponse(savedPlayer);
       resetForm();
       setIsPlayerFormOpen(false);
-      await loadPlayers();
+      await reloadCurrentPlayers();
       setFeedback({
         message: isEditing ? "Player atualizado com sucesso." : "Player cadastrado com sucesso.",
         type: "success"
@@ -228,13 +272,50 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
 
     try {
       const player = await playerService.findById(id);
+      setPlayers([player]);
       setVisiblePlayers([player]);
+      setPlayerPage({ page: 0, size: 1, totalPages: 1, totalElements: 1 });
+      setListMode("id");
       showResponse(player);
       setApiStatus("Conectada");
       setFeedback({ message: `Player #${id} encontrado com sucesso.`, type: "success" });
     } catch (error) {
       const message = getApiErrorMessage(error);
+      setPlayers([]);
       setVisiblePlayers([]);
+      setPlayerPage(initialPageState);
+      setListMode("id");
+      setFeedback({ message, type: "error" });
+      showResponse(getApiErrorResponse(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadPlayersByName(name: string, page = 0) {
+    setIsLoading(true);
+    setFeedback({ message: "Buscando players por nome...", type: "success" });
+    setListMode("name");
+    showRequest("GET", `/player/search?name=${encodeURIComponent(name)}&page=${page}&size=${PLAYER_PAGE_SIZE}&sort=fullName,asc`);
+
+    try {
+      const data = await playerService.searchByNamePage(name, { page, size: PLAYER_PAGE_SIZE });
+      const foundPlayers = applyPlayerPage(data);
+
+      if (foundPlayers.length === 0) {
+        setFeedback({ message: `Nenhum player encontrado com o nome "${name}".`, type: "error" });
+        return;
+      }
+
+      setFeedback({
+        message: `${data.page?.totalElements ?? data.totalElements ?? foundPlayers.length} player${(data.page?.totalElements ?? data.totalElements ?? foundPlayers.length) === 1 ? "" : "s"} encontrado${(data.page?.totalElements ?? data.totalElements ?? foundPlayers.length) === 1 ? "" : "s"} por nome.`,
+        type: "success"
+      });
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      setPlayers([]);
+      setVisiblePlayers([]);
+      setPlayerPage(initialPageState);
       setFeedback({ message, type: "error" });
       showResponse(getApiErrorResponse(error));
     } finally {
@@ -251,33 +332,7 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
       return;
     }
 
-    setIsLoading(true);
-    showRequest("GET", `/player/search?name=${encodeURIComponent(name)}`);
-
-    try {
-      const foundPlayers = await playerService.searchByName(name);
-      setPlayers(foundPlayers);
-      setVisiblePlayers(foundPlayers);
-      showResponse(foundPlayers);
-      setApiStatus("Conectada");
-
-      if (foundPlayers.length === 0) {
-        setFeedback({ message: `Nenhum player encontrado com o nome "${name}".`, type: "error" });
-        return;
-      }
-
-      setFeedback({
-        message: `${foundPlayers.length} player${foundPlayers.length === 1 ? "" : "s"} encontrado${foundPlayers.length === 1 ? "" : "s"} por nome.`,
-        type: "success"
-      });
-    } catch (error) {
-      const message = getApiErrorMessage(error);
-      setVisiblePlayers([]);
-      setFeedback({ message, type: "error" });
-      showResponse(getApiErrorResponse(error));
-    } finally {
-      setIsLoading(false);
-    }
+    await loadPlayersByName(name, 0);
   }
 
   async function deletePlayer(id: number) {
@@ -288,7 +343,7 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
       await playerService.remove(id);
       showResponse({ message: `Player ${id} excluido com sucesso.` });
       resetForm();
-      await loadPlayers();
+      await reloadCurrentPlayers();
       setFeedback({ message: "Player excluido com sucesso.", type: "success" });
     } catch (error) {
       const message = getApiErrorMessage(error);
@@ -297,6 +352,28 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function reloadCurrentPlayers() {
+    if (listMode === "name" && searchName.trim()) {
+      await loadPlayersByName(searchName.trim(), playerPage.page);
+      return;
+    }
+
+    await loadPlayers(playerPage.page);
+  }
+
+  async function goToPlayerPage(page: number) {
+    if (page < 0 || page >= playerPage.totalPages) {
+      return;
+    }
+
+    if (listMode === "name" && searchName.trim()) {
+      await loadPlayersByName(searchName.trim(), page);
+      return;
+    }
+
+    await loadPlayers(page);
   }
 
   async function confirmDeletePlayer() {
@@ -375,7 +452,14 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
               <Search className="h-4 w-4" />
               ID
             </Button>
-            <Button className="bg-[#052d5f] text-white hover:bg-[#073a73]" disabled={isLoading} type="button" onClick={loadPlayers}>
+            <Button
+              className="bg-[#052d5f] text-white hover:bg-[#073a73]"
+              disabled={isLoading}
+              type="button"
+              onClick={() => {
+                void loadPlayers(0);
+              }}
+            >
               <List className="h-4 w-4" />
               Listar
             </Button>
@@ -455,6 +539,40 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
               </tbody>
             </table>
           </div>
+
+          {hasPaginatedResult ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-600">
+                Pagina {currentPageLabel} de {playerPage.totalPages} - {playerPage.totalElements} players
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  className="bg-white text-slate-700 hover:bg-slate-100"
+                  disabled={!canGoPrevious}
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void goToPlayerPage(playerPage.page - 1);
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                <Button
+                  className="bg-white text-slate-700 hover:bg-slate-100"
+                  disabled={!canGoNext}
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void goToPlayerPage(playerPage.page + 1);
+                  }}
+                >
+                  Proxima
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </article>
       </section>
 

@@ -5,19 +5,19 @@ const BASE_PATH = "/receipt";
 
 export const receiptService = {
   findAll() {
-    return apiClient.get<Receipt[]>(BASE_PATH);
+    return apiClient.getPageContent<Receipt>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<Receipt>(`${BASE_PATH}/${id}`);
   },
   findByBookingId(bookingId: Id) {
-    return apiClient.get<Receipt[]>(`${BASE_PATH}/booking/${bookingId}`);
+    return apiClient.getPageContent<Receipt>(`${BASE_PATH}/booking/${bookingId}`);
   },
   findByBookingPlayerId(bookingPlayerId: Id) {
-    return apiClient.get<Receipt[]>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
+    return apiClient.getPageContent<Receipt>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
   },
   findByPaymentId(paymentId: Id) {
-    return apiClient.get<Receipt[]>(`${BASE_PATH}/payment/${paymentId}`);
+    return apiClient.getPageContent<Receipt>(`${BASE_PATH}/payment/${paymentId}`);
   },
   issueByPaymentId(paymentId: Id) {
     return apiClient.post<Receipt, undefined>(`${BASE_PATH}/payment/${paymentId}/issue`, undefined);

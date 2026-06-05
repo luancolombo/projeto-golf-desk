@@ -5,19 +5,19 @@ const BASE_PATH = "/rental-damage-report";
 
 export const rentalDamageReportService = {
   findAll() {
-    return apiClient.get<RentalDamageReport[]>(BASE_PATH);
+    return apiClient.getPageContent<RentalDamageReport>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<RentalDamageReport>(`${BASE_PATH}/${id}`);
   },
   findByStatus(status: string) {
-    return apiClient.get<RentalDamageReport[]>(`${BASE_PATH}/status/${status}`);
+    return apiClient.getPageContent<RentalDamageReport>(`${BASE_PATH}/status/${status}`);
   },
   findByRentalItemId(rentalItemId: Id) {
-    return apiClient.get<RentalDamageReport[]>(`${BASE_PATH}/rental-item/${rentalItemId}`);
+    return apiClient.getPageContent<RentalDamageReport>(`${BASE_PATH}/rental-item/${rentalItemId}`);
   },
   findByRentalTransactionId(rentalTransactionId: Id) {
-    return apiClient.get<RentalDamageReport[]>(`${BASE_PATH}/rental-transaction/${rentalTransactionId}`);
+    return apiClient.getPageContent<RentalDamageReport>(`${BASE_PATH}/rental-transaction/${rentalTransactionId}`);
   },
   create(report: RentalDamageReportPayload) {
     return apiClient.post<RentalDamageReport, RentalDamageReportPayload>(BASE_PATH, report);

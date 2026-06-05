@@ -5,7 +5,7 @@ const BASE_PATH = "/rental-item";
 
 export const rentalItemService = {
   findAll() {
-    return apiClient.get<RentalItem[]>(BASE_PATH);
+    return apiClient.getPageContent<RentalItem>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<RentalItem>(`${BASE_PATH}/${id}`);

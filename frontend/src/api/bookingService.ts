@@ -5,7 +5,7 @@ const BASE_PATH = "/booking";
 
 export const bookingService = {
   findAll() {
-    return apiClient.get<Booking[]>(BASE_PATH);
+    return apiClient.getPageContent<Booking>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<Booking>(`${BASE_PATH}/${id}`);

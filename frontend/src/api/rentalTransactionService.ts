@@ -5,16 +5,16 @@ const BASE_PATH = "/rental-transaction";
 
 export const rentalTransactionService = {
   findAll() {
-    return apiClient.get<RentalTransaction[]>(BASE_PATH);
+    return apiClient.getPageContent<RentalTransaction>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<RentalTransaction>(`${BASE_PATH}/${id}`);
   },
   findByBookingId(bookingId: Id) {
-    return apiClient.get<RentalTransaction[]>(`${BASE_PATH}/booking/${bookingId}`);
+    return apiClient.getPageContent<RentalTransaction>(`${BASE_PATH}/booking/${bookingId}`);
   },
   findByBookingPlayerId(bookingPlayerId: Id) {
-    return apiClient.get<RentalTransaction[]>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
+    return apiClient.getPageContent<RentalTransaction>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
   },
   returnAllByBookingId(bookingId: Id) {
     return apiClient.put<RentalTransaction[], undefined>(`${BASE_PATH}/booking/${bookingId}/return-all`, undefined);

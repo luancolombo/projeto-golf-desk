@@ -5,16 +5,16 @@ const BASE_PATH = "/payment";
 
 export const paymentService = {
   findAll() {
-    return apiClient.get<Payment[]>(BASE_PATH);
+    return apiClient.getPageContent<Payment>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<Payment>(`${BASE_PATH}/${id}`);
   },
   findByBookingId(bookingId: Id) {
-    return apiClient.get<Payment[]>(`${BASE_PATH}/booking/${bookingId}`);
+    return apiClient.getPageContent<Payment>(`${BASE_PATH}/booking/${bookingId}`);
   },
   findByBookingPlayerId(bookingPlayerId: Id) {
-    return apiClient.get<Payment[]>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
+    return apiClient.getPageContent<Payment>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
   },
   create(payment: PaymentPayload) {
     return apiClient.post<Payment, PaymentPayload>(BASE_PATH, payment);

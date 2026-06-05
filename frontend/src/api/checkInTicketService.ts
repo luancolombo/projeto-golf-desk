@@ -5,13 +5,13 @@ const BASE_PATH = "/check-in-ticket";
 
 export const checkInTicketService = {
   findAll() {
-    return apiClient.get<CheckInTicket[]>(BASE_PATH);
+    return apiClient.getPageContent<CheckInTicket>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<CheckInTicket>(`${BASE_PATH}/${id}`);
   },
   findByBookingPlayerId(bookingPlayerId: Id) {
-    return apiClient.get<CheckInTicket[]>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
+    return apiClient.getPageContent<CheckInTicket>(`${BASE_PATH}/booking-player/${bookingPlayerId}`);
   },
   issueByBookingPlayerId(bookingPlayerId: Id) {
     return apiClient.post<CheckInTicket, undefined>(`${BASE_PATH}/booking-player/${bookingPlayerId}/issue`, undefined);

@@ -5,7 +5,7 @@ const BASE_PATH = "/tee-time";
 
 export const teeTimeService = {
   findAll() {
-    return apiClient.get<TeeTime[]>(BASE_PATH);
+    return apiClient.getPageContent<TeeTime>(BASE_PATH);
   },
   findById(id: Id) {
     return apiClient.get<TeeTime>(`${BASE_PATH}/${id}`);

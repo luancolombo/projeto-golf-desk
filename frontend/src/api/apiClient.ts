@@ -26,6 +26,20 @@ type TokenRefreshResponse = {
   expiresIn: number;
 };
 
+export type PageResponse<T> = {
+  content: T[];
+  totalElements?: number;
+  totalPages?: number;
+  size?: number;
+  number?: number;
+  page?: {
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    number: number;
+  };
+};
+
 export class ApiError extends Error {
   readonly status: number;
   readonly statusText: string;
@@ -60,6 +74,14 @@ function buildHeaders(hasBody: boolean, headers?: HeadersInit) {
 
 function isErrorBody(value: unknown): value is ErrorBody {
   return typeof value === "object" && value !== null;
+}
+
+function isPageResponse<T>(value: unknown): value is PageResponse<T> {
+  return typeof value === "object" && value !== null && Array.isArray((value as PageResponse<T>).content);
+}
+
+function unwrapPageContent<T>(value: T[] | PageResponse<T>) {
+  return isPageResponse<T>(value) ? value.content : value;
 }
 
 function shouldTryRefresh(path: string, response: Response, hasRetried: boolean) {
@@ -198,6 +220,13 @@ export const apiClient = {
   },
   get<T>(path: string, options?: Omit<RequestOptions, "body">) {
     return request<T>(path, "GET", options);
+  },
+  async getPageContent<T>(path: string, options?: Omit<RequestOptions, "body">) {
+    const response = await request<T[] | PageResponse<T>>(path, "GET", options);
+    return unwrapPageContent(response);
+  },
+  async getPage<T>(path: string, options?: Omit<RequestOptions, "body">) {
+    return request<PageResponse<T>>(path, "GET", options);
   },
   post<T, TBody = unknown>(path: string, body: TBody, options?: Omit<RequestOptions, "body">) {
     return request<T>(path, "POST", { ...options, body });
