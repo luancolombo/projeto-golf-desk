@@ -19,6 +19,13 @@ import {
   SelectTrigger,
   SelectValue
 } from "../components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from "../components/ui/sheet";
 import { useAuth } from "../features/auth/AuthContext";
 import { canDeleteRecords } from "../features/auth/permissions";
 import type { Player, PlayerPayload } from "../types";
@@ -97,6 +104,7 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
   const [searchName, setSearchName] = useState("");
   const [searchId, setSearchId] = useState("");
   const [playerPendingDelete, setPlayerPendingDelete] = useState<Player | null>(null);
+  const [isPlayerFormOpen, setIsPlayerFormOpen] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>({
     message: "Aguardando comando para consultar a API.",
     type: "success"
@@ -191,6 +199,7 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
 
       showResponse(savedPlayer);
       resetForm();
+      setIsPlayerFormOpen(false);
       await loadPlayers();
       setFeedback({
         message: isEditing ? "Player atualizado com sucesso." : "Player cadastrado com sucesso.",
@@ -303,124 +312,33 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
 
   function editPlayer(player: Player) {
     setForm(toForm(player));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setIsPlayerFormOpen(true);
+  }
+
+  function openNewPlayerForm() {
+    resetForm();
+    setIsPlayerFormOpen(true);
   }
 
   return (
     <div className="players-page grid gap-6">
-      <section className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
-        <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Cadastro</p>
-              <h2 className="text-2xl font-black text-slate-950">{formTitle}</h2>
-            </div>
-            <Button className="bg-white text-slate-700 hover:bg-slate-100" type="button" variant="outline" onClick={resetForm}>
-              <RotateCcw className="h-4 w-4" />
-              Limpar
-            </Button>
-          </div>
-
-          <form className="grid gap-4" onSubmit={handleSubmit}>
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold text-slate-600">Nome completo</span>
-              <Input
-                className="border-slate-300 bg-white text-slate-950"
-                maxLength={50}
-                required
-                type="text"
-                value={form.fullName}
-                onChange={(event) => setForm({ ...form, fullName: event.target.value })}
-              />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold text-slate-600">Codigo fiscal</span>
-              <Input
-                className="border-slate-300 bg-white text-slate-950"
-                maxLength={50}
-                required
-                type="text"
-                value={form.taxNumber}
-                onChange={(event) => setForm({ ...form, taxNumber: event.target.value })}
-              />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold text-slate-600">Email</span>
-              <Input
-                className="border-slate-300 bg-white text-slate-950"
-                maxLength={50}
-                required
-                type="email"
-                value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
-              />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold text-slate-600">Telefone</span>
-              <Input
-                className="border-slate-300 bg-white text-slate-950"
-                maxLength={50}
-                required
-                type="text"
-                value={form.phone}
-                onChange={(event) => setForm({ ...form, phone: event.target.value })}
-              />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold text-slate-600">Handicap</span>
-              <Input
-                className="border-slate-300 bg-white text-slate-950"
-                maxLength={50}
-                required
-                type="text"
-                value={form.handCap}
-                onChange={(event) => setForm({ ...form, handCap: event.target.value })}
-              />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold text-slate-600">Notas</span>
-              <textarea
-                className="min-h-28 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-[#2f7d5b] focus:ring-2 focus:ring-[#2f7d5b]/15"
-                maxLength={100}
-                required
-                rows={4}
-                value={form.notes}
-                onChange={(event) => setForm({ ...form, notes: event.target.value })}
-              />
-            </label>
-
-            <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
-              <input
-                checked={form.member}
-                className="h-4 w-4"
-                type="checkbox"
-                onChange={(event) => setForm({ ...form, member: event.target.checked })}
-              />
-              <span className="text-sm font-semibold text-slate-700">Player membro</span>
-            </label>
-
-            <Button className="h-11 bg-[#2f7d5b] text-white hover:bg-[#236445]" disabled={isLoading} type="submit">
-              <UserPlus className="h-4 w-4" />
-              {isLoading ? "Salvando..." : "Salvar player"}
-            </Button>
-          </form>
-        </article>
-
+      <section className="grid gap-6">
         <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Listagem</p>
               <h2 className="text-2xl font-black text-slate-950">Players cadastrados</h2>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-              <Users className="mr-1 h-3.5 w-3.5" />
-              {playerCountLabel}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                <Users className="mr-1 h-3.5 w-3.5" />
+                {playerCountLabel}
+              </Badge>
+              <Button className="bg-[#2f7d5b] text-white hover:bg-[#236445]" type="button" onClick={openNewPlayerForm}>
+                <UserPlus className="h-4 w-4" />
+                Novo player
+              </Button>
+            </div>
           </div>
 
           <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(180px,1fr)_auto_minmax(150px,0.7fr)_auto_auto_180px]">
@@ -550,6 +468,122 @@ export function PlayersPage({ onApiStatusChange }: PlayersPageProps) {
           <pre>{responseJson}</pre>
         </article>
       </section>
+
+      <Sheet
+        open={isPlayerFormOpen}
+        onOpenChange={(open) => {
+          setIsPlayerFormOpen(open);
+          if (!open) {
+            resetForm();
+          }
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto border-slate-200 bg-white text-slate-950 sm:max-w-md">
+          <SheetHeader className="mb-6 pr-8">
+            <p className="mb-0 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Cadastro</p>
+            <SheetTitle className="text-2xl font-black text-slate-950">{formTitle}</SheetTitle>
+            <SheetDescription className="text-slate-600">
+              Preencha os dados do jogador e salve para atualizar a listagem.
+            </SheetDescription>
+          </SheetHeader>
+
+          <form className="grid gap-4" onSubmit={handleSubmit}>
+            <div className="flex justify-end">
+              <Button className="bg-white text-slate-700 hover:bg-slate-100" type="button" variant="outline" onClick={resetForm}>
+                <RotateCcw className="h-4 w-4" />
+                Limpar
+              </Button>
+            </div>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Nome completo</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
+                maxLength={50}
+                required
+                type="text"
+                value={form.fullName}
+                onChange={(event) => setForm({ ...form, fullName: event.target.value })}
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Codigo fiscal</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
+                maxLength={50}
+                required
+                type="text"
+                value={form.taxNumber}
+                onChange={(event) => setForm({ ...form, taxNumber: event.target.value })}
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Email</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
+                maxLength={50}
+                required
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm({ ...form, email: event.target.value })}
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Telefone</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
+                maxLength={50}
+                required
+                type="text"
+                value={form.phone}
+                onChange={(event) => setForm({ ...form, phone: event.target.value })}
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Handicap</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
+                maxLength={50}
+                required
+                type="text"
+                value={form.handCap}
+                onChange={(event) => setForm({ ...form, handCap: event.target.value })}
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Notas</span>
+              <textarea
+                className="min-h-28 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-[#2f7d5b] focus:ring-2 focus:ring-[#2f7d5b]/15"
+                maxLength={100}
+                required
+                rows={4}
+                value={form.notes}
+                onChange={(event) => setForm({ ...form, notes: event.target.value })}
+              />
+            </label>
+
+            <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+              <input
+                checked={form.member}
+                className="h-4 w-4"
+                type="checkbox"
+                onChange={(event) => setForm({ ...form, member: event.target.checked })}
+              />
+              <span className="text-sm font-semibold text-slate-700">Player membro</span>
+            </label>
+
+            <Button className="h-11 bg-[#2f7d5b] text-white hover:bg-[#236445]" disabled={isLoading} type="submit">
+              <UserPlus className="h-4 w-4" />
+              {isLoading ? "Salvando..." : "Salvar player"}
+            </Button>
+          </form>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={Boolean(playerPendingDelete)} onOpenChange={(open) => !open && setPlayerPendingDelete(null)}>
         <DialogContent className="border-slate-200 bg-white text-slate-950">

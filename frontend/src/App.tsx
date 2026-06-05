@@ -12,7 +12,7 @@ export type AppPage = "players" | "agenda" | "materials" | "cash-register";
 
 function App() {
   const { role } = useAuth();
-  const [activePage, setActivePage] = useState<AppPage>("players");
+  const [activePage, setActivePage] = useState<AppPage>("agenda");
   const [apiStatus, setApiStatus] = useState("Aguardando consulta");
   const canAccessCashRegister = canCloseCashRegister(role);
 

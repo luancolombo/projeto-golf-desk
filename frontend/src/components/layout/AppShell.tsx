@@ -23,8 +23,8 @@ const navigationItems: Array<{
   label: string;
   page: AppPage;
 }> = [
-  { icon: UsersRound, label: "Players", page: "players" },
   { icon: CalendarDays, label: "Agenda", page: "agenda" },
+  { icon: UsersRound, label: "Players", page: "players" },
   { icon: Package, label: "Materiais", page: "materials" },
   { icon: CircleDollarSign, label: "Caixa", page: "cash-register" },
 ];
