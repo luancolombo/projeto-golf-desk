@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.CashRegisterClosureItemController;
 import com.project.golfofficeapi.dto.CashRegisterClosureItemDTO;
 import com.project.golfofficeapi.enums.CashRegisterClosureStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
@@ -17,9 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class CashRegisterClosureItemService {
@@ -41,22 +37,20 @@ public class CashRegisterClosureItemService {
 
     public List<CashRegisterClosureItemDTO> findAll() {
         logger.info("Find All Cash Register Closure Items");
-        return toDTOListWithLinks(repository.findAll());
+        return mapper.toDTOList(repository.findAll());
     }
 
     public CashRegisterClosureItemDTO findById(Long id) {
         logger.info("Find Cash Register Closure Item by ID");
         CashRegisterClosureItem item = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cash register closure item not found"));
-        CashRegisterClosureItemDTO dto = mapper.toDTO(item);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(item);
     }
 
     public List<CashRegisterClosureItemDTO> findByCashRegisterClosureId(Long cashRegisterClosureId) {
         logger.info("Find Cash Register Closure Items by Closure ID");
         findClosure(cashRegisterClosureId);
-        return toDTOListWithLinks(repository.findByCashRegisterClosureId(cashRegisterClosureId));
+        return mapper.toDTOList(repository.findByCashRegisterClosureId(cashRegisterClosureId));
     }
 
     @Transactional
@@ -67,9 +61,7 @@ public class CashRegisterClosureItemService {
         prepareItem(item);
 
         CashRegisterClosureItem savedItem = repository.save(mapper.toEntity(item, closure));
-        CashRegisterClosureItemDTO dto = mapper.toDTO(savedItem);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(savedItem);
     }
 
     @Transactional
@@ -93,9 +85,7 @@ public class CashRegisterClosureItemService {
         entity.setPaymentStatus(mapper.toEntity(item, closure).getPaymentStatus());
         entity.setOccurredAt(item.getOccurredAt());
 
-        CashRegisterClosureItemDTO dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -132,20 +122,5 @@ public class CashRegisterClosureItemService {
         }
 
         item.setDescription(item.getDescription().trim());
-    }
-
-    private List<CashRegisterClosureItemDTO> toDTOListWithLinks(List<CashRegisterClosureItem> items) {
-        List<CashRegisterClosureItemDTO> dtos = mapper.toDTOList(items);
-        dtos.forEach(this::addHateoasLinks);
-        return dtos;
-    }
-
-    private void addHateoasLinks(CashRegisterClosureItemDTO dto) {
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).findByCashRegisterClosureId(dto.getCashRegisterClosureId())).withRel("findByCashRegisterClosure").withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(CashRegisterClosureItemController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

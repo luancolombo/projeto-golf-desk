@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.RentalTransactionController;
 import com.project.golfofficeapi.dto.RentalTransactionDTO;
 import com.project.golfofficeapi.enums.BookingStatus;
 import com.project.golfofficeapi.enums.RentalTransactionStatus;
@@ -32,9 +31,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class RentalTransactionService {
@@ -68,28 +64,26 @@ public class RentalTransactionService {
 
     public List<RentalTransactionDTO> findAll() {
         logger.info("Find All Rental Transactions");
-        return toDTOListWithLinks(repository.findAll());
+        return mapper.toDTOList(repository.findAll());
     }
 
     public RentalTransactionDTO findById(Long id) {
         logger.info("Find Rental Transaction by ID");
         var rentalTransaction = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental transaction not found"));
-        var dto = mapper.toDTO(rentalTransaction);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(rentalTransaction);
     }
 
     public List<RentalTransactionDTO> findByBookingId(Long bookingId) {
         logger.info("Find Rental Transactions by Booking ID");
         findBooking(bookingId);
-        return toDTOListWithLinks(repository.findByBookingId(bookingId));
+        return mapper.toDTOList(repository.findByBookingId(bookingId));
     }
 
     public List<RentalTransactionDTO> findByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Find Rental Transactions by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        return toDTOListWithLinks(repository.findByBookingPlayerId(bookingPlayerId));
+        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
     }
 
     @Transactional
@@ -99,7 +93,7 @@ public class RentalTransactionService {
         cashRegisterClosureGuardService.ensureBookingIsOpen(booking);
         returnRentalTransactions(repository.findByBookingId(bookingId), this::isRented);
         syncBookingTotal(booking.getId());
-        return toDTOListWithLinks(repository.findByBookingId(bookingId));
+        return mapper.toDTOList(repository.findByBookingId(bookingId));
     }
 
     @Transactional
@@ -109,7 +103,7 @@ public class RentalTransactionService {
         cashRegisterClosureGuardService.ensureBookingPlayerIsOpen(bookingPlayer);
         returnRentalTransactions(repository.findByBookingPlayerId(bookingPlayerId), this::isRented);
         syncBookingTotal(bookingPlayer.getBookingId());
-        return toDTOListWithLinks(repository.findByBookingPlayerId(bookingPlayerId));
+        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
     }
 
     @Transactional
@@ -120,7 +114,7 @@ public class RentalTransactionService {
                 .forEach(cashRegisterClosureGuardService::ensureRentalTransactionIsOpen);
         Set<Long> bookingIdsToSync = returnRentalTransactions(repository.findAll(), this::isRented);
         bookingIdsToSync.forEach(this::syncBookingTotal);
-        return toDTOListWithLinks(repository.findAll());
+        return mapper.toDTOList(repository.findAll());
     }
 
     @Transactional
@@ -136,7 +130,7 @@ public class RentalTransactionService {
                         && isRentalFromPreviousDay(rentalTransaction, currentDate)
         );
         bookingIdsToSync.forEach(this::syncBookingTotal);
-        return toDTOListWithLinks(repository.findAll());
+        return mapper.toDTOList(repository.findAll());
     }
 
     private Set<Long> returnRentalTransactions(
@@ -190,7 +184,6 @@ public class RentalTransactionService {
         var dto = mapper.toDTO(repository.save(entity));
         syncBookingTotal(booking.getId());
         bookingStatusService.syncBookingStatus(booking.getId());
-        addHateoasLinks(dto);
         return dto;
     }
 
@@ -230,7 +223,6 @@ public class RentalTransactionService {
         syncBookingTotal(newBooking.getId());
         bookingStatusService.syncBookingStatus(oldBooking.getId());
         bookingStatusService.syncBookingStatus(newBooking.getId());
-        addHateoasLinks(dto);
         return dto;
     }
 
@@ -444,23 +436,5 @@ public class RentalTransactionService {
         BigDecimal rentalTotal = repository.sumTotalPriceByBookingId(bookingId);
         booking.setTotalAmount(greenFeeTotal.add(rentalTotal));
         bookingRepository.save(booking);
-    }
-
-    private List<RentalTransactionDTO> toDTOListWithLinks(List<RentalTransaction> rentalTransactions) {
-        var dtos = mapper.toDTOList(rentalTransactions);
-        dtos.forEach(this::addHateoasLinks);
-        return dtos;
-    }
-
-    private void addHateoasLinks(RentalTransactionDTO dto) {
-        dto.add(linkTo(methodOn(RentalTransactionController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).findByBookingId(dto.getBookingId())).withRel("findByBooking").withType("GET"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).returnAllByBookingId(dto.getBookingId())).withRel("returnAllByBooking").withType("PUT"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).returnAll()).withRel("returnAll").withType("PUT"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(RentalTransactionController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

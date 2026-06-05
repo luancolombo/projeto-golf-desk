@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.PaymentControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.PaymentDTO;
 import com.project.golfofficeapi.services.PaymentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,9 +18,11 @@ import java.util.List;
 public class PaymentController implements PaymentControllerDocs {
 
     private final PaymentService service;
+    private final ResourceLinkAssembler links;
 
-    public PaymentController(PaymentService service) {
+    public PaymentController(PaymentService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(
@@ -27,7 +30,7 @@ public class PaymentController implements PaymentControllerDocs {
     )
     @Override
     public List<PaymentDTO> findAll() {
-        return service.findAll();
+        return links.payments(service.findAll());
     }
 
     @GetMapping(value = "/{id}",
@@ -35,7 +38,7 @@ public class PaymentController implements PaymentControllerDocs {
     )
     @Override
     public PaymentDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.payment(service.findById(id));
     }
 
     @GetMapping(value = "/booking/{bookingId}",
@@ -43,7 +46,7 @@ public class PaymentController implements PaymentControllerDocs {
     )
     @Override
     public List<PaymentDTO> findByBookingId(@PathVariable("bookingId") Long bookingId) {
-        return service.findByBookingId(bookingId);
+        return links.payments(service.findByBookingId(bookingId));
     }
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}",
@@ -51,7 +54,7 @@ public class PaymentController implements PaymentControllerDocs {
     )
     @Override
     public List<PaymentDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return service.findByBookingPlayerId(bookingPlayerId);
+        return links.payments(service.findByBookingPlayerId(bookingPlayerId));
     }
 
     @PostMapping(
@@ -60,7 +63,7 @@ public class PaymentController implements PaymentControllerDocs {
     )
     @Override
     public PaymentDTO create(@Valid @RequestBody PaymentDTO payment) {
-        return service.create(payment);
+        return links.payment(service.create(payment));
     }
 
     @PutMapping(
@@ -69,7 +72,7 @@ public class PaymentController implements PaymentControllerDocs {
     )
     @Override
     public PaymentDTO update(@Valid @RequestBody PaymentDTO payment) {
-        return service.update(payment);
+        return links.payment(service.update(payment));
     }
 
     @DeleteMapping(value = "/{id}")

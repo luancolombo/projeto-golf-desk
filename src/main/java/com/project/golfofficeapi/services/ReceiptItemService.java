@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.ReceiptItemController;
 import com.project.golfofficeapi.dto.ReceiptItemDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
@@ -17,9 +16,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class ReceiptItemService {
@@ -41,26 +37,20 @@ public class ReceiptItemService {
 
     public List<ReceiptItemDTO> findAll() {
         logger.info("Find All Receipt Items");
-        var receiptItems = mapper.toDTOList(repository.findAll());
-        receiptItems.forEach(this::addHateoasLinks);
-        return receiptItems;
+        return mapper.toDTOList(repository.findAll());
     }
 
     public ReceiptItemDTO findById(Long id) {
         logger.info("Find Receipt Item by ID");
         var receiptItem = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt item not found"));
-        var dto = mapper.toDTO(receiptItem);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(receiptItem);
     }
 
     public List<ReceiptItemDTO> findByReceiptId(Long receiptId) {
         logger.info("Find Receipt Items by Receipt ID");
         findReceipt(receiptId);
-        var receiptItems = mapper.toDTOList(repository.findByReceiptId(receiptId));
-        receiptItems.forEach(this::addHateoasLinks);
-        return receiptItems;
+        return mapper.toDTOList(repository.findByReceiptId(receiptId));
     }
 
     @Transactional
@@ -70,9 +60,7 @@ public class ReceiptItemService {
 
         Receipt receipt = validateReceiptCanBeChanged(receiptItem.getReceiptId());
         prepareReceiptItem(receiptItem);
-        var dto = mapper.toDTO(repository.save(mapper.toEntity(receiptItem, receipt)));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(mapper.toEntity(receiptItem, receipt)));
     }
 
     @Transactional
@@ -92,9 +80,7 @@ public class ReceiptItemService {
         entity.setUnitPrice(receiptItem.getUnitPrice());
         entity.setTotalPrice(receiptItem.getTotalPrice());
 
-        var dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -139,14 +125,5 @@ public class ReceiptItemService {
         receiptItem.setTotalPrice(receiptItem.getUnitPrice()
                 .multiply(BigDecimal.valueOf(receiptItem.getQuantity()))
                 .setScale(2, RoundingMode.HALF_UP));
-    }
-
-    private void addHateoasLinks(ReceiptItemDTO dto) {
-        dto.add(linkTo(methodOn(ReceiptItemController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptItemController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptItemController.class).findByReceiptId(dto.getReceiptId())).withRel("findByReceipt").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptItemController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(ReceiptItemController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(ReceiptItemController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

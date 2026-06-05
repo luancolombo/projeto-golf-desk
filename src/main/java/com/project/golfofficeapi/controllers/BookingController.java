@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.BookingControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.BookingDTO;
 import com.project.golfofficeapi.services.BookingService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,9 +18,11 @@ import java.util.List;
 public class BookingController implements BookingControllerDocs {
 
     private final BookingService service;
+    private final ResourceLinkAssembler links;
 
-    public BookingController(BookingService service) {
+    public BookingController(BookingService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(
@@ -27,7 +30,7 @@ public class BookingController implements BookingControllerDocs {
     )
     @Override
     public List<BookingDTO> findAll() {
-        return service.findAll();
+        return links.bookings(service.findAll());
     }
 
     @GetMapping(value = "/{id}",
@@ -35,7 +38,7 @@ public class BookingController implements BookingControllerDocs {
     )
     @Override
     public BookingDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.booking(service.findById(id));
     }
 
     @PostMapping(
@@ -44,7 +47,7 @@ public class BookingController implements BookingControllerDocs {
     )
     @Override
     public BookingDTO create(@Valid @RequestBody BookingDTO booking) {
-        return service.create(booking);
+        return links.booking(service.create(booking));
     }
 
     @PutMapping(
@@ -53,7 +56,7 @@ public class BookingController implements BookingControllerDocs {
     )
     @Override
     public BookingDTO update(@Valid @RequestBody BookingDTO booking) {
-        return service.update(booking);
+        return links.booking(service.update(booking));
     }
 
     @DeleteMapping(value = "/{id}")

@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.BookingPlayerController;
 import com.project.golfofficeapi.dto.BookingPlayerDTO;
 import com.project.golfofficeapi.enums.BookingPlayerStatus;
 import com.project.golfofficeapi.enums.BookingStatus;
@@ -28,9 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class BookingPlayerService {
@@ -102,18 +98,14 @@ public class BookingPlayerService {
 
     public List<BookingPlayerDTO> findAll() {
         logger.info("Find All Booking Players");
-        var bookingPlayers = mapper.toDTOList(repository.findByStatus(BookingPlayerStatus.ACTIVE));
-        bookingPlayers.forEach(this::addHateoasLinks);
-        return bookingPlayers;
+        return mapper.toDTOList(repository.findByStatus(BookingPlayerStatus.ACTIVE));
     }
 
     public BookingPlayerDTO findById(Long id) {
         logger.info("Find Booking Player by ID");
         var bookingPlayer = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking player not found"));
-        var dto = mapper.toDTO(bookingPlayer);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(bookingPlayer);
     }
 
     @Transactional
@@ -135,7 +127,6 @@ public class BookingPlayerService {
         syncBookingTotal(booking.getId());
         bookingStatusService.syncBookingStatus(booking.getId());
         syncTeeTimeOccupancy(teeTime.getId());
-        addHateoasLinks(dto);
         return dto;
     }
 
@@ -184,7 +175,6 @@ public class BookingPlayerService {
         bookingStatusService.syncBookingStatus(newBooking.getId());
         syncTeeTimeOccupancy(oldTeeTime.getId());
         syncTeeTimeOccupancy(newTeeTime.getId());
-        addHateoasLinks(dto);
         return dto;
     }
 
@@ -389,13 +379,5 @@ public class BookingPlayerService {
         }
 
         teeTimeRepository.save(teeTime);
-    }
-
-    private void addHateoasLinks(BookingPlayerDTO dto) {
-        dto.add(linkTo(methodOn(BookingPlayerController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(BookingPlayerController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(BookingPlayerController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(BookingPlayerController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(BookingPlayerController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

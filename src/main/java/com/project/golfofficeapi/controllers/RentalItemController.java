@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.RentalItemControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.RentalItemDTO;
 import com.project.golfofficeapi.services.RentalItemService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,9 +18,11 @@ import java.util.List;
 public class RentalItemController implements RentalItemControllerDocs {
 
     private final RentalItemService service;
+    private final ResourceLinkAssembler links;
 
-    public RentalItemController(RentalItemService service) {
+    public RentalItemController(RentalItemService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(
@@ -27,7 +30,7 @@ public class RentalItemController implements RentalItemControllerDocs {
     )
     @Override
     public List<RentalItemDTO> findAll() {
-        return service.findAll();
+        return links.rentalItems(service.findAll());
     }
 
     @GetMapping(value = "/{id}",
@@ -35,7 +38,7 @@ public class RentalItemController implements RentalItemControllerDocs {
     )
     @Override
     public RentalItemDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.rentalItem(service.findById(id));
     }
 
     @PostMapping(
@@ -44,7 +47,7 @@ public class RentalItemController implements RentalItemControllerDocs {
     )
     @Override
     public RentalItemDTO create(@Valid @RequestBody RentalItemDTO rentalItem) {
-        return service.create(rentalItem);
+        return links.rentalItem(service.create(rentalItem));
     }
 
     @PutMapping(
@@ -53,7 +56,7 @@ public class RentalItemController implements RentalItemControllerDocs {
     )
     @Override
     public RentalItemDTO update(@Valid @RequestBody RentalItemDTO rentalItem) {
-        return service.update(rentalItem);
+        return links.rentalItem(service.update(rentalItem));
     }
 
     @DeleteMapping(value = "/{id}")

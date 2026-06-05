@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.CheckInTicketController;
 import com.project.golfofficeapi.dto.CheckInTicketDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
@@ -24,9 +23,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class CheckInTicketService {
@@ -62,26 +58,20 @@ public class CheckInTicketService {
 
     public List<CheckInTicketDTO> findAll() {
         logger.info("Find All Check-in Tickets");
-        var tickets = mapper.toDTOList(repository.findAll());
-        tickets.forEach(this::addHateoasLinks);
-        return tickets;
+        return mapper.toDTOList(repository.findAll());
     }
 
     public CheckInTicketDTO findById(Long id) {
         logger.info("Find Check-in Ticket by ID");
         CheckInTicket ticket = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Check-in ticket not found"));
-        var dto = mapper.toDTO(ticket);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(ticket);
     }
 
     public List<CheckInTicketDTO> findByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Find Check-in Tickets by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        var tickets = mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
-        tickets.forEach(this::addHateoasLinks);
-        return tickets;
+        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
     }
 
     @Transactional
@@ -105,9 +95,7 @@ public class CheckInTicketService {
                 .orElseThrow(() -> new ResourceNotFoundException("Check-in ticket not found"));
         cashRegisterClosureGuardService.ensureBookingPlayerIsOpen(ticket.getBookingPlayer());
         cancelTicketEntity(ticket, resolveCancellationReason(reason));
-        var dto = mapper.toDTO(repository.save(ticket));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(ticket));
     }
 
     @Transactional
@@ -146,9 +134,7 @@ public class CheckInTicketService {
 
         var activeTicket = repository.findFirstByBookingPlayer_IdAndCancelledFalseOrderByIdDesc(bookingPlayer.getId());
         if (activeTicket.isPresent()) {
-            var dto = mapper.toDTO(activeTicket.get());
-            addHateoasLinks(dto);
-            return dto;
+            return mapper.toDTO(activeTicket.get());
         }
 
         Player player = findPlayer(bookingPlayer.getPlayerId());
@@ -169,9 +155,7 @@ public class CheckInTicketService {
         ticket.setCancelledAt(null);
         ticket.setCancellationReason(null);
 
-        var dto = mapper.toDTO(repository.save(ticket));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(ticket));
     }
 
     private void cancelActiveTicketByBookingPlayerId(Long bookingPlayerId, String reason) {
@@ -258,15 +242,5 @@ public class CheckInTicketService {
         }
 
         return reason.trim();
-    }
-
-    private void addHateoasLinks(CheckInTicketDTO dto) {
-        dto.add(linkTo(methodOn(CheckInTicketController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).issueByBookingPlayerId(dto.getBookingPlayerId())).withRel("issueByBookingPlayer").withType("POST"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).cancel(dto.getId(), dto.getCancellationReason())).withRel("cancel").withType("PUT"));
-        dto.add(linkTo(methodOn(CheckInTicketController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

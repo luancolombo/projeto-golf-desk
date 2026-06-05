@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.RentalItemController;
 import com.project.golfofficeapi.dto.RentalItemDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
@@ -17,8 +16,6 @@ import java.util.logging.Logger;
 
 import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
 import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class RentalItemService {
@@ -38,18 +35,14 @@ public class RentalItemService {
 
     public List<RentalItemDTO> findAll() {
         logger.info("Find All Rental Items");
-        var rentalItems = parseListObject(repository.findAll(), RentalItemDTO.class);
-        rentalItems.forEach(this::addHateoasLinks);
-        return rentalItems;
+        return parseListObject(repository.findAll(), RentalItemDTO.class);
     }
 
     public RentalItemDTO findById(Long id) {
         logger.info("Find Rental Item by ID");
         var rentalItem = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental item not found"));
-        var dto = parseObject(rentalItem, RentalItemDTO.class);
-        addHateoasLinks(dto);
-        return dto;
+        return parseObject(rentalItem, RentalItemDTO.class);
     }
 
     public RentalItemDTO create(RentalItemDTO rentalItem) {
@@ -60,9 +53,7 @@ public class RentalItemService {
         validateRentalPrice(rentalItem);
 
         var entity = parseObject(rentalItem, RentalItem.class);
-        var dto = parseObject(repository.save(entity), RentalItemDTO.class);
-        addHateoasLinks(dto);
-        return dto;
+        return parseObject(repository.save(entity), RentalItemDTO.class);
     }
 
     public RentalItemDTO update(RentalItemDTO rentalItem) {
@@ -82,9 +73,7 @@ public class RentalItemService {
         entity.setRentalPrice(rentalItem.getRentalPrice());
         entity.setActive(rentalItem.getActive());
 
-        var dto = parseObject(repository.save(entity), RentalItemDTO.class);
-        addHateoasLinks(dto);
-        return dto;
+        return parseObject(repository.save(entity), RentalItemDTO.class);
     }
 
     public void delete(Long id) {
@@ -141,13 +130,5 @@ public class RentalItemService {
         if (rentalItem.getRentalPrice().compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException("Rental price cannot be negative");
         }
-    }
-
-    private void addHateoasLinks(RentalItemDTO dto) {
-        dto.add(linkTo(methodOn(RentalItemController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(RentalItemController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(RentalItemController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(RentalItemController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(RentalItemController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

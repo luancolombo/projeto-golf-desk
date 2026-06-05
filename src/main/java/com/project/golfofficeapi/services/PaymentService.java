@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.PaymentController;
 import com.project.golfofficeapi.dto.PaymentDTO;
 import com.project.golfofficeapi.enums.BookingStatus;
 import com.project.golfofficeapi.enums.PaymentMethod;
@@ -25,9 +24,6 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class PaymentService {
@@ -89,34 +85,26 @@ public class PaymentService {
 
     public List<PaymentDTO> findAll() {
         logger.info("Find All Payments");
-        var payments = mapper.toDTOList(repository.findAll());
-        payments.forEach(this::addHateoasLinks);
-        return payments;
+        return mapper.toDTOList(repository.findAll());
     }
 
     public PaymentDTO findById(Long id) {
         logger.info("Find Payment by ID");
         var payment = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-        var dto = mapper.toDTO(payment);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(payment);
     }
 
     public List<PaymentDTO> findByBookingId(Long bookingId) {
         logger.info("Find Payments by Booking ID");
         findBooking(bookingId);
-        var payments = mapper.toDTOList(repository.findByBookingId(bookingId));
-        payments.forEach(this::addHateoasLinks);
-        return payments;
+        return mapper.toDTOList(repository.findByBookingId(bookingId));
     }
 
     public List<PaymentDTO> findByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Find Payments by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        var payments = mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
-        payments.forEach(this::addHateoasLinks);
-        return payments;
+        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
     }
 
     @Transactional
@@ -135,7 +123,6 @@ public class PaymentService {
         receiptService.syncReceiptForPayment(savedPayment);
         var dto = mapper.toDTO(savedPayment);
         bookingStatusService.syncBookingStatus(booking.getId());
-        addHateoasLinks(dto);
         return dto;
     }
 
@@ -169,7 +156,6 @@ public class PaymentService {
         var dto = mapper.toDTO(savedPayment);
         bookingStatusService.syncBookingStatus(oldBookingId);
         bookingStatusService.syncBookingStatus(booking.getId());
-        addHateoasLinks(dto);
         return dto;
     }
 
@@ -328,15 +314,5 @@ public class PaymentService {
         }
 
         payment.setPaidAt(null);
-    }
-
-    private void addHateoasLinks(PaymentDTO dto) {
-        dto.add(linkTo(methodOn(PaymentController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(PaymentController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(PaymentController.class).findByBookingId(dto.getBookingId())).withRel("findByBooking").withType("GET"));
-        dto.add(linkTo(methodOn(PaymentController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
-        dto.add(linkTo(methodOn(PaymentController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(PaymentController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(PaymentController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

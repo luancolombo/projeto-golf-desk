@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.BookingPlayerControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.BookingPlayerDTO;
 import com.project.golfofficeapi.services.BookingPlayerService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,9 +18,11 @@ import java.util.List;
 public class BookingPlayerController implements BookingPlayerControllerDocs {
 
     private final BookingPlayerService service;
+    private final ResourceLinkAssembler links;
 
-    public BookingPlayerController(BookingPlayerService service) {
+    public BookingPlayerController(BookingPlayerService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(
@@ -27,7 +30,7 @@ public class BookingPlayerController implements BookingPlayerControllerDocs {
     )
     @Override
     public List<BookingPlayerDTO> findAll() {
-        return service.findAll();
+        return links.bookingPlayers(service.findAll());
     }
 
     @GetMapping(value = "/{id}",
@@ -35,7 +38,7 @@ public class BookingPlayerController implements BookingPlayerControllerDocs {
     )
     @Override
     public BookingPlayerDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.bookingPlayer(service.findById(id));
     }
 
     @PostMapping(
@@ -44,7 +47,7 @@ public class BookingPlayerController implements BookingPlayerControllerDocs {
     )
     @Override
     public BookingPlayerDTO create(@Valid @RequestBody BookingPlayerDTO bookingPlayer) {
-        return service.create(bookingPlayer);
+        return links.bookingPlayer(service.create(bookingPlayer));
     }
 
     @PutMapping(
@@ -53,7 +56,7 @@ public class BookingPlayerController implements BookingPlayerControllerDocs {
     )
     @Override
     public BookingPlayerDTO update(@Valid @RequestBody BookingPlayerDTO bookingPlayer) {
-        return service.update(bookingPlayer);
+        return links.bookingPlayer(service.update(bookingPlayer));
     }
 
     @DeleteMapping(value = "/{id}")

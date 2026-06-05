@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.CashRegisterClosureControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.CashRegisterClosureDTO;
 import com.project.golfofficeapi.services.CashRegisterClosureService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,21 +20,23 @@ import java.util.List;
 public class CashRegisterClosureController implements CashRegisterClosureControllerDocs {
 
     private final CashRegisterClosureService service;
+    private final ResourceLinkAssembler links;
 
-    public CashRegisterClosureController(CashRegisterClosureService service) {
+    public CashRegisterClosureController(CashRegisterClosureService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<CashRegisterClosureDTO> findAll() {
-        return service.findAll();
+        return links.cashRegisterClosures(service.findAll());
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public CashRegisterClosureDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.cashRegisterClosure(service.findById(id));
     }
 
     @GetMapping(value = "/date/{businessDate}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -41,7 +44,7 @@ public class CashRegisterClosureController implements CashRegisterClosureControl
     public CashRegisterClosureDTO findByBusinessDate(
             @PathVariable("businessDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDate
     ) {
-        return service.findByBusinessDate(businessDate);
+        return links.cashRegisterClosure(service.findByBusinessDate(businessDate));
     }
 
     @GetMapping(value = "/preview", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -49,7 +52,7 @@ public class CashRegisterClosureController implements CashRegisterClosureControl
     public CashRegisterClosureDTO preview(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDate
     ) {
-        return service.preview(businessDate);
+        return links.cashRegisterClosure(service.preview(businessDate));
     }
 
     @PostMapping(
@@ -58,7 +61,7 @@ public class CashRegisterClosureController implements CashRegisterClosureControl
     )
     @Override
     public CashRegisterClosureDTO create(@Valid @RequestBody CashRegisterClosureDTO closure) {
-        return service.create(closure);
+        return links.cashRegisterClosure(service.create(closure));
     }
 
     @PostMapping(
@@ -68,7 +71,7 @@ public class CashRegisterClosureController implements CashRegisterClosureControl
     )
     @Override
     public CashRegisterClosureDTO close(@Valid @RequestBody CashRegisterClosureDTO closure) {
-        return service.close(closure);
+        return links.cashRegisterClosure(service.close(closure));
     }
 
     @PutMapping(
@@ -77,7 +80,7 @@ public class CashRegisterClosureController implements CashRegisterClosureControl
     )
     @Override
     public CashRegisterClosureDTO update(@Valid @RequestBody CashRegisterClosureDTO closure) {
-        return service.update(closure);
+        return links.cashRegisterClosure(service.update(closure));
     }
 
     @DeleteMapping(value = "/{id}")

@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.CashRegisterClosureItemControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.CashRegisterClosureItemDTO;
 import com.project.golfofficeapi.services.CashRegisterClosureItemService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,21 +18,23 @@ import java.util.List;
 public class CashRegisterClosureItemController implements CashRegisterClosureItemControllerDocs {
 
     private final CashRegisterClosureItemService service;
+    private final ResourceLinkAssembler links;
 
-    public CashRegisterClosureItemController(CashRegisterClosureItemService service) {
+    public CashRegisterClosureItemController(CashRegisterClosureItemService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<CashRegisterClosureItemDTO> findAll() {
-        return service.findAll();
+        return links.cashRegisterClosureItems(service.findAll());
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public CashRegisterClosureItemDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.cashRegisterClosureItem(service.findById(id));
     }
 
     @GetMapping(value = "/closure/{cashRegisterClosureId}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,7 +42,7 @@ public class CashRegisterClosureItemController implements CashRegisterClosureIte
     public List<CashRegisterClosureItemDTO> findByCashRegisterClosureId(
             @PathVariable("cashRegisterClosureId") Long cashRegisterClosureId
     ) {
-        return service.findByCashRegisterClosureId(cashRegisterClosureId);
+        return links.cashRegisterClosureItems(service.findByCashRegisterClosureId(cashRegisterClosureId));
     }
 
     @PostMapping(
@@ -48,7 +51,7 @@ public class CashRegisterClosureItemController implements CashRegisterClosureIte
     )
     @Override
     public CashRegisterClosureItemDTO create(@Valid @RequestBody CashRegisterClosureItemDTO item) {
-        return service.create(item);
+        return links.cashRegisterClosureItem(service.create(item));
     }
 
     @PutMapping(
@@ -57,7 +60,7 @@ public class CashRegisterClosureItemController implements CashRegisterClosureIte
     )
     @Override
     public CashRegisterClosureItemDTO update(@Valid @RequestBody CashRegisterClosureItemDTO item) {
-        return service.update(item);
+        return links.cashRegisterClosureItem(service.update(item));
     }
 
     @DeleteMapping(value = "/{id}")

@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.PlayerControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.PlayerDTO;
 import com.project.golfofficeapi.services.PlayerService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,23 +18,25 @@ import java.util.List;
 public class PlayerController implements PlayerControllerDocs {
 
     private final PlayerService service;
+    private final ResourceLinkAssembler links;
 
-    public PlayerController(PlayerService service) {
+    public PlayerController(PlayerService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
     @GetMapping(
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
     public List<PlayerDTO> findAll(){
-        return service.findAll();
+        return links.players(service.findAll());
     }
     @GetMapping(value = "/{id}",
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Override
     public PlayerDTO findById(@PathVariable("id") Long id){
-        return  service.findById(id);
+        return links.player(service.findById(id));
 
     }
     @GetMapping(value = "/search",
@@ -41,7 +44,7 @@ public class PlayerController implements PlayerControllerDocs {
     )
     @Override
     public List<PlayerDTO> findByName(@RequestParam("name") String name){
-        return service.findByName(name);
+        return links.players(service.findByName(name));
     }
     @PostMapping(
             consumes = MediaType.APPLICATION_JSON_VALUE,
@@ -49,7 +52,7 @@ public class PlayerController implements PlayerControllerDocs {
     )
     @Override
     public PlayerDTO create(@Valid @RequestBody PlayerDTO player){
-        return service.create(player);
+        return links.player(service.create(player));
     }
     @PutMapping(
             consumes = MediaType.APPLICATION_JSON_VALUE,
@@ -57,7 +60,7 @@ public class PlayerController implements PlayerControllerDocs {
     )
     @Override
     public PlayerDTO update(@Valid @RequestBody PlayerDTO player){
-        return service.update(player);
+        return links.player(service.update(player));
     }
     @DeleteMapping(value = "/{id}")
     @Override

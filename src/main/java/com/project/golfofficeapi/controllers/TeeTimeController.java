@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.TeeTimeControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.TeeTimeDTO;
 import com.project.golfofficeapi.services.TeeTimeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,9 +18,11 @@ import java.util.List;
 public class TeeTimeController implements TeeTimeControllerDocs {
 
     private final TeeTimeService service;
+    private final ResourceLinkAssembler links;
 
-    public TeeTimeController(TeeTimeService service) {
+    public TeeTimeController(TeeTimeService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(
@@ -27,7 +30,7 @@ public class TeeTimeController implements TeeTimeControllerDocs {
     )
     @Override
     public List<TeeTimeDTO> findAll() {
-        return service.findAll();
+        return links.teeTimes(service.findAll());
     }
 
     @GetMapping(value = "/{id}",
@@ -35,7 +38,7 @@ public class TeeTimeController implements TeeTimeControllerDocs {
     )
     @Override
     public TeeTimeDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.teeTime(service.findById(id));
     }
 
     @PostMapping(
@@ -44,7 +47,7 @@ public class TeeTimeController implements TeeTimeControllerDocs {
     )
     @Override
     public TeeTimeDTO create(@Valid @RequestBody TeeTimeDTO teeTime) {
-        return service.create(teeTime);
+        return links.teeTime(service.create(teeTime));
     }
 
     @PutMapping(
@@ -53,7 +56,7 @@ public class TeeTimeController implements TeeTimeControllerDocs {
     )
     @Override
     public TeeTimeDTO update(@Valid @RequestBody TeeTimeDTO teeTime) {
-        return service.update(teeTime);
+        return links.teeTime(service.update(teeTime));
     }
 
     @DeleteMapping(value = "/{id}")

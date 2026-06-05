@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.CheckInTicketControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.CheckInTicketDTO;
 import com.project.golfofficeapi.services.CheckInTicketService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,27 +18,29 @@ import java.util.List;
 public class CheckInTicketController implements CheckInTicketControllerDocs {
 
     private final CheckInTicketService service;
+    private final ResourceLinkAssembler links;
 
-    public CheckInTicketController(CheckInTicketService service) {
+    public CheckInTicketController(CheckInTicketService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<CheckInTicketDTO> findAll() {
-        return service.findAll();
+        return links.checkInTickets(service.findAll());
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public CheckInTicketDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.checkInTicket(service.findById(id));
     }
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<CheckInTicketDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return service.findByBookingPlayerId(bookingPlayerId);
+        return links.checkInTickets(service.findByBookingPlayerId(bookingPlayerId));
     }
 
     @PostMapping(
@@ -46,13 +49,13 @@ public class CheckInTicketController implements CheckInTicketControllerDocs {
     )
     @Override
     public CheckInTicketDTO create(@Valid @RequestBody CheckInTicketDTO ticket) {
-        return service.create(ticket);
+        return links.checkInTicket(service.create(ticket));
     }
 
     @PostMapping(value = "/booking-player/{bookingPlayerId}/issue", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public CheckInTicketDTO issueByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return service.issueByBookingPlayerId(bookingPlayerId);
+        return links.checkInTicket(service.issueByBookingPlayerId(bookingPlayerId));
     }
 
     @PutMapping(value = "/{id}/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -61,7 +64,7 @@ public class CheckInTicketController implements CheckInTicketControllerDocs {
             @PathVariable("id") Long id,
             @RequestParam(value = "reason", required = false) String reason
     ) {
-        return service.cancel(id, reason);
+        return links.checkInTicket(service.cancel(id, reason));
     }
 
     @DeleteMapping(value = "/{id}")

@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.CashRegisterClosureController;
 import com.project.golfofficeapi.dto.CashRegisterClosureDTO;
 import com.project.golfofficeapi.dto.CashRegisterClosureItemDTO;
 import com.project.golfofficeapi.enums.BookingStatus;
@@ -40,9 +39,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class CashRegisterClosureService {
@@ -85,7 +81,6 @@ public class CashRegisterClosureService {
         List<CashRegisterClosureDTO> closures = repository.findAll().stream()
                 .map(this::toDTOWithItems)
                 .toList();
-        closures.forEach(this::addHateoasLinks);
         return closures;
     }
 
@@ -93,18 +88,14 @@ public class CashRegisterClosureService {
         logger.info("Find Cash Register Closure by ID");
         CashRegisterClosure closure = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cash register closure not found"));
-        CashRegisterClosureDTO dto = toDTOWithItems(closure);
-        addHateoasLinks(dto);
-        return dto;
+        return toDTOWithItems(closure);
     }
 
     public CashRegisterClosureDTO findByBusinessDate(LocalDate businessDate) {
         logger.info("Find Cash Register Closure by Business Date");
         CashRegisterClosure closure = repository.findByBusinessDate(businessDate)
                 .orElseThrow(() -> new ResourceNotFoundException("Cash register closure not found"));
-        CashRegisterClosureDTO dto = toDTOWithItems(closure);
-        addHateoasLinks(dto);
-        return dto;
+        return toDTOWithItems(closure);
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +104,6 @@ public class CashRegisterClosureService {
         validateBusinessDate(businessDate);
         CashRegisterClosureDTO dto = mapper.toDTO(calculateClosure(businessDate, null, null));
         dto.setStatus(CashRegisterClosureStatus.OPEN.name());
-        addHateoasLinks(dto);
         return dto;
     }
 
@@ -141,9 +131,7 @@ public class CashRegisterClosureService {
         CashRegisterClosure savedClosure = repository.save(entity);
         saveClosureItems(savedClosure, calculated.getItems());
 
-        CashRegisterClosureDTO dto = toDTOWithItems(savedClosure);
-        addHateoasLinks(dto);
-        return dto;
+        return toDTOWithItems(savedClosure);
     }
 
     @Transactional
@@ -171,9 +159,7 @@ public class CashRegisterClosureService {
             entity.setStatus(CashRegisterClosureStatus.CANCELLED);
         }
 
-        CashRegisterClosureDTO dto = toDTOWithItems(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return toDTOWithItems(repository.save(entity));
     }
 
     @Transactional
@@ -473,9 +459,7 @@ public class CashRegisterClosureService {
 
     private CashRegisterClosureDTO toDTOWithItems(CashRegisterClosure closure) {
         List<CashRegisterClosureItemDTO> items = itemMapper.toDTOList(itemRepository.findByCashRegisterClosureId(closure.getId()));
-        CashRegisterClosureDTO dto = mapper.toDTO(closure, items);
-        dto.getItems().forEach(this::addItemLinks);
-        return dto;
+        return mapper.toDTO(closure, items);
     }
 
     private void validateCanCloseBusinessDate(LocalDate businessDate) {
@@ -513,24 +497,6 @@ public class CashRegisterClosureService {
 
         return value.setScale(2, RoundingMode.HALF_UP);
     }
-
-    private void addHateoasLinks(CashRegisterClosureDTO dto) {
-        if (dto.getId() != null) {
-            dto.add(linkTo(methodOn(CashRegisterClosureController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-            dto.add(linkTo(methodOn(CashRegisterClosureController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
-        }
-        dto.add(linkTo(methodOn(CashRegisterClosureController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureController.class).findByBusinessDate(dto.getBusinessDate())).withRel("findByBusinessDate").withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureController.class).preview(dto.getBusinessDate())).withRel("preview").withType("GET"));
-        dto.add(linkTo(methodOn(CashRegisterClosureController.class).close(dto)).withRel("close").withType("POST"));
-        dto.add(linkTo(methodOn(CashRegisterClosureController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(CashRegisterClosureController.class).update(dto)).withRel("update").withType("PUT"));
-    }
-
-    private void addItemLinks(CashRegisterClosureItemDTO dto) {
-        dto.add(linkTo(methodOn(com.project.golfofficeapi.controllers.CashRegisterClosureItemController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-    }
-
     private record ClosurePeriod(LocalDateTime start, LocalDateTime end) {}
 
     private record ClosureSourceData(

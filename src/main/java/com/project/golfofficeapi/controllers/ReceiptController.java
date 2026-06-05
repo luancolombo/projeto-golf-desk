@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.ReceiptControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.ReceiptDTO;
 import com.project.golfofficeapi.services.ReceiptService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,39 +18,41 @@ import java.util.List;
 public class ReceiptController implements ReceiptControllerDocs {
 
     private final ReceiptService service;
+    private final ResourceLinkAssembler links;
 
-    public ReceiptController(ReceiptService service) {
+    public ReceiptController(ReceiptService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<ReceiptDTO> findAll() {
-        return service.findAll();
+        return links.receipts(service.findAll());
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public ReceiptDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.receipt(service.findById(id));
     }
 
     @GetMapping(value = "/booking/{bookingId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<ReceiptDTO> findByBookingId(@PathVariable("bookingId") Long bookingId) {
-        return service.findByBookingId(bookingId);
+        return links.receipts(service.findByBookingId(bookingId));
     }
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<ReceiptDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return service.findByBookingPlayerId(bookingPlayerId);
+        return links.receipts(service.findByBookingPlayerId(bookingPlayerId));
     }
 
     @GetMapping(value = "/payment/{paymentId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public List<ReceiptDTO> findByPaymentId(@PathVariable("paymentId") Long paymentId) {
-        return service.findByPaymentId(paymentId);
+        return links.receipts(service.findByPaymentId(paymentId));
     }
 
     @PostMapping(
@@ -58,13 +61,13 @@ public class ReceiptController implements ReceiptControllerDocs {
     )
     @Override
     public ReceiptDTO create(@Valid @RequestBody ReceiptDTO receipt) {
-        return service.create(receipt);
+        return links.receipt(service.create(receipt));
     }
 
     @PostMapping(value = "/payment/{paymentId}/issue", produces = MediaType.APPLICATION_JSON_VALUE)
     @Override
     public ReceiptDTO issueByPaymentId(@PathVariable("paymentId") Long paymentId) {
-        return service.issueReceiptForPaymentId(paymentId);
+        return links.receipt(service.issueReceiptForPaymentId(paymentId));
     }
 
     @PutMapping(
@@ -73,7 +76,7 @@ public class ReceiptController implements ReceiptControllerDocs {
     )
     @Override
     public ReceiptDTO update(@Valid @RequestBody ReceiptDTO receipt) {
-        return service.update(receipt);
+        return links.receipt(service.update(receipt));
     }
 
     @PutMapping(value = "/{id}/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -82,7 +85,7 @@ public class ReceiptController implements ReceiptControllerDocs {
             @PathVariable("id") Long id,
             @RequestParam(value = "reason", required = false) String reason
     ) {
-        return service.cancel(id, reason);
+        return links.receipt(service.cancel(id, reason));
     }
 
     @DeleteMapping(value = "/{id}")

@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.PlayerController;
 import com.project.golfofficeapi.dto.PlayerDTO;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
@@ -16,9 +15,6 @@ import java.util.logging.Logger;
 
 import static com.project.golfofficeapi.mapper.ObjectMapper.parseListObject;
 import static com.project.golfofficeapi.mapper.ObjectMapper.parseObject;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
-
 @Service
 public class PlayerService {
 
@@ -37,24 +33,18 @@ public class PlayerService {
 
     public List<PlayerDTO> findAll() {
         logger.info("Find All Players");
-        var players = parseListObject(repository.findAll(), PlayerDTO.class);
-        players.forEach(this::addHateoasLinks);
-        return players;
+        return parseListObject(repository.findAll(), PlayerDTO.class);
     }
     public PlayerDTO findById(Long id) {
         logger.info("Find Player by ID");
         var player = repository.findById(id)
                 .orElseThrow(()-> new ResourceNotFoundException("Player not found"));
-        var dto = parseObject(player, PlayerDTO.class);
-        addHateoasLinks(dto);
-        return dto;
+        return parseObject(player, PlayerDTO.class);
     }
 
     public List<PlayerDTO> findByName(String name) {
         logger.info("Find Players by name");
-        var players = parseListObject(repository.findByFullNameContainingIgnoreCase(name), PlayerDTO.class);
-        players.forEach(this::addHateoasLinks);
-        return players;
+        return parseListObject(repository.findByFullNameContainingIgnoreCase(name), PlayerDTO.class);
     }
 
     public PlayerDTO create(PlayerDTO player) {
@@ -72,9 +62,7 @@ public class PlayerService {
             throw new BusinessException("Phone already registered");
         }
         var entity = parseObject(player, Player.class);
-        var dto = parseObject(repository.save(entity), PlayerDTO.class);
-        addHateoasLinks(dto);
-        return dto;
+        return parseObject(repository.save(entity), PlayerDTO.class);
     }
     public PlayerDTO update(PlayerDTO player) {
         if (player == null) throw new RequiredObjectIsNullException();
@@ -98,9 +86,7 @@ public class PlayerService {
         entity.setHandCap(player.getHandCap());
         entity.setMember(player.isMember());
         entity.setNotes(player.getNotes());
-        var dto =  parseObject(repository.save(entity), PlayerDTO.class);
-        addHateoasLinks(dto);
-        return dto;
+        return parseObject(repository.save(entity), PlayerDTO.class);
     }
     public void delete(Long id) {
         logger.info("Delete Player");
@@ -113,14 +99,4 @@ public class PlayerService {
 
         repository.delete(entity);
     }
-
-    private void addHateoasLinks(PlayerDTO dto) {
-        dto.add(linkTo(methodOn(PlayerController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(PlayerController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(PlayerController.class).findByName(dto.getFullName())).withRel("findByName").withType("GET"));
-        dto.add(linkTo(methodOn(PlayerController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(PlayerController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(PlayerController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
-    }
-
 }

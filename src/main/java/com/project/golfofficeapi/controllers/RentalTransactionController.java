@@ -1,6 +1,7 @@
 package com.project.golfofficeapi.controllers;
 
 import com.project.golfofficeapi.controllers.docs.RentalTransactionControllerDocs;
+import com.project.golfofficeapi.controllers.assemblers.ResourceLinkAssembler;
 import com.project.golfofficeapi.dto.RentalTransactionDTO;
 import com.project.golfofficeapi.services.RentalTransactionService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,9 +18,11 @@ import java.util.List;
 public class RentalTransactionController implements RentalTransactionControllerDocs {
 
     private final RentalTransactionService service;
+    private final ResourceLinkAssembler links;
 
-    public RentalTransactionController(RentalTransactionService service) {
+    public RentalTransactionController(RentalTransactionService service, ResourceLinkAssembler links) {
         this.service = service;
+        this.links = links;
     }
 
     @GetMapping(
@@ -27,7 +30,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public List<RentalTransactionDTO> findAll() {
-        return service.findAll();
+        return links.rentalTransactions(service.findAll());
     }
 
     @GetMapping(value = "/{id}",
@@ -35,7 +38,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public RentalTransactionDTO findById(@PathVariable("id") Long id) {
-        return service.findById(id);
+        return links.rentalTransaction(service.findById(id));
     }
 
     @GetMapping(value = "/booking/{bookingId}",
@@ -43,7 +46,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public List<RentalTransactionDTO> findByBookingId(@PathVariable("bookingId") Long bookingId) {
-        return service.findByBookingId(bookingId);
+        return links.rentalTransactions(service.findByBookingId(bookingId));
     }
 
     @GetMapping(value = "/booking-player/{bookingPlayerId}",
@@ -51,7 +54,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public List<RentalTransactionDTO> findByBookingPlayerId(@PathVariable("bookingPlayerId") Long bookingPlayerId) {
-        return service.findByBookingPlayerId(bookingPlayerId);
+        return links.rentalTransactions(service.findByBookingPlayerId(bookingPlayerId));
     }
 
     @PutMapping(value = "/booking/{bookingId}/return-all",
@@ -59,7 +62,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public List<RentalTransactionDTO> returnAllByBookingId(@PathVariable("bookingId") Long bookingId) {
-        return service.returnAllByBookingId(bookingId);
+        return links.rentalTransactions(service.returnAllByBookingId(bookingId));
     }
 
     @PutMapping(value = "/return-all",
@@ -67,7 +70,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public List<RentalTransactionDTO> returnAll() {
-        return service.returnAll();
+        return links.rentalTransactions(service.returnAll());
     }
 
     @PostMapping(
@@ -76,7 +79,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public RentalTransactionDTO create(@Valid @RequestBody RentalTransactionDTO rentalTransaction) {
-        return service.create(rentalTransaction);
+        return links.rentalTransaction(service.create(rentalTransaction));
     }
 
     @PutMapping(
@@ -85,7 +88,7 @@ public class RentalTransactionController implements RentalTransactionControllerD
     )
     @Override
     public RentalTransactionDTO update(@Valid @RequestBody RentalTransactionDTO rentalTransaction) {
-        return service.update(rentalTransaction);
+        return links.rentalTransaction(service.update(rentalTransaction));
     }
 
     @DeleteMapping(value = "/{id}")

@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.TeeTimeController;
 import com.project.golfofficeapi.dto.TeeTimeDTO;
 import com.project.golfofficeapi.enums.TeeTimeStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
@@ -20,9 +19,6 @@ import java.time.LocalTime;
 import java.time.Month;
 import java.util.List;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class TeeTimeService {
@@ -59,18 +55,14 @@ public class TeeTimeService {
 
     public List<TeeTimeDTO> findAll() {
         logger.info("Find All Tee Times");
-        var teeTimes = mapper.toDTOList(repository.findAll());
-        teeTimes.forEach(this::addHateoasLinks);
-        return teeTimes;
+        return mapper.toDTOList(repository.findAll());
     }
 
     public TeeTimeDTO findById(Long id) {
         logger.info("Find Tee Time by ID");
         var teeTime = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tee time not found"));
-        var dto = mapper.toDTO(teeTime);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(teeTime);
     }
 
     public TeeTimeDTO create(TeeTimeDTO teeTime) {
@@ -92,9 +84,7 @@ public class TeeTimeService {
         }
 
         var entity = mapper.toEntity(teeTime);
-        var dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     public TeeTimeDTO update(TeeTimeDTO teeTime) {
@@ -129,9 +119,7 @@ public class TeeTimeService {
         entity.setBookedPlayers(teeTime.getBookedPlayers());
         entity.setStatus(status);
         entity.setBaseGreenFee(teeTime.getBaseGreenFee());
-        var dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     public void delete(Long id) {
@@ -191,13 +179,5 @@ public class TeeTimeService {
                 || month == Month.MAY
                 || month == Month.SEPTEMBER
                 || month == Month.OCTOBER;
-    }
-
-    private void addHateoasLinks(TeeTimeDTO dto) {
-        dto.add(linkTo(methodOn(TeeTimeController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(TeeTimeController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(TeeTimeController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(TeeTimeController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(TeeTimeController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

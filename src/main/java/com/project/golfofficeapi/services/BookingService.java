@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.BookingController;
 import com.project.golfofficeapi.dto.BookingDTO;
 import com.project.golfofficeapi.enums.BookingStatus;
 import com.project.golfofficeapi.enums.TeeTimeStatus;
@@ -26,9 +25,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class BookingService {
@@ -84,7 +80,6 @@ public class BookingService {
     public List<BookingDTO> findAll() {
         logger.info("Find All Bookings");
         var bookings = mapper.toDTOList(repository.findAll());
-        bookings.forEach(this::addHateoasLinks);
         return bookings;
     }
 
@@ -92,9 +87,7 @@ public class BookingService {
         logger.info("Find Booking by ID");
         var booking = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
-        var dto = mapper.toDTO(booking);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(booking);
     }
 
     public BookingDTO create(BookingDTO booking) {
@@ -106,9 +99,7 @@ public class BookingService {
 
         var entity = mapper.toEntity(booking, teeTime);
         entity.setCreatedBy(resolveCurrentUserId(booking.getCreatedBy()));
-        var dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     public BookingDTO update(BookingDTO booking) {
@@ -131,9 +122,7 @@ public class BookingService {
         entity.setStatus(resolveStatus(booking.getStatus()));
         entity.setTotalAmount(resolveTotalAmount(booking.getTotalAmount()));
         entity.setTeeTime(teeTime);
-        var dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -243,11 +232,4 @@ public class BookingService {
         return totalAmount;
     }
 
-    private void addHateoasLinks(BookingDTO dto) {
-        dto.add(linkTo(methodOn(BookingController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(BookingController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(BookingController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(BookingController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(BookingController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
-    }
 }

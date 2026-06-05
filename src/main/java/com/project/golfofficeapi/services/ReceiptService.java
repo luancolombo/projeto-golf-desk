@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.ReceiptController;
 import com.project.golfofficeapi.dto.ReceiptDTO;
 import com.project.golfofficeapi.enums.PaymentStatus;
 import com.project.golfofficeapi.enums.RentalTransactionStatus;
@@ -20,9 +19,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class ReceiptService {
@@ -65,42 +61,32 @@ public class ReceiptService {
 
     public List<ReceiptDTO> findAll() {
         logger.info("Find All Receipts");
-        var receipts = mapper.toDTOList(repository.findAll());
-        receipts.forEach(this::addHateoasLinks);
-        return receipts;
+        return mapper.toDTOList(repository.findAll());
     }
 
     public ReceiptDTO findById(Long id) {
         logger.info("Find Receipt by ID");
         var receipt = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
-        var dto = mapper.toDTO(receipt);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(receipt);
     }
 
     public List<ReceiptDTO> findByBookingId(Long bookingId) {
         logger.info("Find Receipts by Booking ID");
         findBooking(bookingId);
-        var receipts = mapper.toDTOList(repository.findByBookingId(bookingId));
-        receipts.forEach(this::addHateoasLinks);
-        return receipts;
+        return mapper.toDTOList(repository.findByBookingId(bookingId));
     }
 
     public List<ReceiptDTO> findByBookingPlayerId(Long bookingPlayerId) {
         logger.info("Find Receipts by Booking Player ID");
         findBookingPlayer(bookingPlayerId);
-        var receipts = mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
-        receipts.forEach(this::addHateoasLinks);
-        return receipts;
+        return mapper.toDTOList(repository.findByBookingPlayerId(bookingPlayerId));
     }
 
     public List<ReceiptDTO> findByPaymentId(Long paymentId) {
         logger.info("Find Receipts by Payment ID");
         findPayment(paymentId);
-        var receipts = mapper.toDTOList(repository.findByPaymentId(paymentId));
-        receipts.forEach(this::addHateoasLinks);
-        return receipts;
+        return mapper.toDTOList(repository.findByPaymentId(paymentId));
     }
 
     @Transactional
@@ -138,9 +124,7 @@ public class ReceiptService {
             cancelReceiptEntity(entity, resolveCancellationReason(receipt.getCancellationReason()));
         }
 
-        var dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -150,9 +134,7 @@ public class ReceiptService {
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
         cashRegisterClosureGuardService.ensureBookingIsOpen(findBooking(entity.getBookingId()));
         cancelReceiptEntity(entity, resolveCancellationReason(reason));
-        var dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -213,9 +195,7 @@ public class ReceiptService {
 
         var existingActiveReceipt = repository.findFirstByPayment_IdAndCancelledFalseOrderByIdAsc(payment.getId());
         if (existingActiveReceipt.isPresent()) {
-            var dto = mapper.toDTO(existingActiveReceipt.get());
-            addHateoasLinks(dto);
-            return dto;
+            return mapper.toDTO(existingActiveReceipt.get());
         }
 
         Booking booking = findBooking(payment.getBookingId());
@@ -251,9 +231,7 @@ public class ReceiptService {
         Receipt savedReceipt = repository.save(receipt);
         createReceiptItems(savedReceipt, bookingPlayer, paymentAmount);
 
-        var dto = mapper.toDTO(savedReceipt);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(savedReceipt);
     }
 
     private void createReceiptItems(Receipt receipt, BookingPlayer bookingPlayer, BigDecimal paymentAmount) {
@@ -445,18 +423,5 @@ public class ReceiptService {
         }
 
         return value.setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private void addHateoasLinks(ReceiptDTO dto) {
-        dto.add(linkTo(methodOn(ReceiptController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findByBookingId(dto.getBookingId())).withRel("findByBooking").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findByBookingPlayerId(dto.getBookingPlayerId())).withRel("findByBookingPlayer").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).findByPaymentId(dto.getPaymentId())).withRel("findByPayment").withType("GET"));
-        dto.add(linkTo(methodOn(ReceiptController.class).issueByPaymentId(dto.getPaymentId())).withRel("issueByPayment").withType("POST"));
-        dto.add(linkTo(methodOn(ReceiptController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(ReceiptController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(ReceiptController.class).cancel(dto.getId(), dto.getCancellationReason())).withRel("cancel").withType("PUT"));
-        dto.add(linkTo(methodOn(ReceiptController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }

@@ -1,6 +1,5 @@
 package com.project.golfofficeapi.services;
 
-import com.project.golfofficeapi.controllers.RentalDamageReportController;
 import com.project.golfofficeapi.dto.RentalDamageReportDTO;
 import com.project.golfofficeapi.enums.RentalDamageReportStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
@@ -19,9 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Service
 public class RentalDamageReportService {
@@ -49,33 +45,31 @@ public class RentalDamageReportService {
 
     public List<RentalDamageReportDTO> findAll() {
         logger.info("Find All Rental Damage Reports");
-        return toDTOListWithLinks(repository.findAll());
+        return mapper.toDTOList(repository.findAll());
     }
 
     public RentalDamageReportDTO findById(Long id) {
         logger.info("Find Rental Damage Report by ID");
         RentalDamageReport report = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rental damage report not found"));
-        RentalDamageReportDTO dto = mapper.toDTO(report);
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(report);
     }
 
     public List<RentalDamageReportDTO> findByStatus(String status) {
         logger.info("Find Rental Damage Reports by Status");
-        return toDTOListWithLinks(repository.findByStatus(resolveStatus(status)));
+        return mapper.toDTOList(repository.findByStatus(resolveStatus(status)));
     }
 
     public List<RentalDamageReportDTO> findByRentalItemId(Long rentalItemId) {
         logger.info("Find Rental Damage Reports by Rental Item ID");
         findRentalItem(rentalItemId);
-        return toDTOListWithLinks(repository.findByRentalItemId(rentalItemId));
+        return mapper.toDTOList(repository.findByRentalItemId(rentalItemId));
     }
 
     public List<RentalDamageReportDTO> findByRentalTransactionId(Long rentalTransactionId) {
         logger.info("Find Rental Damage Reports by Rental Transaction ID");
         findRentalTransaction(rentalTransactionId);
-        return toDTOListWithLinks(repository.findByRentalTransactionId(rentalTransactionId));
+        return mapper.toDTOList(repository.findByRentalTransactionId(rentalTransactionId));
     }
 
     @Transactional
@@ -92,9 +86,7 @@ public class RentalDamageReportService {
         RentalItem rentalItem = resolveRentalItem(report, rentalTransaction);
 
         RentalDamageReport entity = mapper.toEntity(report, rentalTransaction, rentalItem);
-        RentalDamageReportDTO dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -130,9 +122,7 @@ public class RentalDamageReportService {
             entity.setResolvedBy(null);
         }
 
-        RentalDamageReportDTO dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -151,9 +141,7 @@ public class RentalDamageReportService {
         entity.setStatus(RentalDamageReportStatus.RESOLVED);
         entity.setResolvedAt(LocalDateTime.now());
 
-        RentalDamageReportDTO dto = mapper.toDTO(repository.save(entity));
-        addHateoasLinks(dto);
-        return dto;
+        return mapper.toDTO(repository.save(entity));
     }
 
     @Transactional
@@ -228,21 +216,5 @@ public class RentalDamageReportService {
         } catch (IllegalArgumentException exception) {
             throw new BusinessException("Invalid rental damage report status");
         }
-    }
-
-    private List<RentalDamageReportDTO> toDTOListWithLinks(List<RentalDamageReport> reports) {
-        List<RentalDamageReportDTO> dtos = mapper.toDTOList(reports);
-        dtos.forEach(this::addHateoasLinks);
-        return dtos;
-    }
-
-    private void addHateoasLinks(RentalDamageReportDTO dto) {
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).findById(dto.getId())).withSelfRel().withType("GET"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).findAll()).withRel("findAll").withType("GET"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).findByStatus(dto.getStatus())).withRel("findByStatus").withType("GET"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).create(dto)).withRel("create").withType("POST"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).update(dto)).withRel("update").withType("PUT"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).resolve(dto.getId())).withRel("resolve").withType("PUT"));
-        dto.add(linkTo(methodOn(RentalDamageReportController.class).delete(dto.getId())).withRel("delete").withType("DELETE"));
     }
 }
