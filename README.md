@@ -27,7 +27,9 @@ Main features already implemented:
 - Optimized aggregated Agenda endpoint for daily operational reads.
 - OpenAPI/Swagger documentation with JWT Bearer authorization support.
 - DTOs for input and output data.
-- HATEOAS links in API responses.
+- HATEOAS links in API responses, assembled in the web/presentation layer instead of the service layer.
+- Paginated list endpoints for resources that can grow over time.
+- Stable Spring Data page serialization using DTO-style page metadata.
 - Bean Validation.
 - Centralized exception handling.
 - JSON responses for security errors such as `401 Unauthorized` and `403 Forbidden`.
@@ -51,6 +53,8 @@ Main features already implemented:
 - React + TypeScript frontend migration to consume the API.
 - React authenticated frontend flow with login, session storage, automatic token refresh, logout, and role-aware UI.
 - Frontend visual architecture migrated to Tailwind CSS and shadcn/ui.
+- Frontend support for paginated API responses.
+- Players page with alphabetical listing, total count, and next/previous pagination controls.
 - Legacy static frontend archived after the React migration covered the current flows.
 - Docker Compose setup for Spring Boot API and MySQL.
 - Integration tests for business flows and security tests with MockMvc.
@@ -91,6 +95,7 @@ Main backend structure:
 ```text
 src/main/java/com/project/golfofficeapi
 |-- controllers
+|   `-- assemblers
 |-- dto
 |-- exceptions
 |-- mapper
@@ -103,6 +108,7 @@ src/main/java/com/project/golfofficeapi
 Main responsibilities:
 
 - `controllers`: expose REST endpoints.
+- `controllers/assemblers`: assemble HATEOAS links and API representation details.
 - `services`: centralize business rules and orchestration.
 - `repository`: database access through Spring Data JPA.
 - `security`: Spring Security configuration, JWT handling, authentication filters, and JSON security error handlers.
@@ -114,6 +120,22 @@ Main responsibilities:
 The API keeps DTOs simple by exposing IDs such as `bookingId`, `playerId`, `teeTimeId`, and `bookingPlayerId`, while the persistence layer now uses JPA relationships between the main entities. This keeps the REST contract easier to consume and the database model more professional.
 
 Operational statuses are represented with Java enums instead of loose strings. This reduces typo-related bugs, keeps valid states centralized in the backend, and makes business rules easier to evolve. The database stores these enum values as readable strings, preserving clarity in SQL and avoiding fragile numeric ordinal values.
+
+HATEOAS link assembly belongs to the web/presentation adapter. Services return clean DTOs and do not depend on controllers or Spring HATEOAS link builders. This keeps business rules independent from HTTP representation details.
+
+List endpoints that may grow return paginated Spring Data responses. Pagination accepts the standard query parameters:
+
+```http
+GET /player?page=0&size=20&sort=fullName,asc
+```
+
+Common pagination parameters:
+
+- `page`: zero-based page index.
+- `size`: number of records per page.
+- `sort`: property and direction, for example `fullName,asc` or `id,desc`.
+
+Spring Data page serialization is configured with DTO-style metadata to avoid unstable `PageImpl` JSON serialization.
 
 ## Security Architecture
 
@@ -260,12 +282,18 @@ Base endpoint:
 
 Operations:
 
-- `GET /player`
+- `GET /player?page=0&size=20&sort=fullName,asc`
 - `GET /player/{id}`
-- `GET /player/search?name={name}`
+- `GET /player/search?name={name}&page=0&size=20&sort=fullName,asc`
 - `POST /player`
 - `PUT /player`
 - `DELETE /player/{id}`
+
+Highlights:
+
+- Player listing supports pagination and sorting.
+- The React Players page loads players alphabetically by `fullName`.
+- Name search also supports pagination.
 
 ### Tee Times
 
@@ -276,6 +304,14 @@ Base endpoint:
 ```http
 /tee-time
 ```
+
+Operations:
+
+- `GET /tee-time?page=0&size=20&sort=id,asc`
+- `GET /tee-time/{id}`
+- `POST /tee-time`
+- `PUT /tee-time`
+- `DELETE /tee-time/{id}`
 
 Highlights:
 
@@ -297,6 +333,14 @@ Base endpoint:
 /booking
 ```
 
+Operations:
+
+- `GET /booking?page=0&size=20&sort=id,asc`
+- `GET /booking/{id}`
+- `POST /booking`
+- `PUT /booking`
+- `DELETE /booking/{id}`
+
 Highlights:
 
 - Automatic booking code generation.
@@ -315,6 +359,14 @@ Base endpoint:
 ```http
 /booking-player
 ```
+
+Operations:
+
+- `GET /booking-player?page=0&size=20&sort=id,asc`
+- `GET /booking-player/{id}`
+- `POST /booking-player`
+- `PUT /booking-player`
+- `DELETE /booking-player/{id}`
 
 Highlights:
 
@@ -367,6 +419,16 @@ Base endpoint:
 /check-in-ticket
 ```
 
+Operations:
+
+- `GET /check-in-ticket?page=0&size=20&sort=id,asc`
+- `GET /check-in-ticket/{id}`
+- `GET /check-in-ticket/booking-player/{bookingPlayerId}?page=0&size=20&sort=id,asc`
+- `POST /check-in-ticket`
+- `POST /check-in-ticket/booking-player/{bookingPlayerId}/issue`
+- `PUT /check-in-ticket/{id}/cancel`
+- `DELETE /check-in-ticket/{id}`
+
 Highlights:
 
 - Ticket linked to `bookingPlayerId`.
@@ -389,6 +451,14 @@ Base endpoint:
 /rental-item
 ```
 
+Operations:
+
+- `GET /rental-item?page=0&size=20&sort=id,asc`
+- `GET /rental-item/{id}`
+- `POST /rental-item`
+- `PUT /rental-item`
+- `DELETE /rental-item/{id}`
+
 Highlights:
 
 - Full CRUD for rental items.
@@ -407,6 +477,18 @@ Base endpoint:
 ```http
 /rental-transaction
 ```
+
+Operations:
+
+- `GET /rental-transaction?page=0&size=20&sort=id,asc`
+- `GET /rental-transaction/{id}`
+- `GET /rental-transaction/booking/{bookingId}?page=0&size=20&sort=id,asc`
+- `GET /rental-transaction/booking-player/{bookingPlayerId}?page=0&size=20&sort=id,asc`
+- `PUT /rental-transaction/booking/{bookingId}/return-all`
+- `PUT /rental-transaction/return-all`
+- `POST /rental-transaction`
+- `PUT /rental-transaction`
+- `DELETE /rental-transaction/{id}`
 
 Highlights:
 
@@ -435,11 +517,11 @@ Base endpoint:
 
 Operations:
 
-- `GET /rental-damage-report`
+- `GET /rental-damage-report?page=0&size=20&sort=id,asc`
 - `GET /rental-damage-report/{id}`
-- `GET /rental-damage-report/status/{status}`
-- `GET /rental-damage-report/rental-item/{rentalItemId}`
-- `GET /rental-damage-report/rental-transaction/{rentalTransactionId}`
+- `GET /rental-damage-report/status/{status}?page=0&size=20&sort=id,asc`
+- `GET /rental-damage-report/rental-item/{rentalItemId}?page=0&size=20&sort=id,asc`
+- `GET /rental-damage-report/rental-transaction/{rentalTransactionId}?page=0&size=20&sort=id,asc`
 - `POST /rental-damage-report`
 - `PUT /rental-damage-report`
 - `PUT /rental-damage-report/{id}/resolve`
@@ -463,6 +545,16 @@ Base endpoint:
 ```http
 /payment
 ```
+
+Operations:
+
+- `GET /payment?page=0&size=20&sort=id,asc`
+- `GET /payment/{id}`
+- `GET /payment/booking/{bookingId}?page=0&size=20&sort=id,asc`
+- `GET /payment/booking-player/{bookingPlayerId}?page=0&size=20&sort=id,asc`
+- `POST /payment`
+- `PUT /payment`
+- `DELETE /payment/{id}`
 
 Highlights:
 
@@ -489,6 +581,19 @@ Base endpoint:
 /receipt
 ```
 
+Operations:
+
+- `GET /receipt?page=0&size=20&sort=id,asc`
+- `GET /receipt/{id}`
+- `GET /receipt/booking/{bookingId}?page=0&size=20&sort=id,asc`
+- `GET /receipt/booking-player/{bookingPlayerId}?page=0&size=20&sort=id,asc`
+- `GET /receipt/payment/{paymentId}?page=0&size=20&sort=id,asc`
+- `POST /receipt`
+- `POST /receipt/payment/{paymentId}/issue`
+- `PUT /receipt`
+- `PUT /receipt/{id}/cancel`
+- `DELETE /receipt/{id}`
+
 Highlights:
 
 - Receipt linked to `bookingId`, `bookingPlayerId`, and `paymentId`.
@@ -511,7 +616,7 @@ Base endpoint:
 
 Operations:
 
-- `GET /cash-register-closure`
+- `GET /cash-register-closure?page=0&size=20&sort=id,asc`
 - `GET /cash-register-closure/{id}`
 - `GET /cash-register-closure/date/{businessDate}`
 - `GET /cash-register-closure/preview?date={businessDate}`
@@ -539,6 +644,16 @@ Cash register closing items are stored in:
 ```
 
 These records are generated by the backend when closing the cash register and represent the historical details of that closing.
+
+Cash register closure item list endpoints are also paginated:
+
+- `GET /cash-register-closure-item?page=0&size=20&sort=id,asc`
+- `GET /cash-register-closure-item/closure/{cashRegisterClosureId}?page=0&size=20&sort=id,asc`
+
+Receipt item list endpoints are also paginated:
+
+- `GET /receipt-item?page=0&size=20&sort=id,asc`
+- `GET /receipt-item/receipt/{receiptId}?page=0&size=20&sort=id,asc`
 
 ## Frontend
 
@@ -585,6 +700,7 @@ Current React migration status:
 - `apiClient` layer created to consume the Spring Boot API through `/api`.
 - `apiClient` sends `Authorization: Bearer <accessToken>` on protected requests.
 - `apiClient` automatically tries `/auth/refresh` once when a protected request returns `401 Unauthorized`.
+- `apiClient` supports Spring Data paginated responses and can unwrap `content` for screens that still consume arrays.
 - Central authentication state created with React Context.
 - Authenticated session stored in `sessionStorage`, including user, role, access token, and refresh token.
 - Login screen consuming `/auth/login`.
@@ -598,7 +714,9 @@ Current React migration status:
 - Services created for Players, Tee Times, Bookings, Booking Players, Rental Items, Rental Transactions, and Payments.
 - Services created for Receipts, Receipt Items, and Check-in Tickets.
 - Players page migrated to React.
-- Players page includes search by name, search by ID, listing, CRUD, and member filtering.
+- Players page includes search by name, search by ID, listing, CRUD, member filtering, alphabetical loading, total count, and next/previous pagination controls.
+- Players page requests `GET /player?page=0&size=20&sort=fullName,asc` for the main listing.
+- Players page keeps name search paginated with `GET /player/search?name={name}&page=0&size=20&sort=fullName,asc`.
 - Materials page migrated to React.
 - Agenda page migrated to React.
 - Daily agenda with slots from 07:00 to 19:00 every 10 minutes.
@@ -919,6 +1037,10 @@ Recently implemented roadmap items:
 - Tee sheet Agenda layout with booking operation side panel.
 - shadcn dialogs, sheets, tabs, badges, buttons, inputs, selects, dropdown menus, and separators.
 - Cleanup of unused legacy CSS after the visual migration.
+- HATEOAS link assembly moved out of services into a controller assembler.
+- Paginated backend list endpoints with stable Spring Data page serialization.
+- Frontend compatibility with paginated responses.
+- Players page pagination with alphabetical ordering by full name.
 
 Planned future implementations:
 
@@ -927,6 +1049,8 @@ Planned future implementations:
 - Review high-volume service logs, moving repetitive operational logs such as authenticated user lookup from `INFO` to `DEBUG`.
 - Evaluate JWT authentication lookup optimization, reducing repeated user database reads when the token already carries safe claims.
 - Add database indexes for the most used Agenda queries, especially by play date, booking, booking player, payment, rental, receipt, and ticket relationships.
+- Add full pagination controls to other frontend list screens as their datasets grow.
+- Improve OpenAPI schemas for paginated responses with dedicated response examples.
 - Admin/maintenance view for resolving rental damage reports.
 - Optional billing flow for damaged or lost rental items.
 - Pricing rule evolution with professional price, season, and twilight configuration.
@@ -944,10 +1068,14 @@ npm run build
 ```
 
 ```powershell
+.\mvnw.cmd -DskipTests compile
+```
+
+```powershell
 .\mvnw.cmd test
 ```
 
-Current backend validation includes application context tests, service integration tests, cash register and payment/receipt flows, and MockMvc security tests for login, public endpoint access, protected endpoint without token, protected endpoint with valid token, and forbidden access by role.
+Current backend validation includes compilation, application context tests, service integration tests, cash register and payment/receipt flows, and MockMvc security tests for login, public endpoint access, protected endpoint without token, protected endpoint with valid token, and forbidden access by role.
 
 The project does not have a `lint` script in `frontend/package.json` yet.
 
