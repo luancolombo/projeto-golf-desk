@@ -922,6 +922,123 @@ JWT_REFRESH_TOKEN_EXPIRATION_HOURS
 
 This keeps local IDE execution and Docker execution compatible.
 
+### Separate Backend and Frontend Compose Files
+
+The project also includes separate Compose files for building/running backend and frontend images independently.
+
+Backend Compose:
+
+```text
+docker-compose.backend.yml
+```
+
+Frontend Compose:
+
+```text
+docker-compose.frontend.yml
+```
+
+Default image names:
+
+```text
+golf-desk-backend:<TAG>
+golf-desk-frontend:<TAG>
+```
+
+Docker Compose does not calculate the current datetime inside YAML by itself, so the repository includes PowerShell helpers that set `TAG` to `yyyyMMdd-HHmmss` automatically.
+
+Build and run the backend with a datetime tag:
+
+```powershell
+.\scripts\docker-compose-backend.ps1
+```
+
+Build and run the frontend with a datetime tag:
+
+```powershell
+.\scripts\docker-compose-frontend.ps1
+```
+
+Pass regular Docker Compose arguments after the script name:
+
+```powershell
+.\scripts\docker-compose-backend.ps1 ps
+.\scripts\docker-compose-backend.ps1 down
+.\scripts\docker-compose-frontend.ps1 ps
+.\scripts\docker-compose-frontend.ps1 down
+```
+
+Use a custom tag when needed:
+
+```powershell
+.\scripts\docker-compose-backend.ps1 -Tag 20260606-120000
+.\scripts\docker-compose-frontend.ps1 -Tag 20260606-120000
+```
+
+The backend Compose file runs the API and MySQL:
+
+```text
+API:   http://localhost:8080
+MySQL: localhost:3307
+```
+
+The frontend Compose file serves the React build through Nginx:
+
+```text
+Frontend: http://localhost:5173
+```
+
+By default, the frontend image is built with:
+
+```text
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Override it when building for another backend URL:
+
+```powershell
+$env:VITE_API_BASE_URL="https://api.example.com"; .\scripts\docker-compose-frontend.ps1
+```
+
+### Megacorp Registry Compose
+
+The repository includes a Compose file matching the Megacorp registry deployment style:
+
+```text
+docker-compose.registry.yml
+```
+
+It references both images from the Megacorp registry:
+
+```text
+registry.megacorpservers.com/cust-019e9476bb747460b9aa0048/golf-desk-backend:<TAG>
+registry.megacorpservers.com/cust-019e9476bb747460b9aa0048/golf-desk-frontend:<TAG>
+```
+
+Use the helper script to build and push both images with a datetime tag:
+
+```powershell
+.\scripts\docker-registry-build-push.ps1
+```
+
+The generated tag follows:
+
+```text
+yyyyMMdd-HHmmss
+```
+
+Use a custom tag or frontend API URL when needed:
+
+```powershell
+.\scripts\docker-registry-build-push.ps1 -Tag 20260606-120000 -FrontendApiBaseUrl "https://api.example.com"
+```
+
+After pushing, deploy with the same tag:
+
+```powershell
+$env:TAG="20260606-120000"; docker compose -f docker-compose.registry.yml config
+```
+
 ## Running the React Frontend
 
 In another terminal:
