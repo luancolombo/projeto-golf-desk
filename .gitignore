@@ -10,6 +10,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/.env.local
 
+# Local Docker deployment helpers
+docker-compose.backend.yml
+docker-compose.frontend.yml
+docker-compose.registry.yml
+.codex-last-*
+
 # IDE files
 .idea/
 
