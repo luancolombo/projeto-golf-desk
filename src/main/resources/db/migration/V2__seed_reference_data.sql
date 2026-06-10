@@ -1,18 +1,3 @@
-CREATE TABLE IF NOT EXISTS player (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    full_name VARCHAR(50) NOT NULL,
-    tax_number VARCHAR(50) NOT NULL,
-    email VARCHAR(50) NOT NULL,
-    phone VARCHAR(50) NOT NULL,
-    hand_cap VARCHAR(50) NOT NULL,
-    member BOOLEAN NOT NULL,
-    notes VARCHAR(100) NOT NULL,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_player_tax_number UNIQUE (tax_number),
-    CONSTRAINT uk_player_email UNIQUE (email),
-    CONSTRAINT uk_player_phone UNIQUE (phone)
-);
-
 INSERT IGNORE INTO player (full_name, tax_number, email, phone, hand_cap, member, notes) VALUES
 ('Lucas Ferreira', '100000001', 'lucas.ferreira001@golf.test', '910000001', '12', true, 'Prefere horarios da manha'),
 ('Mariana Costa', '100000002', 'mariana.costa002@golf.test', '910000002', '24', false, 'Guest frequente'),
@@ -114,3 +99,59 @@ INSERT IGNORE INTO player (full_name, tax_number, email, phone, hand_cap, member
 ('Simone Paiva', '100000098', 'simone.paiva098@golf.test', '910000098', '30', false, 'Prefere tarde'),
 ('Vinicius Barreto', '100000099', 'vinicius.barreto099@golf.test', '910000099', '10', true, 'Joga com guests'),
 ('Marcela Bastos', '100000100', 'marcela.bastos100@golf.test', '910000100', '25', false, 'Guest cadastrada');
+
+INSERT INTO rental_item (name, type, total_stock, available_stock, rental_price, active)
+SELECT 'Buggy', 'Material', 60, 60, 55.00, true
+WHERE NOT EXISTS (
+    SELECT 1 FROM rental_item WHERE name = 'Buggy'
+);
+
+INSERT INTO rental_item (name, type, total_stock, available_stock, rental_price, active)
+SELECT 'Trolley Manual', 'Material', 40, 40, 10.00, true
+WHERE NOT EXISTS (
+    SELECT 1 FROM rental_item WHERE name = 'Trolley Manual'
+);
+
+INSERT INTO rental_item (name, type, total_stock, available_stock, rental_price, active)
+SELECT 'Trolley Eletrico', 'Material', 13, 13, 30.00, true
+WHERE NOT EXISTS (
+    SELECT 1 FROM rental_item WHERE name = 'Trolley Eletrico'
+);
+
+INSERT INTO rental_item (name, type, total_stock, available_stock, rental_price, active)
+SELECT 'Set Clubs Callaway R', 'Clubs', 30, 30, 40.00, true
+WHERE NOT EXISTS (
+    SELECT 1 FROM rental_item WHERE name = 'Set Clubs Callaway R'
+);
+
+INSERT INTO rental_item (name, type, total_stock, available_stock, rental_price, active)
+SELECT 'Set Clubs Callaway L', 'Clubs', 15, 15, 40.00, true
+WHERE NOT EXISTS (
+    SELECT 1 FROM rental_item WHERE name = 'Set Clubs Callaway L'
+);
+
+-- Development-only seed user for local testing.
+-- Email: manager@golfoffice.dev
+-- Password: admin123
+INSERT INTO app_user (
+    name,
+    email,
+    password,
+    role,
+    active,
+    created_at,
+    updated_at
+)
+SELECT
+    'Development Manager',
+    'manager@golfoffice.dev',
+    '{bcrypt}$2a$10$5RMJ4dPo3IMoBlMNlFJ9QejjL94.u9QxhPuVHQQgTfJxgUjcb3BXu',
+    'MANAGER',
+    TRUE,
+    CURRENT_TIMESTAMP(6),
+    CURRENT_TIMESTAMP(6)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM app_user
+    WHERE email = 'manager@golfoffice.dev'
+);

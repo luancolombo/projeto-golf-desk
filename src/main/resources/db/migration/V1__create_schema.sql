@@ -1,0 +1,325 @@
+CREATE TABLE player (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    full_name VARCHAR(50) NOT NULL,
+    tax_number VARCHAR(50) NOT NULL,
+    email VARCHAR(50) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    hand_cap VARCHAR(50) NOT NULL,
+    member BOOLEAN NOT NULL,
+    notes VARCHAR(100) NOT NULL,
+    CONSTRAINT pk_player PRIMARY KEY (id),
+    CONSTRAINT uk_player_tax_number UNIQUE (tax_number),
+    CONSTRAINT uk_player_email UNIQUE (email),
+    CONSTRAINT uk_player_phone UNIQUE (phone)
+);
+
+CREATE TABLE tee_time (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    play_date DATE NOT NULL,
+    start_time TIME(6) NOT NULL,
+    max_players INT NOT NULL,
+    booked_players INT NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    base_green_fee DECIMAL(10, 2) NOT NULL,
+    CONSTRAINT pk_tee_time PRIMARY KEY (id),
+    CONSTRAINT uk_tee_time_play_date_start_time UNIQUE (play_date, start_time)
+);
+
+CREATE TABLE booking (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    code VARCHAR(40) NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    created_by BIGINT NULL,
+    tee_time_id BIGINT NOT NULL,
+    CONSTRAINT pk_booking PRIMARY KEY (id),
+    CONSTRAINT uk_booking_code UNIQUE (code),
+    CONSTRAINT fk_booking_tee_time
+        FOREIGN KEY (tee_time_id)
+        REFERENCES tee_time (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE booking_player (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    booking_id BIGINT NOT NULL,
+    player_id BIGINT NOT NULL,
+    green_fee_amount DECIMAL(10, 2) NOT NULL,
+    player_count INT NOT NULL DEFAULT 1,
+    checked_in BOOLEAN NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    CONSTRAINT pk_booking_player PRIMARY KEY (id),
+    CONSTRAINT fk_booking_player_booking
+        FOREIGN KEY (booking_id)
+        REFERENCES booking (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_booking_player_player
+        FOREIGN KEY (player_id)
+        REFERENCES player (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT chk_booking_player_count CHECK (player_count BETWEEN 1 AND 4)
+);
+
+CREATE TABLE rental_item (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    total_stock INT NOT NULL,
+    available_stock INT NOT NULL,
+    rental_price DECIMAL(10, 2) NOT NULL,
+    active BOOLEAN NOT NULL,
+    CONSTRAINT pk_rental_item PRIMARY KEY (id)
+);
+
+CREATE TABLE rental_transaction (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    booking_id BIGINT NOT NULL,
+    booking_player_id BIGINT NOT NULL,
+    rental_item_id BIGINT NOT NULL,
+    quantity INT NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    CONSTRAINT pk_rental_transaction PRIMARY KEY (id),
+    CONSTRAINT fk_rental_transaction_booking
+        FOREIGN KEY (booking_id)
+        REFERENCES booking (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_rental_transaction_booking_player
+        FOREIGN KEY (booking_player_id)
+        REFERENCES booking_player (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_rental_transaction_rental_item
+        FOREIGN KEY (rental_item_id)
+        REFERENCES rental_item (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE payment (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    booking_id BIGINT NOT NULL,
+    booking_player_id BIGINT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    method VARCHAR(30) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    paid_at DATETIME(6) NULL,
+    CONSTRAINT pk_payment PRIMARY KEY (id),
+    CONSTRAINT fk_payment_booking
+        FOREIGN KEY (booking_id)
+        REFERENCES booking (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_payment_booking_player
+        FOREIGN KEY (booking_player_id)
+        REFERENCES booking_player (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE receipt (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    receipt_number VARCHAR(40) NOT NULL,
+    booking_id BIGINT NOT NULL,
+    booking_player_id BIGINT NOT NULL,
+    payment_id BIGINT NOT NULL,
+    player_name_snapshot VARCHAR(100) NOT NULL,
+    player_tax_number_snapshot VARCHAR(50) NULL,
+    booking_code_snapshot VARCHAR(40) NOT NULL,
+    play_date DATE NOT NULL,
+    start_time TIME(6) NOT NULL,
+    green_fee_amount DECIMAL(10, 2) NOT NULL,
+    rental_amount DECIMAL(10, 2) NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    payment_method VARCHAR(30) NOT NULL,
+    payment_status VARCHAR(30) NOT NULL,
+    issued_at DATETIME(6) NOT NULL,
+    cancelled BOOLEAN NOT NULL,
+    cancelled_at DATETIME(6) NULL,
+    cancellation_reason VARCHAR(255) NULL,
+    CONSTRAINT pk_receipt PRIMARY KEY (id),
+    CONSTRAINT uk_receipt_receipt_number UNIQUE (receipt_number),
+    CONSTRAINT fk_receipt_booking
+        FOREIGN KEY (booking_id)
+        REFERENCES booking (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_receipt_booking_player
+        FOREIGN KEY (booking_player_id)
+        REFERENCES booking_player (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_receipt_payment
+        FOREIGN KEY (payment_id)
+        REFERENCES payment (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE receipt_item (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    receipt_id BIGINT NOT NULL,
+    description VARCHAR(120) NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    CONSTRAINT pk_receipt_item PRIMARY KEY (id),
+    CONSTRAINT fk_receipt_item_receipt
+        FOREIGN KEY (receipt_id)
+        REFERENCES receipt (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE check_in_ticket (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    ticket_number VARCHAR(40) NOT NULL,
+    booking_player_id BIGINT NOT NULL,
+    player_name_snapshot VARCHAR(100) NOT NULL,
+    player_count_snapshot INT NOT NULL DEFAULT 1,
+    booking_code_snapshot VARCHAR(40) NOT NULL,
+    play_date DATE NOT NULL,
+    start_time TIME(6) NOT NULL,
+    starting_tee VARCHAR(20) NOT NULL,
+    crossing_tee VARCHAR(20) NOT NULL,
+    crossing_time TIME(6) NOT NULL,
+    issued_at DATETIME(6) NOT NULL,
+    cancelled BOOLEAN NOT NULL,
+    cancelled_at DATETIME(6) NULL,
+    cancellation_reason VARCHAR(255) NULL,
+    CONSTRAINT pk_check_in_ticket PRIMARY KEY (id),
+    CONSTRAINT uk_check_in_ticket_number UNIQUE (ticket_number),
+    CONSTRAINT fk_check_in_ticket_booking_player
+        FOREIGN KEY (booking_player_id)
+        REFERENCES booking_player (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT chk_check_in_ticket_player_count_snapshot CHECK (player_count_snapshot BETWEEN 1 AND 4)
+);
+
+CREATE TABLE cash_register_closure (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    business_date DATE NOT NULL,
+    opened_at DATETIME(6) NOT NULL,
+    closed_at DATETIME(6) NULL,
+    status VARCHAR(30) NOT NULL,
+    closed_by BIGINT NULL,
+    cash_total DECIMAL(10, 2) NOT NULL,
+    card_total DECIMAL(10, 2) NOT NULL,
+    mbway_total DECIMAL(10, 2) NOT NULL,
+    transfer_total DECIMAL(10, 2) NOT NULL,
+    gross_total DECIMAL(10, 2) NOT NULL,
+    refunded_total DECIMAL(10, 2) NOT NULL,
+    net_total DECIMAL(10, 2) NOT NULL,
+    paid_payments_count INT NOT NULL,
+    refunded_payments_count INT NOT NULL,
+    issued_receipts_count INT NOT NULL,
+    cancelled_receipts_count INT NOT NULL,
+    pending_bookings_count INT NOT NULL,
+    unreturned_rentals_count INT NOT NULL,
+    notes VARCHAR(255) NULL,
+    CONSTRAINT pk_cash_register_closure PRIMARY KEY (id)
+);
+
+CREATE TABLE cash_register_closure_item (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    cash_register_closure_id BIGINT NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    reference_id BIGINT NULL,
+    reference_code VARCHAR(60) NULL,
+    description VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_method VARCHAR(30) NULL,
+    payment_status VARCHAR(30) NULL,
+    occurred_at DATETIME(6) NOT NULL,
+    CONSTRAINT pk_cash_register_closure_item PRIMARY KEY (id),
+    CONSTRAINT fk_cash_register_closure_item_closure
+        FOREIGN KEY (cash_register_closure_id)
+        REFERENCES cash_register_closure (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE rental_damage_report (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    rental_transaction_id BIGINT NULL,
+    rental_item_id BIGINT NULL,
+    description VARCHAR(500) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    reported_at DATETIME(6) NOT NULL,
+    resolved_at DATETIME(6) NULL,
+    reported_by BIGINT NULL,
+    resolved_by BIGINT NULL,
+    CONSTRAINT pk_rental_damage_report PRIMARY KEY (id),
+    CONSTRAINT fk_rental_damage_report_transaction
+        FOREIGN KEY (rental_transaction_id)
+        REFERENCES rental_transaction (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_rental_damage_report_item
+        FOREIGN KEY (rental_item_id)
+        REFERENCES rental_item (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE app_user (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(80) NOT NULL,
+    email VARCHAR(120) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(30) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
+    CONSTRAINT pk_app_user PRIMARY KEY (id),
+    CONSTRAINT uk_app_user_email UNIQUE (email)
+);
+
+CREATE TABLE refresh_token (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    token_hash VARCHAR(128) NOT NULL,
+    issued_at DATETIME(6) NOT NULL,
+    expires_at DATETIME(6) NOT NULL,
+    revoked_at DATETIME(6) NULL,
+    CONSTRAINT pk_refresh_token PRIMARY KEY (id),
+    CONSTRAINT uk_refresh_token_hash UNIQUE (token_hash),
+    CONSTRAINT fk_refresh_token_user
+        FOREIGN KEY (user_id)
+        REFERENCES app_user (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_player_full_name ON player (full_name);
+CREATE INDEX idx_booking_tee_time_status ON booking (tee_time_id, status);
+CREATE INDEX idx_booking_player_booking_player ON booking_player (booking_id, player_id);
+CREATE INDEX idx_booking_player_booking_status ON booking_player (booking_id, status);
+CREATE INDEX idx_rental_item_active_type ON rental_item (active, type);
+CREATE INDEX idx_rental_transaction_booking_status ON rental_transaction (booking_id, status);
+CREATE INDEX idx_rental_transaction_booking_player_status ON rental_transaction (booking_player_id, status);
+CREATE INDEX idx_payment_booking_player_status ON payment (booking_player_id, status);
+CREATE INDEX idx_payment_booking_status ON payment (booking_id, status);
+CREATE INDEX idx_receipt_payment_cancelled ON receipt (payment_id, cancelled);
+CREATE INDEX idx_receipt_booking_player_cancelled ON receipt (booking_player_id, cancelled);
+CREATE INDEX idx_receipt_booking_cancelled ON receipt (booking_id, cancelled);
+CREATE INDEX idx_receipt_item_receipt ON receipt_item (receipt_id);
+CREATE INDEX idx_check_in_ticket_booking_player_id ON check_in_ticket (booking_player_id);
+CREATE INDEX idx_check_in_ticket_play_date ON check_in_ticket (play_date);
+CREATE INDEX idx_cash_register_closure_business_date_status ON cash_register_closure (business_date, status);
+CREATE INDEX idx_cash_register_closure_status ON cash_register_closure (status);
+CREATE INDEX idx_cash_register_closure_item_closure ON cash_register_closure_item (cash_register_closure_id);
+CREATE INDEX idx_cash_register_closure_item_type ON cash_register_closure_item (type);
+CREATE INDEX idx_rental_damage_report_status ON rental_damage_report (status);
+CREATE INDEX idx_rental_damage_report_rental_item ON rental_damage_report (rental_item_id);
+CREATE INDEX idx_rental_damage_report_rental_transaction ON rental_damage_report (rental_transaction_id);
+CREATE INDEX idx_app_user_role_active ON app_user (role, active);
+CREATE INDEX idx_refresh_token_user_active ON refresh_token (user_id, revoked_at);
+CREATE INDEX idx_refresh_token_expiration ON refresh_token (expires_at, revoked_at);
