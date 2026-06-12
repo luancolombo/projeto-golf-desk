@@ -56,6 +56,19 @@ public class RentalDamageReportController implements RentalDamageReportControlle
     }
 
     @PostMapping(
+            value = "/rental-transaction/{rentalTransactionId}/damage",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @Override
+    public RentalDamageReportDTO reportTransactionDamage(
+            @PathVariable("rentalTransactionId") Long rentalTransactionId,
+            @Valid @RequestBody RentalDamageReportDTO report
+    ) {
+        return links.rentalDamageReport(service.reportTransactionDamage(rentalTransactionId, report));
+    }
+
+    @PostMapping(
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )

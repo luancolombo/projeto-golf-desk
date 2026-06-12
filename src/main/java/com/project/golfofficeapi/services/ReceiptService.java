@@ -91,6 +91,10 @@ public class ReceiptService {
         return repository.findByPayment_Id(paymentId, pageable).map(mapper::toDTO);
     }
 
+    public List<ReceiptDTO> findByPaymentId(Long paymentId) {
+        return findByPaymentId(paymentId, Pageable.unpaged()).getContent();
+    }
+
     @Transactional
     public ReceiptDTO create(ReceiptDTO receipt) {
         if (receipt == null) throw new RequiredObjectIsNullException();

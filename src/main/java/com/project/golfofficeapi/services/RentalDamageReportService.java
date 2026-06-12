@@ -2,6 +2,7 @@ package com.project.golfofficeapi.services;
 
 import com.project.golfofficeapi.dto.RentalDamageReportDTO;
 import com.project.golfofficeapi.enums.RentalDamageReportStatus;
+import com.project.golfofficeapi.enums.RentalTransactionStatus;
 import com.project.golfofficeapi.exceptions.BusinessException;
 import com.project.golfofficeapi.exceptions.RequiredObjectIsNullException;
 import com.project.golfofficeapi.exceptions.ResourceNotFoundException;
@@ -79,6 +80,7 @@ public class RentalDamageReportService {
         if (report == null) throw new RequiredObjectIsNullException();
         logger.info("Create Rental Damage Report");
         validateDescription(report.getDescription());
+        validateDamagedUnitLabel(report.getDamagedUnitLabel());
         prepareDefaults(report);
 
         RentalTransaction rentalTransaction = resolveRentalTransaction(report.getRentalTransactionId());
@@ -92,15 +94,48 @@ public class RentalDamageReportService {
     }
 
     @Transactional
+    public RentalDamageReportDTO reportTransactionDamage(Long rentalTransactionId, RentalDamageReportDTO report) {
+        if (report == null) throw new RequiredObjectIsNullException();
+        logger.info("Report Rental Transaction Damage");
+        validateDescription(report.getDescription());
+        validateDamagedUnitLabel(report.getDamagedUnitLabel());
+
+        RentalTransaction rentalTransaction = findRentalTransaction(rentalTransactionId);
+        cashRegisterClosureGuardService.ensureRentalTransactionIsOpen(rentalTransaction);
+
+        if (rentalTransaction.getStatus() != RentalTransactionStatus.RENTED
+                && rentalTransaction.getStatus() != RentalTransactionStatus.DAMAGED) {
+            throw new BusinessException("Only rented or already damaged rental transactions can receive damage reports");
+        }
+
+        if (repository.existsByRentalTransaction_IdAndStatus(rentalTransactionId, RentalDamageReportStatus.OPEN)) {
+            throw new BusinessException("This rental transaction already has an open damage report");
+        }
+
+        rentalTransaction.setStatus(RentalTransactionStatus.DAMAGED);
+        rentalTransactionRepository.save(rentalTransaction);
+
+        report.setRentalTransactionId(rentalTransaction.getId());
+        report.setRentalItemId(rentalTransaction.getRentalItemId());
+        report.setStatus(RentalDamageReportStatus.OPEN.name());
+        prepareDefaults(report);
+
+        RentalDamageReport entity = mapper.toEntity(report, rentalTransaction, rentalTransaction.getRentalItem());
+        return mapper.toDTO(repository.save(entity));
+    }
+
+    @Transactional
     public RentalDamageReportDTO update(RentalDamageReportDTO report) {
         if (report == null) throw new RequiredObjectIsNullException();
         if (report.getId() == null) throw new BusinessException("Rental damage report id is required");
         logger.info("Update Rental Damage Report");
         validateDescription(report.getDescription());
+        validateDamagedUnitLabel(report.getDamagedUnitLabel());
 
         RentalDamageReport entity = repository.findById(report.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Rental damage report not found"));
 
+        RentalDamageReportStatus previousStatus = entity.getStatus();
         RentalDamageReportStatus status = resolveStatus(report.getStatus());
         RentalTransaction rentalTransaction = resolveRentalTransaction(report.getRentalTransactionId());
         if (rentalTransaction != null) {
@@ -110,6 +145,7 @@ public class RentalDamageReportService {
 
         entity.setRentalTransaction(rentalTransaction);
         entity.setRentalItem(rentalItem);
+        entity.setDamagedUnitLabel(normalizeOptional(report.getDamagedUnitLabel()));
         entity.setDescription(report.getDescription().trim());
         entity.setStatus(status);
         entity.setReportedBy(report.getReportedBy());
@@ -124,7 +160,12 @@ public class RentalDamageReportService {
             entity.setResolvedBy(null);
         }
 
-        return mapper.toDTO(repository.save(entity));
+        RentalDamageReport saved = repository.save(entity);
+        if (previousStatus == RentalDamageReportStatus.OPEN && status != RentalDamageReportStatus.OPEN) {
+            releaseDamagedRentalStockIfComplete(saved);
+        }
+
+        return mapper.toDTO(saved);
     }
 
     @Transactional
@@ -143,7 +184,10 @@ public class RentalDamageReportService {
         entity.setStatus(RentalDamageReportStatus.RESOLVED);
         entity.setResolvedAt(LocalDateTime.now());
 
-        return mapper.toDTO(repository.save(entity));
+        RentalDamageReport saved = repository.save(entity);
+        releaseDamagedRentalStockIfComplete(saved);
+
+        return mapper.toDTO(saved);
     }
 
     @Transactional
@@ -155,7 +199,8 @@ public class RentalDamageReportService {
             cashRegisterClosureGuardService.ensureRentalTransactionIsOpen(entity.getRentalTransaction());
         }
         entity.setStatus(RentalDamageReportStatus.CANCELLED);
-        repository.save(entity);
+        RentalDamageReport saved = repository.save(entity);
+        releaseDamagedRentalStockIfComplete(saved);
     }
 
     private void prepareDefaults(RentalDamageReportDTO report) {
@@ -168,6 +213,8 @@ public class RentalDamageReportService {
         if (report.getReportedAt() == null) {
             report.setReportedAt(LocalDateTime.now());
         }
+
+        report.setDamagedUnitLabel(normalizeOptional(report.getDamagedUnitLabel()));
 
         RentalDamageReportStatus status = resolveStatus(report.getStatus());
 
@@ -210,6 +257,48 @@ public class RentalDamageReportService {
         if (description.trim().length() > 500) {
             throw new BusinessException("Damage description cannot exceed 500 characters");
         }
+    }
+
+    private void validateDamagedUnitLabel(String damagedUnitLabel) {
+        if (damagedUnitLabel != null && damagedUnitLabel.trim().length() > 80) {
+            throw new BusinessException("Damaged unit label cannot exceed 80 characters");
+        }
+    }
+
+    private void releaseDamagedRentalStockIfComplete(RentalDamageReport report) {
+        RentalTransaction rentalTransaction = report.getRentalTransaction();
+
+        if (rentalTransaction == null || rentalTransaction.getStatus() != RentalTransactionStatus.DAMAGED) {
+            return;
+        }
+
+        long openDamageReports = repository.countByRentalTransaction_IdAndStatusAndIdNot(
+                rentalTransaction.getId(),
+                RentalDamageReportStatus.OPEN,
+                report.getId()
+        );
+
+        if (openDamageReports > 0) {
+            return;
+        }
+
+        RentalItem rentalItem = rentalTransaction.getRentalItem();
+        rentalItem.setAvailableStock(Math.min(
+                rentalItem.getAvailableStock() + rentalTransaction.getQuantity(),
+                rentalItem.getTotalStock()
+        ));
+        rentalItemRepository.save(rentalItem);
+
+        rentalTransaction.setStatus(RentalTransactionStatus.RETURNED);
+        rentalTransactionRepository.save(rentalTransaction);
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     private RentalDamageReportStatus resolveStatus(String status) {

@@ -84,6 +84,10 @@ public class BookingService {
         return repository.findAll(pageable).map(mapper::toDTO);
     }
 
+    public List<BookingDTO> findAll() {
+        return findAll(Pageable.unpaged()).getContent();
+    }
+
     public BookingDTO findById(Long id) {
         logger.info("Find Booking by ID");
         var booking = repository.findById(id)

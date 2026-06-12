@@ -4,6 +4,7 @@ export type RentalDamageReport = {
   id?: number;
   rentalTransactionId?: number | null;
   rentalItemId?: number | null;
+  damagedUnitLabel?: string | null;
   description: string;
   status?: RentalDamageReportStatus;
   reportedAt?: string;
@@ -16,6 +17,7 @@ export type RentalDamageReportPayload = {
   id?: number;
   rentalTransactionId?: number | null;
   rentalItemId?: number | null;
+  damagedUnitLabel?: string | null;
   description: string;
   status?: RentalDamageReportStatus;
   reportedBy?: number | null;

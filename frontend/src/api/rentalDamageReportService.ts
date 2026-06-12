@@ -19,6 +19,12 @@ export const rentalDamageReportService = {
   findByRentalTransactionId(rentalTransactionId: Id) {
     return apiClient.getPageContent<RentalDamageReport>(`${BASE_PATH}/rental-transaction/${rentalTransactionId}`);
   },
+  reportTransactionDamage(rentalTransactionId: Id, report: RentalDamageReportPayload) {
+    return apiClient.post<RentalDamageReport, RentalDamageReportPayload>(
+      `${BASE_PATH}/rental-transaction/${rentalTransactionId}/damage`,
+      report
+    );
+  },
   create(report: RentalDamageReportPayload) {
     return apiClient.post<RentalDamageReport, RentalDamageReportPayload>(BASE_PATH, report);
   },

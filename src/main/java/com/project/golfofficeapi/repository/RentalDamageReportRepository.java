@@ -29,4 +29,12 @@ public interface RentalDamageReportRepository extends JpaRepository<RentalDamage
     default List<RentalDamageReport> findByRentalTransactionId(Long rentalTransactionId) {
         return findByRentalTransaction_Id(rentalTransactionId);
     }
+
+    boolean existsByRentalTransaction_IdAndStatus(Long rentalTransactionId, RentalDamageReportStatus status);
+
+    long countByRentalTransaction_IdAndStatusAndIdNot(
+            Long rentalTransactionId,
+            RentalDamageReportStatus status,
+            Long id
+    );
 }

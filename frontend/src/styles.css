@@ -219,6 +219,18 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(47, 125, 91, 0.12);
 }
 
+.material-select-control {
+  min-height: 46px;
+  height: 46px;
+  padding: 0 40px 0 12px;
+  line-height: 46px;
+  vertical-align: middle;
+}
+
+.material-status-filter {
+  min-width: 220px;
+}
+
 .checkbox-field {
   grid-template-columns: auto 1fr;
   align-items: center;

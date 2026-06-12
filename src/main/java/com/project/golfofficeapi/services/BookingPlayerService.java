@@ -103,6 +103,10 @@ public class BookingPlayerService {
         return repository.findByStatus(BookingPlayerStatus.ACTIVE, pageable).map(mapper::toDTO);
     }
 
+    public List<BookingPlayerDTO> findAll() {
+        return findAll(Pageable.unpaged()).getContent();
+    }
+
     public BookingPlayerDTO findById(Long id) {
         logger.info("Find Booking Player by ID");
         var bookingPlayer = repository.findById(id)

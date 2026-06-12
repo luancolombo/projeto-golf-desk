@@ -275,7 +275,7 @@ public class CashRegisterClosureService {
 
     private List<RentalTransaction> findUnreturnedRentals(LocalDate businessDate, List<RentalTransaction> rentalTransactions) {
         return rentalTransactions.stream()
-                .filter(rentalTransaction -> rentalTransaction.getStatus() == RentalTransactionStatus.RENTED)
+                .filter(rentalTransaction -> rentalTransaction.getStatus() != null && rentalTransaction.getStatus().reservesStock())
                 .filter(rentalTransaction -> rentalTransaction.getBooking() != null)
                 .filter(rentalTransaction -> rentalTransaction.getBooking().getTeeTime() != null)
                 .filter(rentalTransaction -> !rentalTransaction.getBooking().getTeeTime().getPlayDate().isAfter(businessDate))

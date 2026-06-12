@@ -210,6 +210,7 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
   const [rentalQuantity, setRentalQuantity] = useState("1");
   const [rentalStatus, setRentalStatus] = useState("RENTED");
   const [returnInspectionRentalId, setReturnInspectionRentalId] = useState<number | null>(null);
+  const [returnDamageUnitLabel, setReturnDamageUnitLabel] = useState("");
   const [returnDamageDescription, setReturnDamageDescription] = useState("");
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
   const [selectedPaymentBookingPlayerId, setSelectedPaymentBookingPlayerId] = useState("");
@@ -1144,12 +1145,14 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
     }
 
     setReturnInspectionRentalId(Number(rentalTransaction.id));
+    setReturnDamageUnitLabel("");
     setReturnDamageDescription("");
     setActiveDetailTab("rentals");
   }
 
   function resetReturnInspection() {
     setReturnInspectionRentalId(null);
+    setReturnDamageUnitLabel("");
     setReturnDamageDescription("");
   }
 
@@ -1175,18 +1178,24 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
     };
 
     setIsLoading(true);
-    showRequest("PUT", status === "DAMAGED" ? "/rental-transaction + /rental-damage-report" : "/rental-transaction", payload);
+    const damagePayload = {
+      damagedUnitLabel: returnDamageUnitLabel.trim() || null,
+      description: returnDamageDescription.trim(),
+      status: "OPEN"
+    };
+    showRequest(
+      status === "DAMAGED" ? "POST" : "PUT",
+      status === "DAMAGED" ? `/rental-damage-report/rental-transaction/${rentalTransaction.id}/damage` : "/rental-transaction",
+      status === "DAMAGED" ? damagePayload : payload
+    );
 
     try {
-      const savedRentalTransaction = await rentalTransactionService.update(payload);
       const damageReport = status === "DAMAGED"
-        ? await rentalDamageReportService.create({
-            rentalTransactionId: Number(savedRentalTransaction.id),
-            rentalItemId: Number(savedRentalTransaction.rentalItemId),
-            description: returnDamageDescription.trim(),
-            status: "OPEN"
-          })
+        ? await rentalDamageReportService.reportTransactionDamage(rentalTransaction.id, damagePayload)
         : null;
+      const savedRentalTransaction = status === "DAMAGED"
+        ? { ...rentalTransaction, status: "DAMAGED" }
+        : await rentalTransactionService.update(payload);
       const refreshedData = await refreshAgendaData();
       setSelectedBookingId(savedRentalTransaction.bookingId);
       setActiveDetailTab("rentals");
@@ -2430,6 +2439,16 @@ export function AgendaPage({ onApiStatusChange }: AgendaPageProps) {
                                 <strong>{getRentalItemName(rentalTransaction.rentalItemId)}</strong>
                                 <p>Confirme se o material voltou em bom estado ou registre a avaria encontrada.</p>
                               </div>
+                              <label>
+                                <span>Unidade ou etiqueta</span>
+                                <input
+                                  maxLength={80}
+                                  placeholder="Ex.: Buggy #4, trolley T-12"
+                                  type="text"
+                                  value={returnDamageUnitLabel}
+                                  onChange={(event) => setReturnDamageUnitLabel(event.target.value)}
+                                />
+                              </label>
                               <label>
                                 <span>Avaria observada</span>
                                 <textarea

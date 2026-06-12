@@ -16,6 +16,7 @@ public class RentalDamageReportDTO extends RepresentationModel<RentalDamageRepor
     private Long id;
     private Long rentalTransactionId;
     private Long rentalItemId;
+    private String damagedUnitLabel;
     @NotBlank(message = "Description is Required!")
     private String description;
     private String status;
@@ -48,6 +49,14 @@ public class RentalDamageReportDTO extends RepresentationModel<RentalDamageRepor
 
     public void setRentalItemId(Long rentalItemId) {
         this.rentalItemId = rentalItemId;
+    }
+
+    public String getDamagedUnitLabel() {
+        return damagedUnitLabel;
+    }
+
+    public void setDamagedUnitLabel(String damagedUnitLabel) {
+        this.damagedUnitLabel = damagedUnitLabel;
     }
 
     public String getDescription() {

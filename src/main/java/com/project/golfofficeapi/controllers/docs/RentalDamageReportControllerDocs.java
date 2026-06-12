@@ -78,6 +78,23 @@ public interface RentalDamageReportControllerDocs {
     );
 
     @Operation(
+            summary = "Report Rental Transaction Damage",
+            description = "Atomically marks a rental transaction as damaged and creates an open damage report.",
+            tags = {"Rental Damage Reports"},
+            responses = {
+                    @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = RentalDamageReportDTO.class))),
+                    @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
+                    @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
+                    @ApiResponse(responseCode = "409", ref = "#/components/responses/Conflict"),
+                    @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
+            }
+    )
+    RentalDamageReportDTO reportTransactionDamage(
+            @PathVariable("rentalTransactionId") Long rentalTransactionId,
+            @Valid @RequestBody RentalDamageReportDTO report
+    );
+
+    @Operation(
             summary = "Create Rental Damage Report",
             description = "Creates a rental damage report during item return inspection.",
             tags = {"Rental Damage Reports"},

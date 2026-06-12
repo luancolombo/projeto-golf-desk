@@ -76,6 +76,10 @@ public class CheckInTicketService {
         return repository.findByBookingPlayer_Id(bookingPlayerId, pageable).map(mapper::toDTO);
     }
 
+    public List<CheckInTicketDTO> findByBookingPlayerId(Long bookingPlayerId) {
+        return findByBookingPlayerId(bookingPlayerId, Pageable.unpaged()).getContent();
+    }
+
     @Transactional
     public CheckInTicketDTO create(CheckInTicketDTO ticket) {
         if (ticket == null) throw new RequiredObjectIsNullException();

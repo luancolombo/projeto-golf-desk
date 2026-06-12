@@ -21,6 +21,7 @@ public class RentalDamageReportMapper {
         entity.setId(dto.getId());
         entity.setRentalTransaction(rentalTransaction);
         entity.setRentalItem(rentalItem);
+        entity.setDamagedUnitLabel(dto.getDamagedUnitLabel());
         entity.setDescription(dto.getDescription());
         entity.setStatus(RentalDamageReportStatus.fromString(dto.getStatus()));
         entity.setReportedAt(dto.getReportedAt());
@@ -35,6 +36,7 @@ public class RentalDamageReportMapper {
         dto.setId(entity.getId());
         dto.setRentalTransactionId(entity.getRentalTransactionId());
         dto.setRentalItemId(entity.getRentalItemId());
+        dto.setDamagedUnitLabel(entity.getDamagedUnitLabel());
         dto.setDescription(entity.getDescription());
         dto.setStatus(entity.getStatus() == null ? null : entity.getStatus().name());
         dto.setReportedAt(entity.getReportedAt());

@@ -24,6 +24,8 @@ public class RentalDamageReport implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rental_item_id")
     private RentalItem rentalItem;
+    @Column(name = "damaged_unit_label", length = 80)
+    private String damagedUnitLabel;
     @Column(nullable = false, length = 500)
     private String description;
     @Enumerated(EnumType.STRING)
@@ -92,6 +94,14 @@ public class RentalDamageReport implements Serializable {
 
     public void setRentalItem(RentalItem rentalItem) {
         this.rentalItem = rentalItem;
+    }
+
+    public String getDamagedUnitLabel() {
+        return damagedUnitLabel;
+    }
+
+    public void setDamagedUnitLabel(String damagedUnitLabel) {
+        this.damagedUnitLabel = damagedUnitLabel;
     }
 
     public String getDescription() {

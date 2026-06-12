@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Boxes, Edit, List, PackageCheck, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Boxes, CheckCircle, Edit, List, PackageCheck, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
 import {
   getApiErrorMessage,
   getApiErrorResponse,
@@ -20,7 +20,7 @@ import {
 import { Input } from "../components/ui/input";
 import { useAuth } from "../features/auth/AuthContext";
 import { canDeleteRecords, canManageRentalItems } from "../features/auth/permissions";
-import type { RentalItem, RentalItemPayload } from "../types";
+import type { RentalDamageReport, RentalItem, RentalItemPayload, RentalTransaction } from "../types";
 
 type FeedbackType = "success" | "error" | "";
 
@@ -99,14 +99,23 @@ function isActiveRentalItem(rentalItem: RentalItem) {
   return rentalItem.active !== false;
 }
 
+function isRentedTransaction(rentalTransaction: RentalTransaction) {
+  return String(rentalTransaction.status || "RENTED").toUpperCase() === "RENTED";
+}
+
 export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
   const { role } = useAuth();
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
   const [visibleRentalItems, setVisibleRentalItems] = useState<RentalItem[]>([]);
+  const [rentalTransactions, setRentalTransactions] = useState<RentalTransaction[]>([]);
+  const [damageReports, setDamageReports] = useState<RentalDamageReport[]>([]);
+  const [damageStatusFilter, setDamageStatusFilter] = useState("OPEN");
   const [form, setForm] = useState<RentalItemFormState>(emptyForm);
   const [searchId, setSearchId] = useState("");
   const [rentalItemPendingDelete, setRentalItemPendingDelete] = useState<RentalItem | null>(null);
   const [isReturnAllDialogOpen, setIsReturnAllDialogOpen] = useState(false);
+  const [returnDamageTransactionId, setReturnDamageTransactionId] = useState("");
+  const [returnDamageUnitLabel, setReturnDamageUnitLabel] = useState("");
   const [returnNotes, setReturnNotes] = useState("");
   const [lastReturnNote, setLastReturnNote] = useState<ReturnNote | null>(() => {
     const storedNote = window.localStorage.getItem("golf-office-last-material-return-note");
@@ -125,6 +134,10 @@ export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
   const rentalItemCountLabel = useMemo(
     () => `${visibleRentalItems.length} material${visibleRentalItems.length === 1 ? "" : "is"}`,
     [visibleRentalItems.length]
+  );
+  const openRentalTransactions = useMemo(
+    () => rentalTransactions.filter(isRentedTransaction),
+    [rentalTransactions]
   );
   const canManageInventory = canManageRentalItems(role);
   const canDelete = canDeleteRecords(role);
@@ -145,6 +158,15 @@ export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
     setForm(emptyForm);
   }
 
+  function getRentalItemName(rentalItemId: number | string | null | undefined) {
+    const rentalItem = rentalItems.find((item) => String(item.id) === String(rentalItemId));
+    return rentalItem?.name ?? `Material #${rentalItemId ?? "-"}`;
+  }
+
+  function describeRentalTransaction(rentalTransaction: RentalTransaction) {
+    return `#${rentalTransaction.id} - ${getRentalItemName(rentalTransaction.rentalItemId)} (${rentalTransaction.quantity})`;
+  }
+
   function saveReturnNote(note: ReturnNote) {
     window.localStorage.setItem("golf-office-last-material-return-note", JSON.stringify(note));
     setLastReturnNote(note);
@@ -153,15 +175,23 @@ export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
   async function loadRentalItems() {
     setIsLoading(true);
     setFeedback({ message: "Carregando materiais...", type: "success" });
-    showRequest("GET", "/rental-item");
+    showRequest("GET", "/rental-item + /rental-transaction + /rental-damage-report");
 
     try {
-      const data = await rentalItemService.findAll();
+      const [data, transactionsData, damageReportsData] = await Promise.all([
+        rentalItemService.findAll(),
+        rentalTransactionService.findAll(),
+        damageStatusFilter === "ALL"
+          ? rentalDamageReportService.findAll()
+          : rentalDamageReportService.findByStatus(damageStatusFilter)
+      ]);
       const activeData = data.filter(isActiveRentalItem);
 
       setRentalItems(data);
       setVisibleRentalItems(activeData);
-      showResponse(data);
+      setRentalTransactions(transactionsData);
+      setDamageReports(damageReportsData);
+      showResponse({ rentalItems: data, rentalTransactions: transactionsData, damageReports: damageReportsData });
       setApiStatus("Conectada");
       setFeedback({ message: "Materiais ativos carregados com sucesso.", type: "success" });
     } catch (error) {
@@ -279,18 +309,29 @@ export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
   }
 
   async function returnAllMaterials() {
+    if (returnNotes.trim() && !returnDamageTransactionId) {
+      setFeedback({ message: "Selecione a transacao do material danificado antes de registrar a avaria.", type: "error" });
+      return;
+    }
+
     setIsReturnAllDialogOpen(false);
     setIsLoading(true);
-    showRequest("PUT", "/rental-transaction/return-all");
+    showRequest(
+      returnNotes.trim() ? "POST + PUT" : "PUT",
+      returnNotes.trim()
+        ? `/rental-damage-report/rental-transaction/${returnDamageTransactionId}/damage + /rental-transaction/return-all`
+        : "/rental-transaction/return-all"
+    );
 
     try {
-      const returnedTransactions = await rentalTransactionService.returnAll();
       const damageReport = returnNotes.trim()
-        ? await rentalDamageReportService.create({
+        ? await rentalDamageReportService.reportTransactionDamage(Number(returnDamageTransactionId), {
+            damagedUnitLabel: returnDamageUnitLabel.trim() || null,
             description: returnNotes.trim(),
             status: "OPEN"
           })
         : null;
+      const returnedTransactions = await rentalTransactionService.returnAll();
       const note = {
         createdAt: new Date().toISOString(),
         reportId: damageReport?.id,
@@ -307,12 +348,62 @@ export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
         damageReport
       });
       setReturnNotes("");
+      setReturnDamageTransactionId("");
+      setReturnDamageUnitLabel("");
       await loadRentalItems();
       setApiStatus("Conectada");
       setFeedback({
         message: `${returnedTransactions.length} transacao${returnedTransactions.length === 1 ? "" : "es"} de material processada${returnedTransactions.length === 1 ? "" : "s"} para devolucao.`,
         type: "success"
       });
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      setApiStatus("Falha na conexao");
+      setFeedback({ message, type: "error" });
+      showResponse(getApiErrorResponse(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function resolveDamageReport(report: RentalDamageReport) {
+    if (!report.id) {
+      return;
+    }
+
+    setIsLoading(true);
+    showRequest("PUT", `/rental-damage-report/${report.id}/resolve`);
+
+    try {
+      const resolvedReport = await rentalDamageReportService.resolve(report.id);
+      showResponse(resolvedReport);
+      await loadRentalItems();
+      setApiStatus("Conectada");
+      setFeedback({ message: "Avaria resolvida e estoque atualizado quando aplicavel.", type: "success" });
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      setApiStatus("Falha na conexao");
+      setFeedback({ message, type: "error" });
+      showResponse(getApiErrorResponse(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function cancelDamageReport(report: RentalDamageReport) {
+    if (!report.id) {
+      return;
+    }
+
+    setIsLoading(true);
+    showRequest("DELETE", `/rental-damage-report/${report.id}`);
+
+    try {
+      await rentalDamageReportService.remove(report.id);
+      showResponse({ message: "Avaria cancelada." });
+      await loadRentalItems();
+      setApiStatus("Conectada");
+      setFeedback({ message: "Avaria cancelada e estoque atualizado quando aplicavel.", type: "success" });
     } catch (error) {
       const message = getApiErrorMessage(error);
       setApiStatus("Falha na conexao");
@@ -357,6 +448,37 @@ export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
           />
         </label>
 
+        {returnNotes.trim() ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(180px,260px)]">
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Transacao com avaria</span>
+              <select
+                className="material-select-control rounded-md border border-slate-300 bg-white text-sm text-slate-950 outline-none focus:border-[#2f7d5b] focus:ring-2 focus:ring-[#2f7d5b]/15"
+                required
+                value={returnDamageTransactionId}
+                onChange={(event) => setReturnDamageTransactionId(event.target.value)}
+              >
+                <option value="">Selecione o material alugado</option>
+                {openRentalTransactions.map((rentalTransaction) => (
+                  <option key={rentalTransaction.id} value={rentalTransaction.id}>
+                    {describeRentalTransaction(rentalTransaction)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-600">Unidade ou etiqueta</span>
+              <Input
+                className="border-slate-300 bg-white text-slate-950"
+                maxLength={80}
+                placeholder="Ex.: Buggy #4"
+                value={returnDamageUnitLabel}
+                onChange={(event) => setReturnDamageUnitLabel(event.target.value)}
+              />
+            </label>
+          </div>
+        ) : null}
+
         {lastReturnNote ? (
           <div className="mt-4 grid gap-1 rounded-lg border border-amber-200 bg-amber-50 p-4">
             <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Ultima anotacao</span>
@@ -367,6 +489,94 @@ export function MaterialsPage({ onApiStatusChange }: MaterialsPageProps) {
             <p className="m-0 text-sm text-slate-700">{lastReturnNote.notes}</p>
           </div>
         ) : null}
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#2f7d5b]">Avarias</p>
+            <h2 className="text-2xl font-black text-slate-950">Materiais danificados</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select
+              className="material-select-control material-status-filter rounded-md border border-slate-300 bg-white text-sm text-slate-950 outline-none focus:border-[#2f7d5b] focus:ring-2 focus:ring-[#2f7d5b]/15"
+              value={damageStatusFilter}
+              onChange={(event) => setDamageStatusFilter(event.target.value)}
+            >
+              <option value="OPEN">Abertas</option>
+              <option value="RESOLVED">Resolvidas</option>
+              <option value="CANCELLED">Canceladas</option>
+              <option value="ALL">Todas</option>
+            </select>
+            <Button className="bg-[#052d5f] text-white hover:bg-[#073a73]" disabled={isLoading} type="button" onClick={loadRentalItems}>
+              <List className="h-4 w-4" />
+              Atualizar
+            </Button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table>
+            <thead className="bg-slate-50">
+              <tr>
+                <th>Relatorio</th>
+                <th>Material</th>
+                <th>Unidade</th>
+                <th>Status</th>
+                <th>Datas</th>
+                <th>Acoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {damageReports.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan={6}>
+                    {isLoading ? "Carregando avarias..." : "Nenhuma avaria encontrada."}
+                  </td>
+                </tr>
+              ) : (
+                damageReports.map((report) => (
+                  <tr key={report.id}>
+                    <td>
+                      <div className="row-main">Report #{report.id}</div>
+                      <div className="row-sub">{report.description}</div>
+                    </td>
+                    <td>
+                      <div className="row-main">{getRentalItemName(report.rentalItemId)}</div>
+                      <div className="row-sub">Rental #{report.rentalTransactionId ?? "-"}</div>
+                    </td>
+                    <td>{report.damagedUnitLabel || "-"}</td>
+                    <td>
+                      <Badge className={report.status === "OPEN" ? "bg-amber-100 text-amber-800 hover:bg-amber-100" : report.status === "RESOLVED" ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
+                        {report.status}
+                      </Badge>
+                    </td>
+                    <td>
+                      <div className="row-main">{report.reportedAt ? new Date(report.reportedAt).toLocaleString("pt-PT") : "-"}</div>
+                      <div className="row-sub">{report.resolvedAt ? `Resolvida ${new Date(report.resolvedAt).toLocaleString("pt-PT")}` : "Em aberto"}</div>
+                    </td>
+                    <td>
+                      {report.status === "OPEN" ? (
+                        <div className="flex flex-wrap gap-2">
+                          <Button className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200" disabled={isLoading} size="sm" type="button" onClick={() => { void resolveDamageReport(report); }}>
+                            <CheckCircle className="h-4 w-4" />
+                            Resolver
+                          </Button>
+                          <Button className="bg-red-100 text-red-800 hover:bg-red-200" disabled={isLoading} size="sm" type="button" onClick={() => { void cancelDamageReport(report); }}>
+                            <XCircle className="h-4 w-4" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="row-sub">Sem acoes</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className={`grid gap-6 ${canManageInventory ? "xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]" : ""}`.trim()}>
