@@ -42,11 +42,13 @@ Main features already implemented:
 - Refund workflow that releases the player from the booking operation while preserving historical records.
 - Stock control for rentable items.
 - Individual, global, and automatic return of rented items.
-- Individual rental return inspection with optional damage report persistence.
+- Individual rental return inspection with transactional damage report persistence.
+- Damage report resolution/cancellation that restores stock when the damaged rental can return to availability.
+- Materials damage management screen with filters, history, damaged unit labels, resolve, and cancel actions.
 - Automatic scheduled return of rental items every day at midnight.
-- Daily cash register closing with preview, persisted closing summary, closing items, printable report, and totals by payment method.
+- Daily cash register closing with preview, persisted closing summary, closing items, printable report, totals by payment method, and rental alerts for rented, damaged, or lost stock.
 - Domain enums for operational statuses such as booking player, booking, tee time, rental transaction, and payment.
-- MySQL integration with Spring Data JPA.
+- PostgreSQL integration with Spring Data JPA.
 - Relational database model with JPA relationships and foreign keys for the main domain flows.
 - Flyway migrations, schema validation, constraints, indexes, and initial seed data.
 - Development seed user for testing authenticated endpoints.
@@ -56,7 +58,7 @@ Main features already implemented:
 - Frontend support for paginated API responses.
 - Players page with alphabetical listing, total count, and next/previous pagination controls.
 - Legacy static frontend archived after the React migration covered the current flows.
-- Docker Compose setup for Spring Boot API and MySQL.
+- Docker setup for Spring Boot API and React frontend, with PostgreSQL support through local or managed database connection strings.
 - Integration tests for business flows and security tests with MockMvc.
 
 ## Tech Stack
@@ -69,7 +71,7 @@ Main features already implemented:
 - Spring Validation
 - Spring Scheduling
 - Spring Security
-- MySQL
+- PostgreSQL
 - Flyway
 - Dozer Mapper
 - JWT
@@ -499,7 +501,8 @@ Highlights:
 - Item return with stock restoration.
 - Endpoint to return all pending rental items.
 - Individual return inspection in the React Agenda: the attendant must choose between returning the item in good condition or registering damage.
-- Damaged rentals are marked as `DAMAGED` and remain outside available stock.
+- Damaged rentals are registered through the transactional damage endpoint, marked as `DAMAGED`, and remain outside available stock while the damage report is open.
+- Resolving or cancelling the last open damage report for a damaged rental marks the transaction as `RETURNED` and restores the reserved stock, capped at total stock.
 - Automatic scheduled return of rentals in `RENTED` status every day at midnight.
 - Prevents deleting an active rental transaction before returning or cancelling it.
 - Automatic inclusion of rentals in the booking total.
@@ -522,6 +525,7 @@ Operations:
 - `GET /rental-damage-report/status/{status}?page=0&size=20&sort=id,asc`
 - `GET /rental-damage-report/rental-item/{rentalItemId}?page=0&size=20&sort=id,asc`
 - `GET /rental-damage-report/rental-transaction/{rentalTransactionId}?page=0&size=20&sort=id,asc`
+- `POST /rental-damage-report/rental-transaction/{rentalTransactionId}/damage`
 - `POST /rental-damage-report`
 - `PUT /rental-damage-report`
 - `PUT /rental-damage-report/{id}/resolve`
@@ -530,8 +534,12 @@ Operations:
 Highlights:
 
 - Damage reports can be linked to a rental transaction and/or rental item.
+- `damagedUnitLabel` can identify the affected physical unit or label, such as `Buggy #4`.
+- The transactional damage endpoint marks the rental transaction as `DAMAGED` and creates the open damage report in the same database transaction.
 - Used by the React Agenda when returning one rented item with damage.
-- Used by the React Materials page when returning all materials at the end of the day and entering damage notes.
+- Used by the React Materials page when returning all materials at the end of the day and entering damage notes tied to a selected rental transaction.
+- The React Materials page lists damage reports by status and allows resolving or cancelling open reports.
+- Resolving or cancelling an open report restores stock when no other open report remains for the same damaged rental transaction.
 - Statuses: `OPEN`, `RESOLVED`, and `CANCELLED`.
 - Delete behaves as cancellation, preserving the historical report.
 - Provides a future-ready flow for maintenance, repair, replacement, or billing decisions.
@@ -633,6 +641,7 @@ Highlights:
 - Gross, refunded, and net totals.
 - Counts paid payments, refunded payments, issued receipts, cancelled receipts, pending bookings, and unreturned rentals.
 - Closing items preserve payment, refund, receipt, cancelled receipt, pending booking, and unreturned rental details.
+- Rental alerts include every transaction that still reserves stock, including `RENTED`, `DAMAGED`, and `LOST`.
 - Prevents closing the same business date twice with status `CLOSED`.
 - Uses internal calculation classes instead of DTOs as business-rule draft objects.
 - Printable report available in the React Cash Register page.
@@ -728,11 +737,13 @@ Current React migration status:
 - Players tab with add/remove player, check-in, and player totals.
 - Check-in ticket preview and printing from the Players tab.
 - Materials tab with rental per player, return inspection, damage report creation, edit, delete, and stock handling.
+- Rental return inspection captures an optional damaged unit/label and uses the backend transactional damage endpoint.
 - Payments tab with partial payment, edit, delete, refund, and pending balance.
 - Refunded players/bookings are removed from the operational agenda view while historical data remains available through backend records.
 - Receipt preview and printing from the Payments tab.
 - Cash Register page with daily preview, persisted closing, totals by payment method, alerts, closing items, and printable report.
-- Materials page with end-of-day return-all action and persisted damage report notes.
+- Materials page with end-of-day return-all action, damage notes tied to a selected rental transaction, damaged unit/label capture, and damage report management.
+- Materials page damage management includes status filtering, history, resolve, cancel, and stock-restoration feedback.
 - Main navigation with sidebar layout for Players, Agenda, Materials, and Cash Register.
 - `RECEPTIONIST` does not see restricted actions such as delete buttons, rental item stock/price maintenance, or cash register closing.
 - `MANAGER` keeps full operational access in the frontend.
@@ -820,7 +831,7 @@ Frontend permission rules mirror the backend role model:
 Requirements:
 
 - Java 21
-- MySQL running
+- PostgreSQL running
 - `golf_api` database created
 
 From the project root:
@@ -858,9 +869,9 @@ On Windows:
 The project can also run with Docker Compose using:
 
 - Spring Boot API container
-- MySQL container
+- PostgreSQL container
 - Flyway migrations on application startup
-- Persistent MySQL volume
+- Persistent PostgreSQL volume
 
 Requirements:
 
@@ -882,14 +893,14 @@ docker compose up --build
 Docker services:
 
 ```text
-API:   http://localhost:8080
-MySQL: localhost:3307
+API:        http://localhost:8080
+PostgreSQL: localhost:5433
 ```
 
-Inside Docker, the API connects to MySQL using the service name:
+Inside Docker, the API connects to PostgreSQL using the service name:
 
 ```text
-mysql:3306
+postgres:5432
 ```
 
 Useful commands:
@@ -897,11 +908,11 @@ Useful commands:
 ```bash
 docker compose ps
 docker compose logs -f api
-docker compose logs -f mysql
+docker compose logs -f postgres
 docker compose down
 ```
 
-To stop containers and remove the MySQL volume, deleting the Docker database data:
+To stop containers and remove the PostgreSQL volume, deleting the Docker database data:
 
 ```bash
 docker compose down -v
@@ -975,11 +986,11 @@ Use a custom tag when needed:
 .\scripts\docker-compose-frontend.ps1 -Tag 20260606-120000
 ```
 
-The backend Compose file runs the API and MySQL:
+The backend Compose file runs the API and PostgreSQL:
 
 ```text
-API:   http://localhost:8080
-MySQL: localhost:3307
+API:        http://localhost:8080
+PostgreSQL: localhost:5433
 ```
 
 The frontend Compose file serves the React build through Nginx:
@@ -1002,7 +1013,7 @@ $env:VITE_API_BASE_URL="https://api.example.com"; .\scripts\docker-compose-front
 
 ### Megacorp Registry Compose
 
-The repository includes a Compose file matching the Megacorp registry deployment style:
+The repository includes a Compose file matching the ContainerCloud/Megacorp registry deployment style:
 
 ```text
 docker-compose.registry.yml
@@ -1014,6 +1025,10 @@ It references both images from the Megacorp registry:
 registry.megacorpservers.com/cust-019e9476bb747460b9aa0048/golf-desk-backend:<TAG>
 registry.megacorpservers.com/cust-019e9476bb747460b9aa0048/golf-desk-frontend:<TAG>
 ```
+
+The CC deployment uses only the `backend` and `frontend` services. The database is the managed PostgreSQL instance provided by CC, passed to the backend through `DB_URL`; no database service should be included in the CC compose.
+
+For CC containers, use `host.docker.internal` in the managed database URL when the dashboard-provided URL uses `localhost`.
 
 Use the helper script to build and push both images with a datetime tag:
 
@@ -1065,7 +1080,7 @@ Note: to test the React frontend, keep the backend running at `http://localhost:
 
 ## Database
 
-The project uses MySQL.
+The project uses PostgreSQL.
 
 Current configuration:
 
@@ -1078,6 +1093,16 @@ Expected database:
 ```text
 golf_api
 ```
+
+The backend accepts either a JDBC PostgreSQL URL or a Heroku/managed-provider style URL in `DB_URL`:
+
+```text
+jdbc:postgresql://localhost:5432/golf_api
+postgres://user:password@host:5432/database
+postgresql://user:password@host:5432/database
+```
+
+`DatabaseUrlEnvironmentPostProcessor` normalizes `postgres://` and `postgresql://` values into Spring's JDBC datasource properties before the application starts. This keeps local execution, Docker, and managed CC database URLs compatible.
 
 Hibernate is configured with:
 
@@ -1094,10 +1119,12 @@ Current migration highlights:
 - Initial player seed data.
 - Foreign keys for Booking Player, Booking, Rental Transaction, Payment, Receipt, and Receipt Item flows.
 - Final constraints and indexes for the relational model.
+- PostgreSQL-compatible identity columns, timestamps, booleans, and conflict-safe seed inserts.
 - Check-in ticket table.
 - Booking player count and booking player status migrations.
 - Cash register closure and cash register closure item tables.
 - Rental damage report table with foreign keys to rental transaction and rental item.
+- Damaged unit/label column for identifying the affected material instance.
 - User table with role, encrypted password, active flag, and timestamps.
 - Refresh token table storing token hashes, expiration, and revocation timestamp.
 - Development manager seed user for local/demo authentication.
@@ -1146,7 +1173,8 @@ Recently implemented roadmap items:
 - Frontend automatic refresh token flow.
 - Frontend logout with backend refresh token revocation.
 - Frontend role-aware screens and actions.
-- Docker Compose for API and MySQL.
+- Docker Compose updated for API and PostgreSQL.
+- Materials page select controls adjusted to avoid clipped option text in the damage-management workflow.
 - Aggregated Agenda endpoint, `GET /agenda/day?date=YYYY-MM-DD`, to reduce multiple frontend requests into one optimized daily payload.
 - React Agenda consuming the aggregated daily endpoint for initial load and post-action refreshes.
 - Tailwind CSS and shadcn/ui frontend visual architecture.
