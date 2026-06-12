@@ -1,4 +1,4 @@
-INSERT IGNORE INTO player (full_name, tax_number, email, phone, hand_cap, member, notes) VALUES
+INSERT INTO player (full_name, tax_number, email, phone, hand_cap, member, notes) VALUES
 ('Lucas Ferreira', '100000001', 'lucas.ferreira001@golf.test', '910000001', '12', true, 'Prefere horarios da manha'),
 ('Mariana Costa', '100000002', 'mariana.costa002@golf.test', '910000002', '24', false, 'Guest frequente'),
 ('Rafael Martins', '100000003', 'rafael.martins003@golf.test', '910000003', '8', true, 'Usa equipamento proprio'),
@@ -98,7 +98,8 @@ INSERT IGNORE INTO player (full_name, tax_number, email, phone, hand_cap, member
 ('Mauricio Teles', '100000097', 'mauricio.teles097@golf.test', '910000097', '17', true, 'Membro regular'),
 ('Simone Paiva', '100000098', 'simone.paiva098@golf.test', '910000098', '30', false, 'Prefere tarde'),
 ('Vinicius Barreto', '100000099', 'vinicius.barreto099@golf.test', '910000099', '10', true, 'Joga com guests'),
-('Marcela Bastos', '100000100', 'marcela.bastos100@golf.test', '910000100', '25', false, 'Guest cadastrada');
+('Marcela Bastos', '100000100', 'marcela.bastos100@golf.test', '910000100', '25', false, 'Guest cadastrada')
+ON CONFLICT DO NOTHING;
 
 INSERT INTO rental_item (name, type, total_stock, available_stock, rental_price, active)
 SELECT 'Buggy', 'Material', 60, 60, 55.00, true
